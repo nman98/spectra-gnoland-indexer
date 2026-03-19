@@ -18,6 +18,13 @@ type TableInfo struct {
 	Columns   []ColumnInfo
 }
 
+type HypertableParams struct {
+	ChunkInterval   string
+	PartitionColumn string
+	OrderBy         string
+	SegmentBy       []string
+}
+
 // ColumnInfo contains metadata about a database column
 // Name and DBType are required
 // Nullable, Primary, and Unique are optional
@@ -175,8 +182,7 @@ func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 //
 // Parameters:
 // - tableInfo: the table info for the table to create
-// - chunkInterval: the interval to chunk the table by
-// - partitionColumn: the column to partition the table by
+// - params: the parameters for the hypertable
 //
 // Returns:
 // - string: the SQL for the hypertable
@@ -185,8 +191,11 @@ func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 // and the column info for the hypertable
 // The SQL statement will be in the form of CREATE TABLE IF NOT EXISTS <tableName>
 // (<column1> <column1Type>, <column2> <column2Type>, ...)
-// WITH (tsdb.hypertable, tsdb.partition_column='<partitionColumn>', tsdb.chunk_interval='<chunkInterval>')
-func GenerateCreateHypertableSQL(tableInfo *TableInfo, chunkInterval string, partitionColumn string) string {
+// WITH (tsdb.hypertable, tsdb.partition_column='<partitionColumn>', tsdb.chunk_interval='<chunkInterval>', tsdb.orderby='<orderBy>', tsdb.segmentby='<segmentBy>')
+func GenerateCreateHypertableSQL(
+	tableInfo *TableInfo,
+	params HypertableParams,
+) string {
 	var columns []string
 	var primaryKeys []string
 	var uniqueKeys []string
@@ -224,9 +233,12 @@ func GenerateCreateHypertableSQL(tableInfo *TableInfo, chunkInterval string, par
 		sql += fmt.Sprintf(",\n    UNIQUE (%s)", strings.Join(uniqueKeys, ", "))
 	}
 
+	segmentBy := strings.Join(params.SegmentBy, ", ")
+
 	// Add modern TimescaleDB hypertable configuration
-	sql += fmt.Sprintf("\n) WITH (\n    tsdb.hypertable,\n    tsdb.partition_column='%s',\n    tsdb.chunk_interval='%s'\n);",
-		partitionColumn, chunkInterval)
+	sql += fmt.Sprintf(
+		"\n) WITH (\n    tsdb.hypertable,\n    tsdb.partition_column='%s',\n    tsdb.chunk_interval='%s',\n    tsdb.orderby='%s',\n    tsdb.segmentby='%s'\n);",
+		params.PartitionColumn, params.ChunkInterval, params.OrderBy, segmentBy)
 
 	return sql
 }
@@ -452,7 +464,8 @@ func (db *DBInitializer) CreateSpecialTypeFromStruct(structType interface{}, typ
 // Returns:
 // - nil: if the function is successful
 // - error: if the function fails
-func (db *DBInitializer) CreateHypertableFromStruct(structType interface{}, tableName, partitionColumn, chunkInterval string) error {
+func (db *DBInitializer) CreateHypertableFromStruct(
+	structType interface{}, tableName string, params HypertableParams) error {
 	// First get the table info
 	tableInfo, err := GetTableInfo(structType, tableName)
 	if err != nil {
@@ -462,24 +475,33 @@ func (db *DBInitializer) CreateHypertableFromStruct(structType interface{}, tabl
 	// Try to detect TimescaleDB version
 	version, err := db.GetTimescaleDBVersion()
 	if err != nil {
-		// If we can't detect version, fall back to legacy method
-		l.Warn().Err(err).Msg("Warning: Could not detect TimescaleDB version, using legacy method")
-		return db.createHypertableLegacy(tableInfo, partitionColumn, chunkInterval)
+		// If we can't detect version, kill it something is wrong then
+		l.Fatal().Err(err).Msg("failed to get TimescaleDB version")
+		return fmt.Errorf("failed to get TimescaleDB version: %w", err)
 	}
 
-	// Use modern syntax for 2.19.3+, legacy for older versions
+	// Use modern syntax for 2.19.3+
 	if version.IsModernVersion() {
 		l.Info().Msgf("Using modern hypertable syntax for TimescaleDB %d.%d.%d", version.Major, version.Minor, version.Patch)
-		return db.createHypertableModern(tableInfo, partitionColumn, chunkInterval)
+		return db.createHypertableModern(tableInfo, params)
 	} else {
-		l.Info().Msgf("Using legacy hypertable syntax for TimescaleDB %d.%d.%d", version.Major, version.Minor, version.Patch)
-		return db.createHypertableLegacy(tableInfo, partitionColumn, chunkInterval)
+		// Deprecate the legacy, anything below 2.19.3+ should be considered unsupported
+		l.Fatal().Msg("TimescaleDB version is below 2.19.3, which is no longer supported")
+		return fmt.Errorf("TimescaleDB version is below 2.19.3, which is no longer supported")
 	}
 }
 
 // createHypertableModern creates a hypertable using the modern WITH syntax
-func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, partitionColumn, chunkInterval string) error {
-	sql := GenerateCreateHypertableSQL(tableInfo, chunkInterval, partitionColumn)
+//
+// Parameters:
+// - tableInfo: the table info for the table to create
+// - params: the parameters for the hypertable
+//
+// Returns:
+// - nil: if the function is successful
+// - error: if the function fails
+func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, params HypertableParams) error {
+	sql := GenerateCreateHypertableSQL(tableInfo, params)
 
 	_, err := db.pool.Exec(context.Background(), sql)
 	if err != nil {
@@ -500,6 +522,10 @@ func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, partitionC
 // Returns:
 // - nil: if the function is successful
 // - error: if the function fails
+//
+// Deprecated: This function is no longer supported, too many new features are being added by Tiger Data.
+// So assume the only supported versions of timescaledb are v2.19.3+. This function will be left if someone
+// does intend to work with the older versions but it will not be maintained.
 func (db *DBInitializer) createHypertableLegacy(tableInfo *TableInfo, partitionColumn, chunkInterval string) error {
 	// Step 1: Create regular table
 	sql := tableInfo.CreateTableSQL()
