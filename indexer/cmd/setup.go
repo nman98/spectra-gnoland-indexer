@@ -215,23 +215,62 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
 	hypertables := []struct {
-		table           sql_data_types.DBTable
-		partitionColumn string
-		chunkInterval   string
+		table  sql_data_types.DBTable
+		params dbinit.HypertableParams
 	}{
-		{sql_data_types.Blocks{}, "timestamp", "1 week"},
-		{sql_data_types.ValidatorBlockSigning{}, "timestamp", "1 week"},
-		{sql_data_types.AddressTx{}, "timestamp", "1 week"},
-		{sql_data_types.TransactionGeneral{}, "timestamp", "1 week"},
-		{sql_data_types.MsgSend{}, "timestamp", "1 week"},
-		{sql_data_types.MsgCall{}, "timestamp", "1 week"},
-		{sql_data_types.MsgAddPackage{}, "timestamp", "1 week"},
-		{sql_data_types.MsgRun{}, "timestamp", "1 week"},
+		{sql_data_types.Blocks{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
+		}},
+		{sql_data_types.ValidatorBlockSigning{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
+		}},
+		{sql_data_types.AddressTx{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
+		}},
+		{sql_data_types.TransactionGeneral{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
+		}},
+		{sql_data_types.MsgSend{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name", "message_counter"},
+		}},
+		{sql_data_types.MsgCall{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name", "message_counter"},
+		}},
+		{sql_data_types.MsgAddPackage{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name", "message_counter"},
+		}},
+		{sql_data_types.MsgRun{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name", "message_counter"},
+		}},
 	}
 
 	l.Info().Str("chain", chainName).Msg("inserting hypertables")
 	for _, ht := range hypertables {
-		if err := dbInit.CreateHypertableFromStruct(ht.table, ht.table.TableName(), ht.partitionColumn, ht.chunkInterval); err != nil {
+		if err := dbInit.CreateHypertableFromStruct(ht.table, ht.table.TableName(), ht.params); err != nil {
 			l.Error().Err(err).Str("table", ht.table.TableName()).Msg("failed to create hypertable")
 			return err
 		}
