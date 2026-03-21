@@ -69,5 +69,5 @@ type TransactionDbHandler interface {
 
 type InMemoryDbHandler interface {
 	GetTotalAddressesCount(ctx context.Context, chainName string) (int32, error)
-	GetAvgBlockProdTime(ctx context.Context, chainName string) (time.Duration, error)
+	GetAvgBlockProdTime(ctx context.Context, chainName string) (float64, error)
 }

@@ -221,13 +221,13 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 		{sql_data_types.Blocks{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
+			OrderBy:         "height DESC, timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
 		{sql_data_types.ValidatorBlockSigning{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
+			OrderBy:         "block_height DESC, timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
 		{sql_data_types.AddressTx{}, dbinit.HypertableParams{

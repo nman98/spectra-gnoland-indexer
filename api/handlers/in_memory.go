@@ -9,7 +9,7 @@ import (
 )
 
 type ConstData struct {
-	AvgBlockProdTime    time.Duration
+	AvgBlockProdTime    float64
 	TotalAddressesCount int32
 }
 

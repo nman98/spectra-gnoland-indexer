@@ -1,15 +1,11 @@
 package humatypes
 
-import (
-	"time"
-)
-
 type GetAvgBlockProdTimeInput struct{}
 
 type GetTotalAddressesCountInput struct{}
 
 type GetAvgBlockBody struct {
-	AvgBlockProdTime time.Duration `json:"avg_block_prod_time" doc:"Average block production time"`
+	AvgBlockProdTime float64 `json:"avg_block_prod_time" doc:"Average block production time"`
 }
 
 type GetTotalAddressesCountBody struct {

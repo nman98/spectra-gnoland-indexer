@@ -526,6 +526,8 @@ func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, params Hyp
 // Deprecated: This function is no longer supported, too many new features are being added by Tiger Data.
 // So assume the only supported versions of timescaledb are v2.19.3+. This function will be left if someone
 // does intend to work with the older versions but it will not be maintained.
+//
+//nolint:unused // It won't be maintained anymore. It might even be removed in the future but for now leave it.
 func (db *DBInitializer) createHypertableLegacy(tableInfo *TableInfo, partitionColumn, chunkInterval string) error {
 	// Step 1: Create regular table
 	sql := tableInfo.CreateTableSQL()
