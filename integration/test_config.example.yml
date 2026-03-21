@@ -18,6 +18,5 @@ pool_max_conn_lifetime_jitter: 30s
 
 # synthetic test config
 chain_id: gnoland
-max_height: 5000
 from_height: 1
 to_height: 5000

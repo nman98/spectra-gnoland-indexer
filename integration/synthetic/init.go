@@ -3,6 +3,7 @@ package synthetic
 import (
 	"context"
 	"log"
+	"runtime"
 	"sync"
 
 	addressCache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
@@ -17,13 +18,13 @@ import (
 type SyntheticIntegrationTestConfig struct {
 	DatabaseConfig database.DatabasePoolConfig
 	ChainID        string
-	MaxHeight      uint64
 	FromHeight     uint64
 	ToHeight       uint64
 }
 
-// RunSyntheticIntegrationTest runs a full integration test using synthetic data
-// This tests the entire orchestrator pipeline with generated data and a real database
+// RunSyntheticIntegrationTest runs a full integration test using synthetic data.
+// Data is generated and inserted in chunks so that only one chunk's worth of
+// synthetic blocks/transactions/commits lives in memory at a time.
 func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) error {
 	log.Printf("Starting synthetic integration test from height %d to %d", testConfig.FromHeight, testConfig.ToHeight)
 
@@ -31,7 +32,8 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 	db := database.NewTimescaleDb(testConfig.DatabaseConfig)
 	log.Printf("Connected to database successfully")
 
-	// Initialize address caches (required by data processor)
+	// Initialize address caches (required by data processor). These are shared
+	// across all chunks so accumulated address state carries forward correctly.
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	var validatorCache *addressCache.AddressCache
@@ -51,38 +53,52 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 	dataProc := dataProcessor.NewDataProcessor(db, addrCache, validatorCache, testConfig.ChainID)
 	log.Printf("Initialized data processor")
 
-	// Create synthetic query operator
-	syntheticQueryOp := NewSyntheticQueryOperator(testConfig.ChainID, testConfig.FromHeight, testConfig.MaxHeight)
-	log.Printf("Created synthetic query operator with max height %d", testConfig.MaxHeight)
-
-	// Create a mock database height interface for the orchestrator
-	mockDbHeight := &MockDatabaseHeight{lastHeight: testConfig.FromHeight - 1}
-
-	// Create a mock gnoland rpc client
-	mockGnoRpc := &MockGnolandRpcClient{latestHeight: testConfig.MaxHeight}
-
-	// Create basic config for orchestrator
 	orchConfig := &config.Config{
 		MaxBlockChunkSize:       500,
 		MaxTransactionChunkSize: 1000,
 	}
 
-	// Create orchestrator with synthetic components
-	orch := orchestrator.NewOrchestrator(
-		"historic", // Run in historic mode
-		orchConfig,
-		testConfig.ChainID,
-		mockDbHeight,
-		mockGnoRpc,
-		dataProc,
-		syntheticQueryOp, // Synthetic query operator
-	)
+	chunkSize := orchConfig.MaxBlockChunkSize
+	totalChunks := (testConfig.ToHeight - testConfig.FromHeight + chunkSize) / chunkSize
+	currentChunk := uint64(0)
 
-	log.Printf("Created orchestrator with synthetic components")
+	// Process height range in chunks. A fresh SyntheticQueryOperator is created
+	// for each chunk so its in-memory maps hold at most one chunk's data at a time.
+	// Once the orchestrator finishes processing a chunk and the operator goes out
+	// of scope the GC can reclaim that memory before the next chunk is generated.
+	for chunkStart := testConfig.FromHeight; chunkStart <= testConfig.ToHeight; chunkStart += chunkSize {
+		chunkEnd := min(chunkStart+chunkSize-1, testConfig.ToHeight)
+		currentChunk++
 
-	// Run the historic process - this will use synthetic data but process it through
-	// the real data processor and store it in the real database
-	orch.HistoricProcess(testConfig.FromHeight, testConfig.ToHeight, false)
+		log.Printf("Generating chunk %d/%d: blocks %d to %d", currentChunk, totalChunks, chunkStart, chunkEnd)
+
+		syntheticQueryOp := NewSyntheticQueryOperator(testConfig.ChainID, chunkStart, chunkEnd)
+
+		mockDbHeight := &MockDatabaseHeight{lastHeight: chunkStart - 1}
+		mockGnoRpc := &MockGnolandRpcClient{latestHeight: chunkEnd}
+
+		orch := orchestrator.NewOrchestrator(
+			"historic",
+			orchConfig,
+			testConfig.ChainID,
+			mockDbHeight,
+			mockGnoRpc,
+			dataProc,
+			syntheticQueryOp,
+		)
+
+		orch.HistoricProcess(chunkStart, chunkEnd, false)
+
+		log.Printf("Chunk %d/%d complete, freeing synthetic data", currentChunk, totalChunks)
+
+		// Drop the references so the GC can reclaim the chunk's maps before
+		// the next iteration allocates new ones.
+		// We force GC here to try to speed up the process as much as
+		// possible while also trying not to store much data in RAM.
+		syntheticQueryOp = nil
+		orch = nil
+		runtime.GC()
+	}
 
 	log.Printf("Synthetic integration test completed successfully!")
 	return nil

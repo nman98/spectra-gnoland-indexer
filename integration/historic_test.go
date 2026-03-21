@@ -29,7 +29,6 @@ type TestConfig struct {
 	PoolHealthCheckPeriod     time.Duration `yaml:"pool_health_check_period"`
 	PoolMaxConnLifetimeJitter time.Duration `yaml:"pool_max_conn_lifetime_jitter"`
 	ChainID                   string        `yaml:"chain_id"`
-	MaxHeight                 uint64        `yaml:"max_height"`
 	FromHeight                uint64        `yaml:"from_height"`
 	ToHeight                  uint64        `yaml:"to_height"`
 }
@@ -46,7 +45,6 @@ func TestHistoricSyntheticIntegration(t *testing.T) {
 	t.Logf("Test configuration loaded")
 	t.Logf("Chain ID: %s", config.ChainID)
 	t.Logf("Processing blocks %d to %d", config.FromHeight, config.ToHeight)
-	t.Logf("Max synthetic height: %d", config.MaxHeight)
 
 	err := synthetic.RunSyntheticIntegrationTest(&config)
 	if err != nil {
@@ -91,7 +89,6 @@ func loadTestConfig(t *testing.T) synthetic.SyntheticIntegrationTestConfig {
 			PoolMaxConnLifetimeJitter: config.PoolMaxConnLifetimeJitter,
 		},
 		ChainID:    config.ChainID,
-		MaxHeight:  config.MaxHeight,
 		FromHeight: config.FromHeight,
 		ToHeight:   config.ToHeight,
 	}

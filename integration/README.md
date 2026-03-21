@@ -15,13 +15,12 @@ The integration tests use a **synthetic data generator** to create realistic blo
 - Test configuration file created
 
 
-Additional info, anything above 100K block height is not recommended 
-to run. To clarify it can run but the
-generator that creates the synthetic data stores the data in the RAM 
-memory. Unless you have abnormally high RAM
-you are risking to run out of memory. On average I saw the RAM going 
-up to 4-5GB for the 100K blocks with 500 regular addresses and 50 
-validators.
+Synthetic data is generated and inserted **one chunk at a time** (500 blocks
+per chunk by default). Each chunk's blocks, transactions, and commits are
+generated into memory, processed through the real pipeline and inserted into
+the database, then freed before the next chunk starts. Peak RAM usage is
+therefore proportional to a single chunk rather than the full height range,
+so large ranges (100K+ blocks) are now safe to run.
 
 ### Quick Start
 
@@ -42,7 +41,6 @@ pool_health_check_period: 30s
 pool_max_conn_lifetime_jitter: 30s
 
 chain_id: gnoland
-max_height: 1000
 from_height: 1
 to_height: 1000
 ```
