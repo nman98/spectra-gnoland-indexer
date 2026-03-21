@@ -35,15 +35,21 @@ type SyntheticQueryOperator struct {
 	responseMaker *ResponseMaker
 }
 
+// Constant seeds that will produce same addresses regardless of the chunk.
+const (
+	mainGeneratorSeed      int64 = 42
+	validatorGeneratorSeed int64 = 1337
+)
+
 // NewSyntheticQueryOperator creates a new synthetic query operator.
 // It generates data only for the given [fromHeight, toHeight] range,
 // so callers should create one instance per chunk to bound memory usage.
 func NewSyntheticQueryOperator(chainID string, fromHeight uint64, toHeight uint64) *SyntheticQueryOperator {
-	gen := generator.NewDataGenerator(500)
+	gen := generator.NewDataGeneratorWithSeed(500, mainGeneratorSeed)
 
 	// Generate a consistent set of validator addresses for all blocks
 	numValidators := 50 //capped to 50
-	genVal := generator.NewDataGenerator(50)
+	genVal := generator.NewDataGeneratorWithSeed(50, validatorGeneratorSeed)
 	valAddr := genVal.GetAllBech32Addresses()
 	validators := make([]string, 0, numValidators)
 	for i := range numValidators {
@@ -194,12 +200,14 @@ func (sq *SyntheticQueryOperator) createSynthBlock(height uint64) (*rpcClient.Bl
 
 	blockTimestamp := baseTimestamp.Add(time.Duration(height-1) * blockProductionRate)
 
-	// Create the block using existing synthetic response maker
+	randomProposer := sq.signedValidators[rand.Int64N(int64(len(sq.signedValidators)))]
 	blockInput := GenBlockInput{
-		Height:    height,
-		ChainID:   sq.chainID,
-		Timestamp: blockTimestamp,
-		TxsRaw:    txRaws,
+		Height:           height,
+		ChainID:          sq.chainID,
+		Timestamp:        blockTimestamp,
+		TxsRaw:           txRaws,
+		ProposerAddress:  randomProposer,
+		SignedValidators: sq.signedValidators,
 	}
 
 	block := sq.responseMaker.GenerateBlockResponse(blockInput)

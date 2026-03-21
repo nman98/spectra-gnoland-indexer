@@ -40,10 +40,18 @@ type DataGenerator struct {
 }
 
 func NewDataGenerator(size int) *DataGenerator {
-	// totally random seed
 	seed := time.Now().UnixNano()
-	cryptoGen := NewCryptoGenerator(seed)
+	return newDataGeneratorWithSeed(size, seed)
+}
 
+// NewDataGeneratorWithSeed creates a DataGenerator with a fixed seed so that
+// the same address pool is produced on every call.
+func NewDataGeneratorWithSeed(size int, seed int64) *DataGenerator {
+	return newDataGeneratorWithSeed(size, seed)
+}
+
+func newDataGeneratorWithSeed(size int, seed int64) *DataGenerator {
+	cryptoGen := NewCryptoGenerator(seed)
 	return &DataGenerator{
 		rand:        rand.New(rand.NewSource(seed)),
 		cryptoGen:   cryptoGen,

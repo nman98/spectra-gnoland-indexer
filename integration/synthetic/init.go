@@ -95,7 +95,7 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 		// the next iteration allocates new ones.
 		// We force GC here to try to speed up the process as much as
 		// possible while also trying not to store much data in RAM.
-		syntheticQueryOp = nil
+		syntheticQueryOp = nil //nolint:all
 		orch = nil
 		runtime.GC()
 	}
