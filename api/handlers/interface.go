@@ -66,3 +66,8 @@ type TransactionDbHandler interface {
 	GetVolumeByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) (database.VolumeByDenom, error)
 	GetVolumeByHour(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) (database.VolumeByDenom, error)
 }
+
+type InMemoryDbHandler interface {
+	GetTotalAddressesCount(ctx context.Context, chainName string) (int32, error)
+	GetAvgBlockProdTime(ctx context.Context, chainName string) (time.Duration, error)
+}

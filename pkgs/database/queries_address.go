@@ -90,6 +90,22 @@ func (t *TimescaleDb) GetAddressTxs(
 	return addressTxs, nextCursor, txCount, nil
 }
 
+func (t *TimescaleDb) GetTotalAddressesCount(ctx context.Context, chainName string) (int32, error) {
+	query := `
+	SELECT
+	MAX(id)
+	FROM gno_addresses
+	WHERE chain_name = $1
+	`
+	row := t.pool.QueryRow(ctx, query, chainName)
+	var maxId int32
+	err := row.Scan(&maxId)
+	if err != nil {
+		return 0, err
+	}
+	return maxId, nil
+}
+
 func (t *TimescaleDb) getAddressTxsTimestampQuery(
 	ctx context.Context,
 	accountId int32,
