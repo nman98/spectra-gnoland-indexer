@@ -19,15 +19,15 @@ func NewResponseMaker(generator *generator.DataGenerator) *ResponseMaker {
 }
 
 type GenBlockInput struct {
-	Height    uint64
-	ChainID   string
-	Timestamp time.Time
-	TxsRaw    []string
+	Height          uint64
+	ChainID         string
+	Timestamp       time.Time
+	TxsRaw          []string
+	ProposerAddress string
+	SignedValidators []string
 }
 
 func (rm *ResponseMaker) GenerateBlockResponse(input GenBlockInput) *rpcClient.BlockResponse {
-	// just generate the hash for block and last block
-	// for others just use empty strings since this is all just to mock the similar expereience
 	blockHash := rm.generator.GenerateBlockHash()
 	lastBlockHash := rm.generator.GenerateBlockHash()
 	partsHash := ""
@@ -40,7 +40,15 @@ func (rm *ResponseMaker) GenerateBlockResponse(input GenBlockInput) *rpcClient.B
 	appHash := ""
 	lastResultsHash := ""
 
-	precommits := make([]*rpcClient.Precommit, 0) // just mock it since we do not need it for the block
+	// Build minimal precommits so ProcessValidatorAddresses can discover
+	// all validator addresses without needing any RNG calls.
+	precommits := make([]*rpcClient.Precommit, 0, len(input.SignedValidators))
+	for i, validator := range input.SignedValidators {
+		precommits = append(precommits, &rpcClient.Precommit{
+			ValidatorAddress: validator,
+			ValidatorIndex:   strconv.Itoa(i),
+		})
+	}
 
 	block := rpcClient.BlockResponse{
 		Jsonrpc: "2.0",
@@ -57,12 +65,11 @@ func (rm *ResponseMaker) GenerateBlockResponse(input GenBlockInput) *rpcClient.B
 					ChainID:         input.ChainID,
 					Height:          strconv.FormatUint(input.Height, 10),
 					Time:            input.Timestamp,
-					NumTxs:          "0", // it is not really important for the indexer
-					TotalTxs:        "0", // it is not really important for the indexer
+					NumTxs:          "0",
+					TotalTxs:        "0",
 					AppVersion:      "1.0.0",
-					ProposerAddress: "", // just mock it since we do not need it for the block
+					ProposerAddress: input.ProposerAddress,
 					LastBlockID:     rpcClient.BlockID{Hash: lastBlockHash, Parts: rpcClient.Parts{Total: "1", Hash: lastPartsHash}},
-					// just make some random hash here
 					LastCommitHash:     lastCommitHash,
 					DataHash:           dataHash,
 					ValidatorsHash:     validatorsHash,
@@ -78,10 +85,10 @@ func (rm *ResponseMaker) GenerateBlockResponse(input GenBlockInput) *rpcClient.B
 					ChainID:            input.ChainID,
 					Height:             strconv.FormatUint(input.Height, 10),
 					Time:               input.Timestamp,
-					NumTxs:             "0", // it is not really important for the indexer
-					TotalTxs:           "0", // it is not really important for the indexer
+					NumTxs:             "0",
+					TotalTxs:           "0",
 					AppVersion:         "1.0.0",
-					ProposerAddress:    "", // just mock it since we do not need it for the block
+					ProposerAddress:    input.ProposerAddress,
 					LastBlockID:        rpcClient.BlockID{Hash: lastBlockHash, Parts: rpcClient.Parts{Total: "1", Hash: lastPartsHash}},
 					LastCommitHash:     lastCommitHash,
 					DataHash:           dataHash,
