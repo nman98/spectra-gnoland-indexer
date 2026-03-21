@@ -5,7 +5,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-func RegisterBlocksRoutes(api huma.API, h *handlers.BlocksHandler) {
+func RegisterBlocksRoutes(api huma.API, h *handlers.BlocksHandler, m *handlers.InMemoryHandler) {
 	huma.Get(api, "/blocks", h.GetLastXBlocks,
 		func(op *huma.Operation) {
 			op.Summary = "Get Last X Blocks"
@@ -41,5 +41,10 @@ func RegisterBlocksRoutes(api huma.API, h *handlers.BlocksHandler) {
 		func(op *huma.Operation) {
 			op.Summary = "Get Block Count by Day"
 			op.Description = "Retrieve the block count per day within the given date range. Max range is 30 days."
+		})
+	huma.Get(api, "/blocks/stats/avg_time", m.GetAvgBlockProdTime,
+		func(op *huma.Operation) {
+			op.Summary = "Get Average Block Production Time"
+			op.Description = "Retrieve the average time it takes to produce a block."
 		})
 }

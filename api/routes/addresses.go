@@ -5,7 +5,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-func RegisterAddressesRoutes(api huma.API, h *handlers.AddressHandler) {
+func RegisterAddressesRoutes(api huma.API, h *handlers.AddressHandler, m *handlers.InMemoryHandler) {
 	huma.Get(api, "/addresses/{address}/transactions", h.GetAddressTxs,
 		func(op *huma.Operation) {
 			op.Summary = "Get Address Transactions"
@@ -20,5 +20,10 @@ func RegisterAddressesRoutes(api huma.API, h *handlers.AddressHandler) {
 		func(op *huma.Operation) {
 			op.Summary = "Get Daily Active Addresses"
 			op.Description = "Retrieve the number of daily active addresses within the given date range."
+		})
+	huma.Get(api, "/addresses/stats/total", m.GetTotalAddressesCount,
+		func(op *huma.Operation) {
+			op.Summary = "Get Total Addresses Count"
+			op.Description = "Retrieve the total number of addresses."
 		})
 }

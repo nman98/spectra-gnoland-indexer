@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -246,6 +247,58 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 	}
 
 	return blocks, nil
+}
+
+func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string) (time.Duration, error) {
+	// get latest block height
+	blockData, err := t.GetLatestBlock(ctx, chainName)
+	if err != nil {
+		return 0, err
+	}
+
+	// compare latest block height with the height - 10K from the latest
+	latestHeight := blockData.Height
+	var compHeight uint64
+	var diffHeight uint64 = 10000
+	if latestHeight <= 10000 {
+		compHeight = 1
+		diffHeight = latestHeight - compHeight
+	} else {
+		compHeight = latestHeight - 10000
+	}
+
+	query := `
+	SELECT
+	timestamp
+	FROM blocks
+	WHERE height IN ($1, $2) AND chain_name = $3
+	`
+
+	rows, err := t.pool.Query(ctx, query, latestHeight, compHeight, chainName)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var timestamps []time.Time
+	for rows.Next() {
+		var timestamp time.Time
+		err := rows.Scan(&timestamp)
+		if err != nil {
+			return 0, err
+		}
+		timestamps = append(timestamps, timestamp)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	if len(timestamps) != 2 {
+		return 0, fmt.Errorf("expected 2 timestamps, got %d", len(timestamps))
+	}
+	latestTimestamp := timestamps[0]
+	compTimestamp := timestamps[1]
+
+	return time.Duration(latestTimestamp.Sub(compTimestamp) / time.Duration(diffHeight)), nil
 }
 
 // fetchBlocksData fetches block data from the database and appends to the provided slice

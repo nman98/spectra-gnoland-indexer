@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/config"
@@ -173,6 +176,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	transactionsHandler := handlers.NewTransactionsHandler(db, conf.ChainName)
 	addressHandler := handlers.NewAddressHandler(db, conf.ChainName)
 	validatorsHandler := handlers.NewValidatorsHandler(db, conf.ChainName)
+	inMemoryHandler := handlers.NewInMemoryHandler(db, conf.ChainName)
 
 	router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/x-icon")
@@ -184,9 +188,9 @@ func runServe(cmd *cobra.Command, args []string) {
 		}
 	})
 
-	routes.RegisterBlocksRoutes(api, blocksHandler)
+	routes.RegisterBlocksRoutes(api, blocksHandler, inMemoryHandler)
 	routes.RegisterTransactionsRoutes(api, transactionsHandler)
-	routes.RegisterAddressesRoutes(api, addressHandler)
+	routes.RegisterAddressesRoutes(api, addressHandler, inMemoryHandler)
 	routes.RegisterValidatorsRoutes(api, validatorsHandler)
 	routes.RegisterUtilsRoutes(api)
 
@@ -205,4 +209,11 @@ func runServe(cmd *cobra.Command, args []string) {
 			log.Fatalf("failed to start server: %v", err)
 		}
 	}
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+	<-signalChan
+
+	inMemoryHandler.Stop()
+	os.Exit(0)
 }
