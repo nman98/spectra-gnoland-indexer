@@ -256,9 +256,9 @@ func (g *DataGenerator) GenerateTransaction() (TxEvents, std.Tx) {
 		// generate another number to decide between msg call and msg run
 		rn := g.rand.Float32()
 		switch {
-		case rn <= 0.5:
+		case rn > 0.0 && rn <= 0.5:
 			transactionType = "vm_msg_call"
-		case rn <= 1.0:
+		case rn > 0.5 && rn <= 1.0:
 			transactionType = "vm_msg_run"
 		}
 	case randomNum > 0.9 && randomNum <= 1.0:

@@ -35,8 +35,10 @@ type SyntheticQueryOperator struct {
 	responseMaker *ResponseMaker
 }
 
-// NewSyntheticQueryOperator creates a new synthetic query operator
-func NewSyntheticQueryOperator(chainID string, fromHeight uint64, maxHeight uint64) *SyntheticQueryOperator {
+// NewSyntheticQueryOperator creates a new synthetic query operator.
+// It generates data only for the given [fromHeight, toHeight] range,
+// so callers should create one instance per chunk to bound memory usage.
+func NewSyntheticQueryOperator(chainID string, fromHeight uint64, toHeight uint64) *SyntheticQueryOperator {
 	gen := generator.NewDataGenerator(500)
 
 	// Generate a consistent set of validator addresses for all blocks
@@ -51,7 +53,7 @@ func NewSyntheticQueryOperator(chainID string, fromHeight uint64, maxHeight uint
 	sq := &SyntheticQueryOperator{
 		generator:        gen,
 		chainID:          chainID,
-		currentHeight:    maxHeight,
+		currentHeight:    toHeight,
 		signedValidators: validators,
 		blocks:           make(map[uint64]*rpcClient.BlockResponse),
 		transactions:     make(map[string]*rpcClient.TxResponse),
@@ -59,8 +61,7 @@ func NewSyntheticQueryOperator(chainID string, fromHeight uint64, maxHeight uint
 		responseMaker:    NewResponseMaker(gen),
 	}
 
-	// Pre-generate some blocks and transactions for consistency
-	sq.preGenerateData(fromHeight, maxHeight)
+	sq.preGenerateData(fromHeight, toHeight)
 	return sq
 }
 
@@ -140,7 +141,7 @@ func (sq *SyntheticQueryOperator) getBlock(height uint64) *rpcClient.BlockRespon
 	if block, ok := sq.blocks[height]; ok {
 		return block
 	}
-	// untill I test this let it throw an error and shut down the program
+	// until I test this let it throw an error and shut down the program
 	log.Fatal("block not found")
 	return nil
 }
