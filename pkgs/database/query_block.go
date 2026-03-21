@@ -249,7 +249,7 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 	return blocks, nil
 }
 
-func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string) (time.Duration, error) {
+func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string) (float64, error) {
 	// get latest block height
 	blockData, err := t.GetLatestBlock(ctx, chainName)
 	if err != nil {
@@ -272,6 +272,7 @@ func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string)
 	timestamp
 	FROM blocks
 	WHERE height IN ($1, $2) AND chain_name = $3
+	ORDER BY height DESC
 	`
 
 	rows, err := t.pool.Query(ctx, query, latestHeight, compHeight, chainName)
@@ -298,7 +299,9 @@ func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string)
 	latestTimestamp := timestamps[0]
 	compTimestamp := timestamps[1]
 
-	return time.Duration(latestTimestamp.Sub(compTimestamp) / time.Duration(diffHeight)), nil
+	calc := (latestTimestamp.Sub(compTimestamp) / time.Duration(diffHeight)).Seconds()
+
+	return calc, nil
 }
 
 // fetchBlocksData fetches block data from the database and appends to the provided slice

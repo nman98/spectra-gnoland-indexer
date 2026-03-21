@@ -45,6 +45,6 @@ func RegisterBlocksRoutes(api huma.API, h *handlers.BlocksHandler, m *handlers.I
 	huma.Get(api, "/blocks/stats/avg_time", m.GetAvgBlockProdTime,
 		func(op *huma.Operation) {
 			op.Summary = "Get Average Block Production Time"
-			op.Description = "Retrieve the average time it takes to produce a block."
+			op.Description = "Retrieve the average time it takes to produce a block. Returns a float value in seconds."
 		})
 }

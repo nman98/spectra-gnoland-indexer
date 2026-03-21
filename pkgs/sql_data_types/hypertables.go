@@ -14,8 +14,6 @@ import (
 //   - Height (uint64)
 //   - Timestamp (time.Time)
 //   - Chain ID (string)
-//   - Proposer address (int32)
-//   - Txs ([][]byte)
 //   - Chain Name (string)
 //
 // PRIMARY KEY (height, timestamp, chain_name)
