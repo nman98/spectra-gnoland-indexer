@@ -5,8 +5,11 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
+// Keep it like this for now. In the future it might be removed and registered in route groups.
+const v1 = "/v1"
+
 func RegisterAddressesRoutes(api huma.API, h *handlers.AddressHandler, m *handlers.InMemoryHandler) {
-	huma.Get(api, "/addresses/{address}/transactions", h.GetAddressTxs,
+	huma.Get(api, v1+"/addresses/{address}/transactions", h.GetAddressTxs,
 		func(op *huma.Operation) {
 			op.Summary = "Get Address Transactions"
 			op.Description = `Retrieve all transactions for a given address.
@@ -16,12 +19,12 @@ func RegisterAddressesRoutes(api huma.API, h *handlers.AddressHandler, m *handle
 			2. By cursor: omit all parameters on the first request, then use the returned next_cursor on subsequent requests.
 			3. By limit and page: specify limit and page.`
 		})
-	huma.Get(api, "/addresses/stats/active/daily", h.GetDailyActiveAccount,
+	huma.Get(api, v1+"/addresses/stats/active/daily", h.GetDailyActiveAccount,
 		func(op *huma.Operation) {
 			op.Summary = "Get Daily Active Addresses"
 			op.Description = "Retrieve the number of daily active addresses within the given date range."
 		})
-	huma.Get(api, "/addresses/stats/total", m.GetTotalAddressesCount,
+	huma.Get(api, v1+"/addresses/stats/total", m.GetTotalAddressesCount,
 		func(op *huma.Operation) {
 			op.Summary = "Get Total Addresses Count"
 			op.Description = "Retrieve the total number of addresses."

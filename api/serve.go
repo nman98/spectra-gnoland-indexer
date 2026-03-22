@@ -55,12 +55,12 @@ func runServe(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to get key file path: %v", err)
 	}
 
-	router := chi.NewMux()
-	router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
-	router.Use(middleware.CleanPath)
-	router.Use(middleware.Compress(5, "application/json", "application/problem+json"))
-	router.Use(middleware.Heartbeat("/"))
+	mux := chi.NewMux()
+	mux.Use(middleware.Logger)
+	mux.Use(middleware.Recoverer)
+	mux.Use(middleware.CleanPath)
+	mux.Use(middleware.Compress(5, "application/json", "application/problem+json"))
+	mux.Use(middleware.Heartbeat("/"))
 
 	corsOptions := cors.Options{
 		AllowedOrigins: conf.CorsAllowedOrigins,
@@ -80,7 +80,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	if corsOptions.MaxAge == 0 {
 		corsOptions.MaxAge = 600
 	}
-	router.Use(cors.Handler(corsOptions))
+	mux.Use(cors.Handler(corsOptions))
 
 	db := database.NewTimescaleDb(database.DatabasePoolConfig{
 		Host:                      env.ApiDbHost,
@@ -130,7 +130,7 @@ func runServe(cmd *cobra.Command, args []string) {
 		}
 
 		rl := ratelimit.NewRateLimiter(valkeyClient, ks, ipRPM, 1*time.Minute, conf.TrustedProxies)
-		router.Use(rl.Middleware)
+		mux.Use(rl.Middleware)
 	}
 
 	humaConfig := huma.DefaultConfig("Spectra Gnoland Indexer API", Version)
@@ -151,7 +151,7 @@ func runServe(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	api := humachi.New(router, humaConfig)
+	api := humachi.New(mux, humaConfig)
 
 	openApi := api.OpenAPI()
 	openApi.Info = &huma.Info{
@@ -178,7 +178,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	validatorsHandler := handlers.NewValidatorsHandler(db, conf.ChainName)
 	inMemoryHandler := handlers.NewInMemoryHandler(db, conf.ChainName)
 
-	router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+	mux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/x-icon")
 		_, err := w.Write(favicon)
 		if err != nil {
@@ -198,13 +198,13 @@ func runServe(cmd *cobra.Command, args []string) {
 
 	if certFilePath != "" && keyFilePath != "" {
 		log.Printf("Starting server on %s with HTTPS", addr)
-		err = http.ListenAndServeTLS(addr, certFilePath, keyFilePath, router)
+		err = http.ListenAndServeTLS(addr, certFilePath, keyFilePath, mux)
 		if err != nil {
 			log.Fatalf("failed to start server: %v", err)
 		}
 	} else {
 		log.Printf("Starting server on %s with HTTP", addr)
-		err = http.ListenAndServe(addr, router)
+		err = http.ListenAndServe(addr, mux)
 		if err != nil {
 			log.Fatalf("failed to start server: %v", err)
 		}
