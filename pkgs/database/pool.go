@@ -75,8 +75,12 @@ func connectToDb(config DatabasePoolConfig) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	// Register custom types for every connection in the pool
+	// Register custom types and enforce UTC for every connection in the pool
 	parseConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		if _, err := conn.Exec(ctx, "SET timezone TO 'UTC'"); err != nil {
+			return fmt.Errorf("failed to set session timezone to UTC: %w", err)
+		}
+
 		dataTypeNames := sql_data_types.CustomTypeNames()
 
 		for _, typeName := range dataTypeNames {
