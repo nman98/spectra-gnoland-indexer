@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
 )
 
 type AddressDbHandler interface {
@@ -21,8 +22,8 @@ type AddressDbHandler interface {
 	GetDailyActiveAccount(
 		ctx context.Context,
 		chainName string,
-		date1 time.Time,
-		date2 time.Time,
+		dateFrom date.Date,
+		dateTo date.Date,
 	) ([]*database.DailyActiveAccount, error)
 }
 
@@ -36,8 +37,8 @@ type ValidatorDbHandler interface {
 		ctx context.Context,
 		validatorAddress string,
 		chainName string,
-		date1 time.Time,
-		date2 time.Time,
+		fromTimestamp time.Time,
+		toTimestamp time.Time,
 	) ([]*database.ValidatorSigning, error)
 }
 
@@ -48,7 +49,7 @@ type BlockDbHandler interface {
 	GetLatestBlock(ctx context.Context, chainName string) (*database.BlockData, error)
 	GetLastXBlocks(ctx context.Context, chainName string, x uint64) ([]*database.BlockData, error)
 	GetBlockCount24h(ctx context.Context, chainName string) (int64, error)
-	GetBlockCountByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.BlockCountByDate, error)
+	GetBlockCountByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date) ([]*database.BlockCountByDate, error)
 }
 
 type TransactionDbHandler interface {
@@ -61,10 +62,10 @@ type TransactionDbHandler interface {
 	GetMsgRun(ctx context.Context, txHash string, chainName string) ([]*database.MsgRun, error)
 	GetTransactionsByCursor(ctx context.Context, chainName string, cursor string, limit uint64) ([]*database.Transaction, error)
 	GetTotalTxCount24h(ctx context.Context, chainName string) (int64, error)
-	GetTotalTxCountByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.TxCountTimeRange, error)
-	GetTotalTxCountByHour(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.TxCountTimeRange, error)
-	GetVolumeByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) (database.VolumeByDenom, error)
-	GetVolumeByHour(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) (database.VolumeByDenom, error)
+	GetTotalTxCountByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date) ([]*database.TxCountDateRange, error)
+	GetTotalTxCountByHour(ctx context.Context, chainName string, fromTimestamp time.Time, toTimestamp time.Time) ([]*database.TxCountTimeRange, error)
+	GetVolumeByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date) (database.VolumeByDenomDaily, error)
+	GetVolumeByHour(ctx context.Context, chainName string, fromTimestamp time.Time, toTimestamp time.Time) (database.VolumeByDenomHourly, error)
 }
 
 type InMemoryDbHandler interface {

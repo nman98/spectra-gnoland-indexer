@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
 )
 
 func (t *TimescaleDb) GetBlockCountByDate(
 	ctx context.Context,
 	chainName string,
-	date1 time.Time,
-	date2 time.Time,
+	dateFrom date.Date,
+	dateTo date.Date,
 ) ([]*BlockCountByDate, error) {
-	date1 = time.Date(date1.Year(), date1.Month(), date1.Day(), 0, 0, 0, 0, date1.Location())
-	date2 = time.Date(date2.Year(), date2.Month(), date2.Day(), 23, 59, 59, 0, date2.Location())
 
 	query := `
 	SELECT
@@ -26,7 +26,7 @@ func (t *TimescaleDb) GetBlockCountByDate(
 	ORDER BY date DESC
 	`
 
-	rows, err := t.pool.Query(ctx, query, chainName, date1, date2)
+	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, dateTo)
 	if err != nil {
 		return nil, err
 	}
@@ -70,8 +70,8 @@ func (t *TimescaleDb) GetBlockCount24h(
 func (t *TimescaleDb) GetDailyActiveAccount(
 	ctx context.Context,
 	chainName string,
-	date1 time.Time,
-	date2 time.Time,
+	dateFrom date.Date,
+	dateTo date.Date,
 ) ([]*DailyActiveAccount, error) {
 	query := `
 	SELECT
@@ -82,7 +82,7 @@ func (t *TimescaleDb) GetDailyActiveAccount(
 	AND time_bucket >= $2 AND time_bucket <= $3
 	ORDER BY date DESC
 	`
-	rows, err := t.pool.Query(ctx, query, chainName, date1, date2)
+	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, dateTo)
 	if err != nil {
 		return nil, err
 	}
@@ -147,32 +147,32 @@ func (t *TimescaleDb) GetTotalTxCount24h(
 func (t *TimescaleDb) GetTotalTxCountByDate(
 	ctx context.Context,
 	chainName string,
-	date1 time.Time,
-	date2 time.Time,
-) ([]*TxCountTimeRange, error) {
-	date1 = time.Date(date1.Year(), date1.Month(), date1.Day(), 0, 0, 0, 0, date1.Location())
-	date2 = time.Date(date2.Year(), date2.Month(), date2.Day(), 23, 59, 59, 0, date2.Location())
+	dateFrom date.Date,
+	dateTo date.Date,
+) ([]*TxCountDateRange, error) {
 
 	query := `
+	SELECT date::date, tx_count FROM (
 	SELECT
-	time_bucket_gapfill('1 day', time_bucket)::date as date,
-	coalesce(SUM(transaction_count), 0) as tx_count
-	FROM tx_counter
-	WHERE
-	chain_name = $1
-	AND time_bucket >= $2 AND time_bucket <= $3
-	GROUP BY time_bucket('1 day', time_bucket)
+		time_bucket_gapfill('1 day', time_bucket) as date,
+		coalesce(SUM(transaction_count), 0) as tx_count
+		FROM tx_counter
+		WHERE
+		chain_name = $1
+		AND time_bucket >= $2 AND time_bucket <= $3
+		GROUP BY 1
+	) sub
 	ORDER BY date DESC
 	`
-	rows, err := t.pool.Query(ctx, query, chainName, date1, date2)
+	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, dateTo)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var txCountTimeRanges []*TxCountTimeRange
+	var txCountTimeRanges []*TxCountDateRange
 	for rows.Next() {
-		txCountTimeRange := &TxCountTimeRange{}
-		err := rows.Scan(&txCountTimeRange.Time, &txCountTimeRange.Count)
+		txCountTimeRange := &TxCountDateRange{}
+		err := rows.Scan(&txCountTimeRange.Date, &txCountTimeRange.Count)
 		if err != nil {
 			return nil, err
 		}
@@ -187,8 +187,8 @@ func (t *TimescaleDb) GetTotalTxCountByDate(
 func (t *TimescaleDb) GetTotalTxCountByHour(
 	ctx context.Context,
 	chainName string,
-	date1 time.Time,
-	date2 time.Time,
+	fromTimestamp time.Time,
+	endTimestamp time.Time,
 ) ([]*TxCountTimeRange, error) {
 	query := `
 	SELECT
@@ -198,10 +198,10 @@ func (t *TimescaleDb) GetTotalTxCountByHour(
 	WHERE
 	chain_name = $1
 	AND time_bucket >= $2 AND time_bucket <= $3
-	GROUP BY time_bucket
+	GROUP BY 1
 	ORDER BY timestamp DESC
 	`
-	rows, err := t.pool.Query(ctx, query, chainName, date1, date2)
+	rows, err := t.pool.Query(ctx, query, chainName, fromTimestamp, endTimestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -225,34 +225,35 @@ func (t *TimescaleDb) GetTotalTxCountByHour(
 func (t *TimescaleDb) GetVolumeByDate(
 	ctx context.Context,
 	chainName string,
-	date1 time.Time,
-	date2 time.Time,
-) (VolumeByDenom, error) {
-	date1 = time.Date(date1.Year(), date1.Month(), date1.Day(), 0, 0, 0, 0, date1.Location())
-	date2 = time.Date(date2.Year(), date2.Month(), date2.Day(), 23, 59, 59, 0, date2.Location())
+	dateFrom date.Date,
+	dateTo date.Date,
+) (VolumeByDenomDaily, error) {
 
 	query := `
-	SELECT
-	time_bucket_gapfill('1 day', time_bucket)::date as date,
-	coalesce(SUM(volume), 0) as volume,
-	denom
-	FROM fee_volume
-	WHERE
-	chain_name = $1
-	AND time_bucket >= $2 AND time_bucket <= $3
-	GROUP BY time_bucket('1 day', time_bucket), denom
+	SELECT date::date, volume, denom
+	FROM (
+		SELECT
+			time_bucket_gapfill('1 day', time_bucket) AS date,
+			coalesce(SUM(volume), 0) AS volume,
+			denom
+		FROM fee_volume
+		WHERE
+			chain_name = $1
+			AND time_bucket >= $2 AND time_bucket <= $3
+			GROUP BY 1, denom
+		) sub
 	ORDER BY date DESC
 	`
-	rows, err := t.pool.Query(ctx, query, chainName, date1, date2)
+	rows, err := t.pool.Query(ctx, query, chainName, dateFrom.Format("2006-01-02"), dateTo.Format("2006-01-02"))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var feeVolumeTimeRanges = make(VolumeByDenom)
+	var feeVolumeTimeRanges = make(VolumeByDenomDaily)
 	for rows.Next() {
-		denomVolume := &DenomVolume{}
+		denomVolume := &DenomVolumeDaily{}
 		denom := ""
-		err := rows.Scan(&denomVolume.Time, &denomVolume.Volume, &denom)
+		err := rows.Scan(&denomVolume.Date, &denomVolume.Volume, &denom)
 		if err != nil {
 			return nil, err
 		}
@@ -267,9 +268,10 @@ func (t *TimescaleDb) GetVolumeByDate(
 func (t *TimescaleDb) GetVolumeByHour(
 	ctx context.Context,
 	chainName string,
-	date1 time.Time,
-	date2 time.Time,
-) (VolumeByDenom, error) {
+	fromTimestamp time.Time,
+	toTimestamp time.Time,
+) (VolumeByDenomHourly, error) {
+
 	query := `
 	SELECT
 	time_bucket_gapfill('1 hour', time_bucket) as time,
@@ -279,17 +281,17 @@ func (t *TimescaleDb) GetVolumeByHour(
 	WHERE
 	chain_name = $1
 	AND time_bucket >= $2 AND time_bucket <= $3
-	GROUP BY time_bucket('1 hour', time_bucket), denom
+	GROUP BY 1, denom
 	ORDER BY time DESC
 	`
-	rows, err := t.pool.Query(ctx, query, chainName, date1, date2)
+	rows, err := t.pool.Query(ctx, query, chainName, fromTimestamp, toTimestamp)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var feeVolumeTimeRanges = make(VolumeByDenom)
+	var feeVolumeTimeRanges = make(VolumeByDenomHourly)
 	for rows.Next() {
-		denomVolume := &DenomVolume{}
+		denomVolume := &DenomVolumeHourly{}
 		denom := ""
 		err := rows.Scan(&denomVolume.Time, &denomVolume.Volume, &denom)
 		if err != nil {
@@ -357,8 +359,8 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	ctx context.Context,
 	validatorAddress string,
 	chainName string,
-	date1 time.Time,
-	date2 time.Time,
+	fromTimestamp time.Time,
+	toTimestamp time.Time,
 ) ([]*ValidatorSigning, error) {
 	// check if validator address exists and get it's id
 	query1 := `
@@ -389,10 +391,10 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	WHERE vsc.chain_name    = $1
 		AND vsc.validator_id  = $2
 		AND vsc.time_bucket >= $3 AND vsc.time_bucket <= $4
-	GROUP BY time_bucket('1 hour', vsc.time_bucket)
+	GROUP BY 1
 	ORDER BY time DESC
 	`
-	rows, err := t.pool.Query(ctx, query2, chainName, validatorId, date1, date2)
+	rows, err := t.pool.Query(ctx, query2, chainName, validatorId, fromTimestamp, toTimestamp)
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
 )
 
 type MockDatabase struct {
@@ -199,32 +200,52 @@ func (m *MockDatabase) GetTotalTxCount24h(ctx context.Context, chainName string)
 	return int64(len(m.transactions)), nil
 }
 
-func (m *MockDatabase) GetTotalTxCountByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.TxCountTimeRange, error) {
+func (m *MockDatabase) GetTotalTxCountByDate(
+	ctx context.Context,
+	chainName string,
+	dateFrom date.Date,
+	dateTo date.Date,
+) ([]*database.TxCountDateRange, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("%s", m.errorMsg)
+	}
+	return []*database.TxCountDateRange{}, nil
+}
+
+func (m *MockDatabase) GetTotalTxCountByHour(
+	ctx context.Context,
+	chainName string,
+	fromTimestamp time.Time,
+	toTimestamp time.Time,
+) ([]*database.TxCountTimeRange, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
 	return []*database.TxCountTimeRange{}, nil
 }
 
-func (m *MockDatabase) GetTotalTxCountByHour(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.TxCountTimeRange, error) {
+func (m *MockDatabase) GetVolumeByDate(
+	ctx context.Context,
+	chainName string,
+	dateFrom date.Date,
+	dateTo date.Date,
+) (database.VolumeByDenomDaily, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
-	return []*database.TxCountTimeRange{}, nil
+	return database.VolumeByDenomDaily{}, nil
 }
 
-func (m *MockDatabase) GetVolumeByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) (database.VolumeByDenom, error) {
+func (m *MockDatabase) GetVolumeByHour(
+	ctx context.Context,
+	chainName string,
+	fromTimestamp time.Time,
+	toTimestamp time.Time,
+) (database.VolumeByDenomHourly, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
-	return database.VolumeByDenom{}, nil
-}
-
-func (m *MockDatabase) GetVolumeByHour(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) (database.VolumeByDenom, error) {
-	if m.shouldError {
-		return nil, fmt.Errorf("%s", m.errorMsg)
-	}
-	return database.VolumeByDenom{}, nil
+	return database.VolumeByDenomHourly{}, nil
 }
 
 func (m *MockDatabase) GetBlockCount24h(ctx context.Context, chainName string) (int64, error) {
@@ -234,17 +255,26 @@ func (m *MockDatabase) GetBlockCount24h(ctx context.Context, chainName string) (
 	return int64(len(m.blocks)), nil
 }
 
-func (m *MockDatabase) GetBlockCountByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.BlockCountByDate, error) {
+func (m *MockDatabase) GetBlockCountByDate(
+	ctx context.Context,
+	chainName string,
+	dateFrom date.Date,
+	dateTo date.Date,
+) ([]*database.BlockCountByDate, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
 	return []*database.BlockCountByDate{}, nil
 }
 
-func (m *MockDatabase) GetDailyActiveAccount(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.DailyActiveAccount, error) {
+func (m *MockDatabase) GetDailyActiveAccount(
+	ctx context.Context,
+	chainName string,
+	dateFrom date.Date,
+	dateTo date.Date,
+) ([]*database.DailyActiveAccount, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
 	return []*database.DailyActiveAccount{}, nil
 }
-

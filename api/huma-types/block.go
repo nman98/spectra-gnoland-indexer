@@ -2,6 +2,7 @@ package humatypes
 
 import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
 )
 
 // BlockGetInput represents the input for getting a block by height
@@ -53,8 +54,8 @@ type BlockCount24hGetOutput struct {
 }
 
 type BlockCountByDateGetInput struct {
-	StartDate Date `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
-	EndDate   Date `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	StartDate date.Date `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	EndDate   date.Date `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
 }
 
 type BlockCountByDateGetOutput struct {
