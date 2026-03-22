@@ -14,7 +14,10 @@ RUN if [ -z "$VERSION" ]; then \
     else VERSION="${GIT_BRANCH}-${GIT_COMMIT}"; \
     fi; \
     fi && \
-    go build -ldflags="-s -w -X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT}' -X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}'" -o indexer ./indexer
+    go build -ldflags="-s -w \
+        -X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT}' \
+        -X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}'" \
+        -o indexer ./indexer
 
 RUN chmod +x indexer
 RUN touch config.yml

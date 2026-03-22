@@ -1,28 +1,11 @@
 package humatypes
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
 )
-
-type Date struct {
-	time.Time
-}
-
-func (d *Date) UnmarshalText(data []byte) error {
-	t, err := time.Parse("2006-01-02", string(data))
-	if err != nil {
-		return fmt.Errorf("invalid date format, expected YYYY-MM-DD: %w", err)
-	}
-	d.Time = t
-	return nil
-}
-
-func (d Date) MarshalText() ([]byte, error) {
-	return []byte(d.Format("2006-01-02")), nil
-}
 
 type AddressGetInput struct {
 	Address       string    `path:"address" doc:"Gno address you want to query" required:"true" minLength:"40" maxLength:"40"`
@@ -44,8 +27,8 @@ type AddressTxsBody struct {
 }
 
 type DailyActiveAccountGetInput struct {
-	StartDate Date `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
-	EndDate   Date `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	StartDate date.Date `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	EndDate   date.Date `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
 }
 
 type DailyActiveAccountGetOutput struct {

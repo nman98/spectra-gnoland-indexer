@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
 )
 
 type TransactionGetInput struct {
@@ -78,14 +79,17 @@ type TotalTxCount24hGetOutput struct {
 }
 
 type TxCountByDateGetInput struct {
-	StartDate Date `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
-	EndDate   Date `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	StartDate date.Date `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	EndDate   date.Date `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
 }
 
 type TxCountByDateGetOutput struct {
-	Body []*database.TxCountTimeRange
+	Body []*database.TxCountDateRange
 }
 
+type TxCountByTimeGetOutput struct {
+	Body []*database.TxCountTimeRange
+}
 type TxCountByHourGetInput struct {
 	StartTimestamp time.Time `query:"start_timestamp" doc:"Start datetime (inclusive)" format:"date-time" required:"true"`
 	EndTimestamp   time.Time `query:"end_timestamp" doc:"End datetime (inclusive)" format:"date-time" required:"true"`
@@ -96,12 +100,12 @@ type TxCountByHourGetOutput struct {
 }
 
 type VolumeByDateGetInput struct {
-	StartTimestamp time.Time `query:"start_timestamp" doc:"Start date (inclusive)" format:"date-time" required:"true"`
-	EndTimestamp   time.Time `query:"end_timestamp" doc:"End date (inclusive)" format:"date-time" required:"true"`
+	StartDate date.Date `query:"start_date" doc:"Start date (inclusive)" format:"date" required:"true"`
+	EndDate   date.Date `query:"end_date" doc:"End date (inclusive)" format:"date" required:"true"`
 }
 
 type VolumeByDateGetOutput struct {
-	Body database.VolumeByDenom
+	Body database.VolumeByDenomDaily
 }
 
 type VolumeByHourGetInput struct {
@@ -110,5 +114,5 @@ type VolumeByHourGetInput struct {
 }
 
 type VolumeByHourGetOutput struct {
-	Body database.VolumeByDenom
+	Body database.VolumeByDenomHourly
 }

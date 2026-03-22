@@ -141,10 +141,10 @@ func (h *TransactionsHandler) GetTotalTxCountByDate(
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	counts, err := h.db.GetTotalTxCountByDate(ctx, h.chainName, startDate.Time, endDate.Time)
+	counts, err := h.db.GetTotalTxCountByDate(ctx, h.chainName, startDate, endDate)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf(
-			"Transaction count from %s to %s not found", startDate.Time, endDate.Time), err)
+			"Transaction count from %s to %s not found", startDate, endDate), err)
 	}
 	return &humatypes.TxCountByDateGetOutput{Body: counts}, nil
 }
@@ -172,17 +172,17 @@ func (h *TransactionsHandler) GetTotalTxCountByHour(
 
 // GetVolumeByDate returns the transaction volume grouped by denom per day within the given date range
 func (h *TransactionsHandler) GetVolumeByDate(ctx context.Context, input *humatypes.VolumeByDateGetInput) (*humatypes.VolumeByDateGetOutput, error) {
-	if !input.StartTimestamp.Before(input.EndTimestamp) {
+	if !input.StartDate.Before(input.EndDate.Time) {
 		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
 	}
-	if input.EndTimestamp.Sub(input.StartTimestamp) > 24*time.Hour*30 {
+	if input.StartDate.Sub(input.EndDate.Time) > 24*time.Hour*30 {
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	volume, err := h.db.GetVolumeByDate(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp)
+	volume, err := h.db.GetVolumeByDate(ctx, h.chainName, input.StartDate, input.EndDate)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf(
-			"Volume from %s to %s not found", input.StartTimestamp, input.EndTimestamp), err)
+			"Volume from %s to %s not found", input.StartDate, input.EndDate), err)
 	}
 	return &humatypes.VolumeByDateGetOutput{Body: volume}, nil
 }

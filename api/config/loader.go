@@ -69,7 +69,6 @@ func LoadConfig(reader FileReader, path string) (*ApiConfig, error) {
 		config.Port = 8080
 	}
 	// any cors method should be auto filled by the cors middleware
-	// TODO: maybe add more options later
 	return &config, nil
 }
 

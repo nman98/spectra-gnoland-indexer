@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
 	"github.com/shopspring/decimal"
 )
 
@@ -148,24 +149,35 @@ type AddressTx struct {
 }
 
 type BlockCountByDate struct {
-	Date  time.Time `json:"date" doc:"Date"`
+	Date  date.Date `json:"date" doc:"Date in YYYY-MM-DD format" format:"date"`
 	Count int64     `json:"count" doc:"Block count"`
 }
 
 type DailyActiveAccount struct {
-	Date  time.Time `json:"date" doc:"Date"`
+	Date  date.Date `json:"date" doc:"Date in YYYY-MM-DD format" format:"date"`
 	Count int64     `json:"count" doc:"Active account count"`
 }
 
-type TxCountTimeRange struct {
-	Time  time.Time `json:"time" doc:"Time in timestamp format or date format depending on the query"`
+type TxCountDateRange struct {
+	Date  date.Date `json:"date" doc:"Date in YYYY-MM-DD format" format:"date"`
 	Count int64     `json:"count" doc:"Transaction count"`
 }
 
-type VolumeByDenom map[string][]*DenomVolume
+type TxCountTimeRange struct {
+	Time  time.Time `json:"time" doc:"Time in timestamp format" format:"date-time"`
+	Count int64     `json:"count" doc:"Transaction count"`
+}
 
-type DenomVolume struct {
-	Time   time.Time       `json:"time" doc:"Time in timestamp format or date format depending on the query"`
+type VolumeByDenomDaily map[string][]*DenomVolumeDaily
+type VolumeByDenomHourly map[string][]*DenomVolumeHourly
+
+type DenomVolumeDaily struct {
+	Date   date.Date       `json:"date" doc:"Time in date format" format:"date"`
+	Volume decimal.Decimal `json:"volume" doc:"Volume"`
+}
+
+type DenomVolumeHourly struct {
+	Time   time.Time       `json:"time" doc:"Time in timestamp format" format:"date-time"`
 	Volume decimal.Decimal `json:"volume" doc:"Volume"`
 }
 
