@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"log"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -32,6 +33,9 @@ func init() {
 }
 
 func main() {
+	// Important to force because all of the data is in UTC time recorded.
+	time.Local = time.UTC
+
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("failed to execute command: %v", err)
 	}
