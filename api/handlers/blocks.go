@@ -107,7 +107,10 @@ func (h *BlocksHandler) GetBlockCount24h(
 	if err != nil {
 		return nil, huma.Error404NotFound("Block count for last 24h not found", err)
 	}
-	return &humatypes.BlockCount24hGetOutput{Body: count}, nil
+	body := &humatypes.BlockCount24hGetBody{
+		Count: count,
+	}
+	return &humatypes.BlockCount24hGetOutput{Body: body}, nil
 }
 
 // GetBlockCountByDate returns the block count per day within the given date range

@@ -49,8 +49,12 @@ type LastXBlocksGetOutput struct {
 
 type BlockCount24hGetInput struct{}
 
+type BlockCount24hGetBody struct {
+	Count int64 `json:"count" doc:"Count of blocks in the last 24 hours"`
+}
+
 type BlockCount24hGetOutput struct {
-	Body int64
+	Body *BlockCount24hGetBody
 }
 
 type BlockCountByDateGetInput struct {
