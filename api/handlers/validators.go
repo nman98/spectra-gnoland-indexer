@@ -49,7 +49,7 @@ func (h *ValidatorsHandler) GetValidatorSigningByHour(
 	}
 
 	signing, err := h.db.GetValidatorSigningByHour(
-		ctx, input.ValidatorAddress, h.chainName, input.StartTimestamp, input.EndTimestamp,
+		ctx, input.ValidatorAddress, h.chainName, input.StartTimestamp, input.EndTimestamp, input.SortOrder,
 	)
 	if err != nil {
 		return nil, huma.Error404NotFound(

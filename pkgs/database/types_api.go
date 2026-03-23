@@ -8,6 +8,23 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// SortOrder controls the direction of time-ordered query results.
+
+type SortOrder string
+
+const (
+	SortOrderDesc SortOrder = "desc"
+	SortOrderAsc  SortOrder = "asc"
+)
+
+// SQL returns the uppercase SQL keyword for use in ORDER BY clauses.
+func (s SortOrder) SQL() string {
+	if s == SortOrderAsc {
+		return "ASC"
+	}
+	return "DESC"
+}
+
 // BlockData represents the actual block data returned in the response body
 type BlockData struct {
 	Hash      string    `json:"hash" doc:"Block hash (base64 encoded)"`

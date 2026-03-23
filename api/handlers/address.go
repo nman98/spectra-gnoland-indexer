@@ -31,7 +31,9 @@ func (h *AddressHandler) GetDailyActiveAccount(
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	data, err := h.db.GetDailyActiveAccount(ctx, h.chainName, startDate, endDate)
+	data, err := h.db.GetDailyActiveAccount(
+		ctx, h.chainName, startDate, endDate, input.SortOrder,
+	)
 	if err != nil {
 		return nil, huma.Error404NotFound("Daily active account data not found", err)
 	}
@@ -69,6 +71,7 @@ func (h *AddressHandler) GetAddressTxs(
 		limit,
 		page,
 		cursor,
+		input.SortOrder,
 	)
 	if err != nil {
 		return nil, huma.Error404NotFound("Address not found", err)

@@ -56,8 +56,9 @@ type TransactionMessageGetOutput struct {
 }
 
 type TransactionGeneralListByCursorGetInput struct {
-	Cursor string `query:"cursor" doc:"Cursor to get the next set of transactions in form of timestamp|tx_hash(base64url encoded)" required:"false"`
-	Limit  uint64 `query:"limit" doc:"Limit of transactions to get" required:"true" min:"1" max:"100" default:"10"`
+	Cursor    string             `query:"cursor" doc:"Cursor to get the next set of transactions in form of timestamp|tx_hash(base64url encoded)" required:"false"`
+	Limit     uint64             `query:"limit" doc:"Limit of transactions to get" required:"true" min:"1" max:"100" default:"10"`
+	SortOrder database.SortOrder `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
 }
 
 type TransactionGeneralListByCursorGetOutput struct {
@@ -79,8 +80,9 @@ type TotalTxCount24hGetOutput struct {
 }
 
 type TxCountByDateGetInput struct {
-	StartDate date.Date `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
-	EndDate   date.Date `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	StartDate date.Date          `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	EndDate   date.Date          `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	SortOrder database.SortOrder `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
 }
 
 type TxCountByDateGetOutput struct {
@@ -91,8 +93,9 @@ type TxCountByTimeGetOutput struct {
 	Body []*database.TxCountTimeRange
 }
 type TxCountByHourGetInput struct {
-	StartTimestamp time.Time `query:"start_timestamp" doc:"Start datetime (inclusive)" format:"date-time" required:"true"`
-	EndTimestamp   time.Time `query:"end_timestamp" doc:"End datetime (inclusive)" format:"date-time" required:"true"`
+	StartTimestamp time.Time          `query:"start_timestamp" doc:"Start datetime (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time          `query:"end_timestamp" doc:"End datetime (inclusive)" format:"date-time" required:"true"`
+	SortOrder      database.SortOrder `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
 }
 
 type TxCountByHourGetOutput struct {
@@ -100,8 +103,9 @@ type TxCountByHourGetOutput struct {
 }
 
 type VolumeByDateGetInput struct {
-	StartDate date.Date `query:"start_date" doc:"Start date (inclusive)" format:"date" required:"true"`
-	EndDate   date.Date `query:"end_date" doc:"End date (inclusive)" format:"date" required:"true"`
+	StartDate date.Date          `query:"start_date" doc:"Start date (inclusive)" format:"date" required:"true"`
+	EndDate   date.Date          `query:"end_date" doc:"End date (inclusive)" format:"date" required:"true"`
+	SortOrder database.SortOrder `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
 }
 
 type VolumeByDateGetOutput struct {
@@ -109,8 +113,9 @@ type VolumeByDateGetOutput struct {
 }
 
 type VolumeByHourGetInput struct {
-	StartTimestamp time.Time `query:"start_timestamp" doc:"Start datetime (inclusive)" format:"date-time" required:"true"`
-	EndTimestamp   time.Time `query:"end_timestamp" doc:"End datetime (inclusive)" format:"date-time" required:"true"`
+	StartTimestamp time.Time          `query:"start_timestamp" doc:"Start datetime (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time          `query:"end_timestamp" doc:"End datetime (inclusive)" format:"date-time" required:"true"`
+	SortOrder      database.SortOrder `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
 }
 
 type VolumeByHourGetOutput struct {

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"log"
 	"strconv"
 
@@ -91,7 +92,19 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 // Parameters:
 //   - chainName: the name of the chain
 //   - x: the number of transactions to get
-func (t *TimescaleDb) GetLastXTransactions(ctx context.Context, chainName string, x uint64) ([]*Transaction, error) {
+func (t *TimescaleDb) GetLastXTransactions(
+	ctx context.Context,
+	chainName string,
+	x uint64,
+	sortOrder *SortOrder,
+) ([]*Transaction, error) {
+	// The only usage for this is for the transaction queried by cursor, it shouldn't be allowed to be
+	// queried on the endpoint for the last x transactions for now.
+	if sortOrder == nil {
+		sortOrder = new(SortOrder)
+		*sortOrder = SortOrderDesc
+	}
+	order := sortOrder.SQL()
 	query := `
 	SELECT
 	encode(tx.tx_hash, 'base64') AS tx_hash,
@@ -106,10 +119,10 @@ func (t *TimescaleDb) GetLastXTransactions(ctx context.Context, chainName string
 	tx.msg_types
 	FROM transaction_general tx
 	WHERE tx.chain_name = $1
-	ORDER BY tx.timestamp DESC
-	LIMIT $2
+	ORDER BY tx.timestamp $2
+	LIMIT $3
 	`
-	rows, err := t.pool.Query(ctx, query, chainName, x)
+	rows, err := t.pool.Query(ctx, query, chainName, order, x)
 	if err != nil {
 		return nil, err
 	}
@@ -208,11 +221,12 @@ func (t *TimescaleDb) GetTransactionsByCursor(
 	chainName string,
 	cursor string,
 	limit uint64,
+	sortOrder SortOrder,
 ) ([]*Transaction, error) {
 	var query string
 	// if txHash and timestamp are nil make same query as GetLastXTransactions
 	if cursor == "" {
-		return t.GetLastXTransactions(ctx, chainName, limit)
+		return t.GetLastXTransactions(ctx, chainName, limit, &sortOrder)
 	}
 	timestamp, txHash, err := unmarshalCursorParam(cursor)
 	if err != nil {
@@ -223,7 +237,12 @@ func (t *TimescaleDb) GetTransactionsByCursor(
 	if err != nil {
 		return nil, err
 	}
-	query = `
+	order := sortOrder.SQL()
+	seekOp := "<"
+	if sortOrder == SortOrderAsc {
+		seekOp = ">"
+	}
+	query = fmt.Sprintf(`
 	SELECT
 	encode(tx.tx_hash, 'base64') AS tx_hash,
 	tx.timestamp,
@@ -237,11 +256,11 @@ func (t *TimescaleDb) GetTransactionsByCursor(
 	tx.msg_types
 	FROM transaction_general tx
 	WHERE tx.chain_name = $1
-	AND (tx.timestamp, tx.tx_hash) < ($2, $3)
-	ORDER BY tx.timestamp DESC, tx.tx_hash DESC
-	LIMIT $4
-	`
-	args := []any{chainName, timestamp, decodedTxHash, limit}
+	AND (tx.timestamp, tx.tx_hash) %s ($2, $3)
+	ORDER BY tx.timestamp %s, tx.tx_hash %s
+	LIMIT $4	
+	`, seekOp, order, order)
+	args := []any{chainName, timestamp, decodedTxHash, order, limit}
 	rows, err := t.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err

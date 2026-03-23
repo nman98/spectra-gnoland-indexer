@@ -93,7 +93,7 @@ func (h *TransactionsHandler) GetTransactionsByCursor(
 	ctx context.Context,
 	input *humatypes.TransactionGeneralListByCursorGetInput,
 ) (*humatypes.TransactionGeneralListByCursorGetOutput, error) {
-	transactions, err := h.db.GetTransactionsByCursor(ctx, h.chainName, input.Cursor, input.Limit)
+	transactions, err := h.db.GetTransactionsByCursor(ctx, h.chainName, input.Cursor, input.Limit, input.SortOrder)
 	if err != nil {
 		return nil, huma.Error404NotFound("Transactions by cursor not found", err)
 	}
@@ -107,7 +107,7 @@ func (h *TransactionsHandler) GetLastXTransactions(
 	ctx context.Context,
 	input *humatypes.LastXTransactionsGetInput,
 ) (*humatypes.LastXTransactionsGetOutput, error) {
-	transactions, err := h.db.GetLastXTransactions(ctx, h.chainName, input.Amount)
+	transactions, err := h.db.GetLastXTransactions(ctx, h.chainName, input.Amount, nil)
 	if err != nil {
 		return nil, huma.Error404NotFound("Last transactions not found", err)
 	}
@@ -141,7 +141,7 @@ func (h *TransactionsHandler) GetTotalTxCountByDate(
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	counts, err := h.db.GetTotalTxCountByDate(ctx, h.chainName, startDate, endDate)
+	counts, err := h.db.GetTotalTxCountByDate(ctx, h.chainName, startDate, endDate, input.SortOrder)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf(
 			"Transaction count from %s to %s not found", startDate, endDate), err)
@@ -162,7 +162,7 @@ func (h *TransactionsHandler) GetTotalTxCountByHour(
 		return nil, huma.Error400BadRequest("end_timestamp must be within 7 days of start_timestamp", nil)
 	}
 
-	counts, err := h.db.GetTotalTxCountByHour(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp)
+	counts, err := h.db.GetTotalTxCountByHour(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp, input.SortOrder)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf(
 			"Transaction count by hour from %s to %s not found", input.StartTimestamp, input.EndTimestamp), err)
@@ -179,7 +179,7 @@ func (h *TransactionsHandler) GetVolumeByDate(ctx context.Context, input *humaty
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	volume, err := h.db.GetVolumeByDate(ctx, h.chainName, input.StartDate, input.EndDate)
+	volume, err := h.db.GetVolumeByDate(ctx, h.chainName, input.StartDate, input.EndDate, input.SortOrder)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf(
 			"Volume from %s to %s not found", input.StartDate, input.EndDate), err)
@@ -196,7 +196,7 @@ func (h *TransactionsHandler) GetVolumeByHour(ctx context.Context, input *humaty
 		return nil, huma.Error400BadRequest("end_timestamp must be within 7 days of start_timestamp", nil)
 	}
 
-	volume, err := h.db.GetVolumeByHour(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp)
+	volume, err := h.db.GetVolumeByHour(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp, input.SortOrder)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf(
 			"Volume by hour from %s to %s not found", input.StartTimestamp, input.EndTimestamp), err)
