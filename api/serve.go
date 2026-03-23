@@ -188,11 +188,12 @@ func runServe(cmd *cobra.Command, args []string) {
 		}
 	})
 
-	routes.RegisterBlocksRoutes(api, blocksHandler, inMemoryHandler)
-	routes.RegisterTransactionsRoutes(api, transactionsHandler)
-	routes.RegisterAddressesRoutes(api, addressHandler, inMemoryHandler)
-	routes.RegisterValidatorsRoutes(api, validatorsHandler)
-	routes.RegisterUtilsRoutes(api)
+	v1Group := huma.NewGroup(api, "/v1")
+	routes.RegisterBlocksRoutes(v1Group, blocksHandler, inMemoryHandler)
+	routes.RegisterTransactionsRoutes(v1Group, transactionsHandler)
+	routes.RegisterAddressesRoutes(v1Group, addressHandler, inMemoryHandler)
+	routes.RegisterValidatorsRoutes(v1Group, validatorsHandler)
+	routes.RegisterUtilsRoutes(v1Group)
 
 	addr := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
 
