@@ -18,12 +18,14 @@ type AddressDbHandler interface {
 		limit *uint64,
 		page *uint64,
 		cursor *string,
+		sortOrder database.SortOrder,
 	) (*[]database.AddressTx, string, uint64, error)
 	GetDailyActiveAccount(
 		ctx context.Context,
 		chainName string,
 		dateFrom date.Date,
 		dateTo date.Date,
+		sortOrder database.SortOrder,
 	) ([]*database.DailyActiveAccount, error)
 }
 
@@ -39,6 +41,7 @@ type ValidatorDbHandler interface {
 		chainName string,
 		fromTimestamp time.Time,
 		toTimestamp time.Time,
+		sortOrder database.SortOrder,
 	) ([]*database.ValidatorSigning, error)
 }
 
@@ -49,23 +52,32 @@ type BlockDbHandler interface {
 	GetLatestBlock(ctx context.Context, chainName string) (*database.BlockData, error)
 	GetLastXBlocks(ctx context.Context, chainName string, x uint64) ([]*database.BlockData, error)
 	GetBlockCount24h(ctx context.Context, chainName string) (int64, error)
-	GetBlockCountByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date) ([]*database.BlockCountByDate, error)
+	GetBlockCountByDate(
+		ctx context.Context,
+		chainName string,
+		dateFrom date.Date,
+		dateTo date.Date,
+		sortOrder database.SortOrder,
+	) ([]*database.BlockCountByDate, error)
 }
 
 type TransactionDbHandler interface {
 	GetTransaction(ctx context.Context, txHash string, chainName string) (*database.Transaction, error)
-	GetLastXTransactions(ctx context.Context, chainName string, x uint64) ([]*database.Transaction, error)
+	GetLastXTransactions(ctx context.Context, chainName string, x uint64, sortOrder *database.SortOrder,
+	) ([]*database.Transaction, error)
 	GetMsgTypes(ctx context.Context, txHash string, chainName string) ([]string, error)
 	GetBankSend(ctx context.Context, txHash string, chainName string) ([]*database.BankSend, error)
 	GetMsgCall(ctx context.Context, txHash string, chainName string) ([]*database.MsgCall, error)
 	GetMsgAddPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgAddPackage, error)
 	GetMsgRun(ctx context.Context, txHash string, chainName string) ([]*database.MsgRun, error)
-	GetTransactionsByCursor(ctx context.Context, chainName string, cursor string, limit uint64) ([]*database.Transaction, error)
+	GetTransactionsByCursor(
+		ctx context.Context, chainName string, cursor string, limit uint64, sortOrder database.SortOrder,
+	) ([]*database.Transaction, error)
 	GetTotalTxCount24h(ctx context.Context, chainName string) (int64, error)
-	GetTotalTxCountByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date) ([]*database.TxCountDateRange, error)
-	GetTotalTxCountByHour(ctx context.Context, chainName string, fromTimestamp time.Time, toTimestamp time.Time) ([]*database.TxCountTimeRange, error)
-	GetVolumeByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date) (database.VolumeByDenomDaily, error)
-	GetVolumeByHour(ctx context.Context, chainName string, fromTimestamp time.Time, toTimestamp time.Time) (database.VolumeByDenomHourly, error)
+	GetTotalTxCountByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date, sortOrder database.SortOrder) ([]*database.TxCountDateRange, error)
+	GetTotalTxCountByHour(ctx context.Context, chainName string, fromTimestamp time.Time, toTimestamp time.Time, sortOrder database.SortOrder) ([]*database.TxCountTimeRange, error)
+	GetVolumeByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date, sortOrder database.SortOrder) (database.VolumeByDenomDaily, error)
+	GetVolumeByHour(ctx context.Context, chainName string, fromTimestamp time.Time, toTimestamp time.Time, sortOrder database.SortOrder) (database.VolumeByDenomHourly, error)
 }
 
 type InMemoryDbHandler interface {

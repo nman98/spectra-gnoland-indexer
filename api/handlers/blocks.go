@@ -127,7 +127,9 @@ func (h *BlocksHandler) GetBlockCountByDate(
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	counts, err := h.db.GetBlockCountByDate(ctx, h.chainName, startDate, endDate)
+	counts, err := h.db.GetBlockCountByDate(
+		ctx, h.chainName, startDate, endDate, input.SortOrder,
+	)
 	if err != nil {
 		return nil, huma.Error404NotFound(
 			fmt.Sprintf("Block count from %s to %s not found", startDate, endDate), err)

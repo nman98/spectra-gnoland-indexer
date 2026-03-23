@@ -8,12 +8,13 @@ import (
 )
 
 type AddressGetInput struct {
-	Address       string    `path:"address" doc:"Gno address you want to query" required:"true" minLength:"40" maxLength:"40"`
-	FromTimestamp time.Time `query:"from_timestamp" doc:"From timestamp (inclusive)" format:"date-time"`
-	ToTimestamp   time.Time `query:"to_timestamp" doc:"To timestamp (inclusive)" format:"date-time"`
-	Limit         uint64    `query:"limit" doc:"Limit of transactions to return" min:"1" max:"100" default:"10"`
-	Page          uint64    `query:"page" doc:"Page of transactions to return"`
-	Cursor        string    `query:"cursor" doc:"Cursor to continue from"`
+	Address       string             `path:"address" doc:"Gno address you want to query" required:"true" minLength:"40" maxLength:"40"`
+	FromTimestamp time.Time          `query:"from_timestamp" doc:"From timestamp (inclusive)" format:"date-time"`
+	ToTimestamp   time.Time          `query:"to_timestamp" doc:"To timestamp (inclusive)" format:"date-time"`
+	Limit         uint64             `query:"limit" doc:"Limit of transactions to return" min:"1" max:"100" default:"10"`
+	Page          uint64             `query:"page" doc:"Page of transactions to return"`
+	Cursor        string             `query:"cursor" doc:"Cursor to continue from"`
+	SortOrder     database.SortOrder `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
 }
 
 type AddressGetOutput struct {
@@ -27,8 +28,9 @@ type AddressTxsBody struct {
 }
 
 type DailyActiveAccountGetInput struct {
-	StartDate date.Date `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
-	EndDate   date.Date `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	StartDate date.Date          `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	EndDate   date.Date          `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	SortOrder database.SortOrder `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
 }
 
 type DailyActiveAccountGetOutput struct {

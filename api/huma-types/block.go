@@ -58,8 +58,9 @@ type BlockCount24hGetOutput struct {
 }
 
 type BlockCountByDateGetInput struct {
-	StartDate date.Date `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
-	EndDate   date.Date `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	StartDate date.Date             `query:"start_date" doc:"Start date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	EndDate   date.Date             `query:"end_date" doc:"End date (inclusive, YYYY-MM-DD)" format:"date" required:"true"`
+	SortOrder database.SortOrder    `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
 }
 
 type BlockCountByDateGetOutput struct {

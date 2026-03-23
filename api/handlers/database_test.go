@@ -83,6 +83,7 @@ func (m *MockDatabase) GetAddressTxs(
 	limit *uint64,
 	page *uint64,
 	cursor *string,
+	sortOrder database.SortOrder,
 ) (*[]database.AddressTx, string, uint64, error) {
 	if m.shouldError {
 		return nil, "", 0, fmt.Errorf("%s", m.errorMsg)
@@ -116,7 +117,9 @@ func (m *MockDatabase) GetLastXBlocks(ctx context.Context, chainName string, x u
 	return blocks, nil
 }
 
-func (m *MockDatabase) GetLastXTransactions(ctx context.Context, chainName string, x uint64) ([]*database.Transaction, error) {
+func (m *MockDatabase) GetLastXTransactions(
+	ctx context.Context, chainName string, x uint64, sortOrder *database.SortOrder,
+) ([]*database.Transaction, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -182,7 +185,9 @@ func (m *MockDatabase) GetMsgRun(ctx context.Context, txHash string, chainName s
 	return []*database.MsgRun{msgRun}, nil
 }
 
-func (m *MockDatabase) GetTransactionsByCursor(ctx context.Context, chainName string, cursor string, limit uint64) ([]*database.Transaction, error) {
+func (m *MockDatabase) GetTransactionsByCursor(
+	ctx context.Context, chainName string, cursor string, limit uint64, sortOrder database.SortOrder,
+) ([]*database.Transaction, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -205,6 +210,7 @@ func (m *MockDatabase) GetTotalTxCountByDate(
 	chainName string,
 	dateFrom date.Date,
 	dateTo date.Date,
+	sortOrder database.SortOrder,
 ) ([]*database.TxCountDateRange, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
@@ -217,6 +223,7 @@ func (m *MockDatabase) GetTotalTxCountByHour(
 	chainName string,
 	fromTimestamp time.Time,
 	toTimestamp time.Time,
+	sortOrder database.SortOrder,
 ) ([]*database.TxCountTimeRange, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
@@ -229,6 +236,7 @@ func (m *MockDatabase) GetVolumeByDate(
 	chainName string,
 	dateFrom date.Date,
 	dateTo date.Date,
+	sortOrder database.SortOrder,
 ) (database.VolumeByDenomDaily, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
@@ -241,6 +249,7 @@ func (m *MockDatabase) GetVolumeByHour(
 	chainName string,
 	fromTimestamp time.Time,
 	toTimestamp time.Time,
+	sortOrder database.SortOrder,
 ) (database.VolumeByDenomHourly, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
@@ -260,6 +269,7 @@ func (m *MockDatabase) GetBlockCountByDate(
 	chainName string,
 	dateFrom date.Date,
 	dateTo date.Date,
+	sortOrder database.SortOrder,
 ) ([]*database.BlockCountByDate, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
@@ -272,6 +282,7 @@ func (m *MockDatabase) GetDailyActiveAccount(
 	chainName string,
 	dateFrom date.Date,
 	dateTo date.Date,
+	sortOrder database.SortOrder,
 ) ([]*database.DailyActiveAccount, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)

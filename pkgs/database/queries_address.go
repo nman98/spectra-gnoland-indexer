@@ -34,6 +34,7 @@ func (t *TimescaleDb) GetAddressTxs(
 	limit *uint64,
 	page *uint64,
 	cursor *string,
+	sortOrder SortOrder,
 ) (*[]AddressTx, string, uint64, error) {
 	hasTsRange := fromTimestamp != nil && toTimestamp != nil
 	noTsRange := fromTimestamp == nil && toTimestamp == nil
@@ -66,21 +67,21 @@ func (t *TimescaleDb) GetAddressTxs(
 	switch mode {
 	case "timestamp":
 		addressTxs, err = t.getAddressTxsTimestampQuery(
-			ctx, accountId, chainName, *fromTimestamp, *toTimestamp, limit,
+			ctx, accountId, chainName, *fromTimestamp, *toTimestamp, limit, sortOrder,
 		)
 		if err != nil {
 			return nil, "", 0, err
 		}
 	case "cursor":
 		addressTxs, nextCursor, err = t.getAddressTxsCursorQuery(
-			ctx, accountId, chainName, cursor, limit, txCount,
+			ctx, accountId, chainName, cursor, limit, txCount, sortOrder,
 		)
 		if err != nil {
 			return nil, "", 0, err
 		}
 	case "limit_page":
 		addressTxs, err = t.getAddressTxsLimitPageQuery(
-			ctx, accountId, chainName, limit, *page,
+			ctx, accountId, chainName, limit, *page, sortOrder,
 		)
 		if err != nil {
 			return nil, "", 0, err
@@ -113,6 +114,7 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 	fromTimestamp time.Time,
 	toTimestamp time.Time,
 	limit *uint64,
+	sortOrder SortOrder,
 ) (*[]AddressTx, error) {
 	if limit == nil {
 		limit = &defaultLimit
@@ -129,10 +131,10 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 		AND tx.chain_name = $2
 		AND tx.timestamp >= $3
 		AND tx.timestamp <= $4
-		ORDER BY tx.timestamp DESC
-		LIMIT $5
+		ORDER BY tx.timestamp $5
+		LIMIT $6
 		`
-	args = append(args, accountId, chainName, fromTimestamp, toTimestamp, *limit)
+	args = append(args, accountId, chainName, fromTimestamp, toTimestamp, sortOrder.SQL(), *limit)
 
 	addressTxs, err := t.execAccQuery(ctx, query, args)
 	if err != nil {
@@ -148,6 +150,7 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 	cursor *string,
 	limit *uint64,
 	txCount uint64,
+	sortOrder SortOrder,
 ) (*[]AddressTx, string, error) {
 	if limit == nil {
 		limit = &defaultLimit
@@ -157,8 +160,14 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 	var query string
 	var args []any
 
+	order := sortOrder.SQL()
+	seekOp := "<"
+	if sortOrder == SortOrderAsc {
+		seekOp = ">"
+	}
+
 	if cursor == nil {
-		query = `
+		query = fmt.Sprintf(`
 		SELECT
 		encode(tx.tx_hash, 'base64') AS tx_hash,
 		tx.timestamp,
@@ -166,9 +175,9 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 		FROM address_tx tx
 		WHERE tx.address = $1
 		AND tx.chain_name = $2
-		ORDER BY tx.timestamp DESC, tx.tx_hash DESC
+		ORDER BY tx.timestamp %s, tx.tx_hash %s
 		LIMIT $3
-		`
+		`, order, order)
 		args = append(args, accountId, chainName, fetchLimit)
 	} else {
 		timestamp, txHash, err := unmarshalCursorParam(*cursor)
@@ -179,7 +188,7 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 		if err != nil {
 			return nil, "", fmt.Errorf("error decoding tx hash: %w", err)
 		}
-		query = `
+		query = fmt.Sprintf(`
 		SELECT
 		encode(tx.tx_hash, 'base64') AS tx_hash,
 		tx.timestamp,
@@ -187,10 +196,10 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 		FROM address_tx tx
 		WHERE tx.address = $1
 		AND tx.chain_name = $2
-		AND (tx.timestamp, tx.tx_hash) < ($3::timestamptz, $4)
-		ORDER BY tx.timestamp DESC, tx.tx_hash DESC
+		AND (tx.timestamp, tx.tx_hash) %s ($3::timestamptz, $4)
+		ORDER BY tx.timestamp %s, tx.tx_hash %s
 		LIMIT $5
-		`
+		`, seekOp, order, order)
 		args = append(args, accountId, chainName, timestamp, decodedTxHash, fetchLimit)
 	}
 
@@ -214,17 +223,17 @@ func (t *TimescaleDb) getAddressTxsLimitPageQuery(
 	chainName string,
 	limit *uint64,
 	page uint64,
+	sortOrder SortOrder,
 ) (*[]AddressTx, error) {
 	if limit == nil {
 		limit = &defaultLimit
 	}
 
-	var query string
 	var args []any
 
 	offset := page * *limit
 
-	query = `
+	query := `
 	SELECT
 	encode(tx.tx_hash, 'base64') AS tx_hash,
 	tx.timestamp,
@@ -232,10 +241,10 @@ func (t *TimescaleDb) getAddressTxsLimitPageQuery(
 	FROM address_tx tx
 	WHERE tx.address = $1
 	AND tx.chain_name = $2
-	ORDER BY tx.timestamp DESC
-	LIMIT $3 OFFSET $4
+	ORDER BY tx.timestamp $3
+	LIMIT $4 OFFSET $5
 	`
-	args = append(args, accountId, chainName, *limit, offset)
+	args = append(args, accountId, chainName, sortOrder.SQL(), *limit, offset)
 
 	addressTxs, err := t.execAccQuery(ctx, query, args)
 	if err != nil {
