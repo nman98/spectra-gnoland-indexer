@@ -123,7 +123,8 @@ func (h *TransactionsHandler) GetTotalTxCount24h(
 	if err != nil {
 		return nil, huma.Error404NotFound("Transaction count for last 24h not found", err)
 	}
-	return &humatypes.TotalTxCount24hGetOutput{Body: count}, nil
+	body := &humatypes.TotalTxCount24hBody{Count: count}
+	return &humatypes.TotalTxCount24hGetOutput{Body: body}, nil
 }
 
 // GetTotalTxCountByDate returns the transaction count per day within the given date range

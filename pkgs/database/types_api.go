@@ -205,3 +205,7 @@ type ValidatorSigning struct {
 	TotalBlocks  int64      `json:"blocks_total" doc:"Total blocks"`
 	SigningRate  float64    `json:"signing_rate" doc:"Signing rate percentage"`
 }
+
+type ValidatorList struct {
+	ValAddresses []string `json:"validator_addresses" doc:"List of all validator addresses"`
+}

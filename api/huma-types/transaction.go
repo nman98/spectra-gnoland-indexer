@@ -74,9 +74,11 @@ type LastXTransactionsGetOutput struct {
 }
 
 type TotalTxCount24hGetInput struct{}
-
+type TotalTxCount24hBody struct {
+	Count int64 `json:"count" doc:"The count of tx that occured in the last 24 hours"`
+}
 type TotalTxCount24hGetOutput struct {
-	Body int64
+	Body *TotalTxCount24hBody
 }
 
 type TxCountByDateGetInput struct {

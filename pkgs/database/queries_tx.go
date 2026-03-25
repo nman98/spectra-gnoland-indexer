@@ -105,7 +105,7 @@ func (t *TimescaleDb) GetLastXTransactions(
 		*sortOrder = SortOrderDesc
 	}
 	order := sortOrder.SQL()
-	query := `
+	query := fmt.Sprintf(`
 	SELECT
 	encode(tx.tx_hash, 'base64') AS tx_hash,
 	tx.timestamp,
@@ -119,10 +119,10 @@ func (t *TimescaleDb) GetLastXTransactions(
 	tx.msg_types
 	FROM transaction_general tx
 	WHERE tx.chain_name = $1
-	ORDER BY tx.timestamp $2
-	LIMIT $3
-	`
-	rows, err := t.pool.Query(ctx, query, chainName, order, x)
+	ORDER BY tx.timestamp %s
+	LIMIT $2
+	`, order)
+	rows, err := t.pool.Query(ctx, query, chainName, x)
 	if err != nil {
 		return nil, err
 	}

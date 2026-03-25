@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
@@ -56,4 +57,20 @@ func (h *ValidatorsHandler) GetValidatorSigningByHour(
 			fmt.Sprintf("Signing data for validator %s in the given time range not found", input.ValidatorAddress), err)
 	}
 	return &humatypes.ValidatorSigningByHourGetOutput{Body: signing}, nil
+}
+
+func (h *ValidatorsHandler) GetValidatorsList(
+	ctx context.Context,
+	input *humatypes.ValidatorsListGetInput,
+) (*humatypes.ValidatorListGetOutput, error) {
+	valList, err := h.db.GetAllValidators(
+		ctx, h.chainName,
+	)
+	if err != nil {
+		log.Printf("Error, ValidatorsHandler: %v", err)
+		return nil, huma.Error500InternalServerError(
+			fmt.Sprintln("Error, there seems to be problem with the query. Check logs for more details."),
+		)
+	}
+	return &humatypes.ValidatorListGetOutput{Body: valList}, nil
 }
