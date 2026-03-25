@@ -24,3 +24,9 @@ type ValidatorSigningByHourGetInput struct {
 type ValidatorSigningByHourGetOutput struct {
 	Body []*database.ValidatorSigning
 }
+
+// Placeholder, there are no params
+type ValidatorsListGetInput struct{}
+type ValidatorListGetOutput struct {
+	Body *database.ValidatorList
+}
