@@ -16,18 +16,19 @@ func (t *TimescaleDb) GetBlockCountByDate(
 	sortOrder SortOrder,
 ) ([]*BlockCountByDate, error) {
 
-	query := `
+	query := fmt.Sprintf(`
 	SELECT
-	time_bucket('1 day', time_bucket)::date as date, 
+	time_bucket('1 day', time_bucket)::date as date,
 	SUM(block_count) as block_count
 	FROM block_counter
 	WHERE chain_name = $1
 	AND time_bucket >= $2 AND time_bucket <= $3
 	GROUP BY time_bucket('1 day', time_bucket)
-	ORDER BY date $4
-	`
+	ORDER BY date %s
+	`, sortOrder.SQL())
 
-	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, dateTo, sortOrder.SQL())
+	newDateTo := dateTo.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, newDateTo)
 	if err != nil {
 		return nil, err
 	}
@@ -75,16 +76,18 @@ func (t *TimescaleDb) GetDailyActiveAccount(
 	dateTo date.Date,
 	sortOrder SortOrder,
 ) ([]*DailyActiveAccount, error) {
-	query := `
+	query := fmt.Sprintf(`
 	SELECT
 	time_bucket::date as date,
 	active_account_count as count
 	FROM daily_active_accounts
 	WHERE chain_name = $1
 	AND time_bucket >= $2 AND time_bucket <= $3
-	ORDER BY date $4
-	`
-	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, dateTo, sortOrder.SQL())
+	ORDER BY date %s
+	`, sortOrder.SQL())
+
+	newDateTo := dateTo.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, newDateTo)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +157,7 @@ func (t *TimescaleDb) GetTotalTxCountByDate(
 	sortOrder SortOrder,
 ) ([]*TxCountDateRange, error) {
 
-	query := `
+	query := fmt.Sprintf(`
 	SELECT date::date, tx_count FROM (
 	SELECT
 		time_bucket_gapfill('1 day', time_bucket) as date,
@@ -165,9 +168,11 @@ func (t *TimescaleDb) GetTotalTxCountByDate(
 		AND time_bucket >= $2 AND time_bucket <= $3
 		GROUP BY 1
 	) sub
-	ORDER BY date $4
-	`
-	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, dateTo, sortOrder.SQL())
+	ORDER BY date %s
+	`, sortOrder.SQL())
+
+	newDateTo := dateTo.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, newDateTo)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +199,7 @@ func (t *TimescaleDb) GetTotalTxCountByHour(
 	endTimestamp time.Time,
 	sortOrder SortOrder,
 ) ([]*TxCountTimeRange, error) {
-	query := `
+	query := fmt.Sprintf(`
 	SELECT
 	time_bucket_gapfill('1 hour', time_bucket) as timestamp,
 	coalesce(SUM(transaction_count), 0) as tx_count
@@ -203,9 +208,9 @@ func (t *TimescaleDb) GetTotalTxCountByHour(
 	chain_name = $1
 	AND time_bucket >= $2 AND time_bucket <= $3
 	GROUP BY 1
-	ORDER BY timestamp $4
-	`
-	rows, err := t.pool.Query(ctx, query, chainName, fromTimestamp, endTimestamp, sortOrder.SQL())
+	ORDER BY timestamp %s
+	`, sortOrder.SQL())
+	rows, err := t.pool.Query(ctx, query, chainName, fromTimestamp, endTimestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +239,7 @@ func (t *TimescaleDb) GetVolumeByDate(
 	sortOrder SortOrder,
 ) (VolumeByDenomDaily, error) {
 
-	query := `
+	query := fmt.Sprintf(`
 	SELECT date::date, volume, denom
 	FROM (
 		SELECT
@@ -247,10 +252,12 @@ func (t *TimescaleDb) GetVolumeByDate(
 			AND time_bucket >= $2 AND time_bucket <= $3
 			GROUP BY 1, denom
 		) sub
-	ORDER BY date $4
-	`
+	ORDER BY date %s
+	`, sortOrder.SQL())
+
+	newDateTo := dateTo.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 	rows, err := t.pool.Query(
-		ctx, query, chainName, dateFrom.Format("2006-01-02"), dateTo.Format("2006-01-02"), sortOrder.SQL(),
+		ctx, query, chainName, dateFrom.Format("2006-01-02"), newDateTo,
 	)
 	if err != nil {
 		return nil, err
@@ -280,7 +287,7 @@ func (t *TimescaleDb) GetVolumeByHour(
 	sortOrder SortOrder,
 ) (VolumeByDenomHourly, error) {
 
-	query := `
+	query := fmt.Sprintf(`
 	SELECT
 	time_bucket_gapfill('1 hour', time_bucket) as time,
 	coalesce(SUM(volume), 0) as volume,
@@ -290,9 +297,9 @@ func (t *TimescaleDb) GetVolumeByHour(
 	chain_name = $1
 	AND time_bucket >= $2 AND time_bucket <= $3
 	GROUP BY 1, denom
-	ORDER BY time $4
-	`
-	rows, err := t.pool.Query(ctx, query, chainName, fromTimestamp, toTimestamp, sortOrder.SQL())
+	ORDER BY time %s
+	`, sortOrder.SQL())
+	rows, err := t.pool.Query(ctx, query, chainName, fromTimestamp, toTimestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +393,7 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 		return nil, fmt.Errorf("validator seems to not exist: %w", err)
 	}
 
-	query2 := `
+	query2 := fmt.Sprintf(`
 	SELECT
 	time_bucket_gapfill('1 hour', vsc.time_bucket) as time,
 	coalesce(sum(vsc.blocks_signed), 0) as blocks_signed,
@@ -401,9 +408,9 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 		AND vsc.validator_id  = $2
 		AND vsc.time_bucket >= $3 AND vsc.time_bucket <= $4
 	GROUP BY 1
-	ORDER BY time $4
-	`
-	rows, err := t.pool.Query(ctx, query2, chainName, validatorId, fromTimestamp, toTimestamp, sortOrder.SQL())
+	ORDER BY time %s
+	`, sortOrder.SQL())
+	rows, err := t.pool.Query(ctx, query2, chainName, validatorId, fromTimestamp, toTimestamp)
 	if err != nil {
 		return nil, err
 	}
