@@ -19,7 +19,7 @@ func (t *TimescaleDb) GetBlockCountByDate(
 	query := fmt.Sprintf(`
 	SELECT date::date, block_count FROM (
 	SELECT
-		time_bucket_gapfill('1 day', time_bucket)::date as date,
+		time_bucket_gapfill('1 day', time_bucket) as date,
 		coalesce(SUM(block_count), 0) as block_count
 		FROM block_counter
 		WHERE chain_name = $1
