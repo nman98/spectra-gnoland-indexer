@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
@@ -17,13 +18,15 @@ func (t *TimescaleDb) GetBlockCountByDate(
 ) ([]*BlockCountByDate, error) {
 
 	query := fmt.Sprintf(`
+	SELECT date::date, block_cound FROM (
 	SELECT
-	time_bucket('1 day', time_bucket)::date as date,
-	SUM(block_count) as block_count
-	FROM block_counter
-	WHERE chain_name = $1
-	AND time_bucket >= $2 AND time_bucket <= $3
-	GROUP BY time_bucket('1 day', time_bucket)
+		time_bucket_gapfill('1 day', time_bucket)::date as date,
+		coalesce(SUM(block_count), 0) as block_count
+		FROM block_counter
+		WHERE chain_name = $1
+		ANT time_bucket >= $2 and time_bucket <= $3
+		GROUP BY 1
+	) sum
 	ORDER BY date %s
 	`, sortOrder.SQL())
 
@@ -77,16 +80,20 @@ func (t *TimescaleDb) GetDailyActiveAccount(
 	sortOrder SortOrder,
 ) ([]*DailyActiveAccount, error) {
 	query := fmt.Sprintf(`
+	SELECT date::date, count FROM (
 	SELECT
-	time_bucket::date as date,
-	active_account_count as count
-	FROM daily_active_accounts
-	WHERE chain_name = $1
-	AND time_bucket >= $2 AND time_bucket <= $3
+		time_bucket_gapfill('1 day', time_bucket) as date,
+		coalesce(SUM(active_account_count), 0) as count
+		FROM daily_active_accounts
+		WHERE chain_name = $1
+		AND time_bucket >= $2 AND time_bucket <= $3
+		GROUP BY 1
+	) sub
 	ORDER BY date %s
 	`, sortOrder.SQL())
 
 	newDateTo := dateTo.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+	log.Println(newDateTo)
 	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, newDateTo)
 	if err != nil {
 		return nil, err
@@ -325,7 +332,7 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 	validatorAddress string,
 	chainName string,
 ) (*ValidatorSigning, error) {
-	// check if validator address exists and get it's id
+	// Check if validator address exists and get its id
 	query1 := `
 	SELECT
 	id
@@ -378,7 +385,7 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	toTimestamp time.Time,
 	sortOrder SortOrder,
 ) ([]*ValidatorSigning, error) {
-	// check if validator address exists and get it's id
+	// Check if validator address exists and get its id
 	query1 := `
 	SELECT
 	id
