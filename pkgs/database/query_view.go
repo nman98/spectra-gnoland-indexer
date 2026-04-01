@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
@@ -18,13 +17,13 @@ func (t *TimescaleDb) GetBlockCountByDate(
 ) ([]*BlockCountByDate, error) {
 
 	query := fmt.Sprintf(`
-	SELECT date::date, block_cound FROM (
+	SELECT date::date, block_count FROM (
 	SELECT
 		time_bucket_gapfill('1 day', time_bucket)::date as date,
 		coalesce(SUM(block_count), 0) as block_count
 		FROM block_counter
 		WHERE chain_name = $1
-		ANT time_bucket >= $2 and time_bucket <= $3
+		AND time_bucket >= $2 and time_bucket <= $3
 		GROUP BY 1
 	) sum
 	ORDER BY date %s
@@ -93,7 +92,6 @@ func (t *TimescaleDb) GetDailyActiveAccount(
 	`, sortOrder.SQL())
 
 	newDateTo := dateTo.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-	log.Println(newDateTo)
 	rows, err := t.pool.Query(ctx, query, chainName, dateFrom, newDateTo)
 	if err != nil {
 		return nil, err
