@@ -2,26 +2,24 @@ package valkey
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	glide "github.com/valkey-io/valkey-glide/go/v2"
-	glideCfg "github.com/valkey-io/valkey-glide/go/v2/config"
+	valkey "github.com/valkey-io/valkey-go"
 )
 
 type ValkeyClient struct {
-	client *glide.Client
+	client valkey.Client
 }
 
 func NewValkeyClient(host string, port int) (*ValkeyClient, error) {
 	timeout := 5 * time.Second
-	cfg := glideCfg.NewClientConfiguration()
-	cfg.WithAddress(&glideCfg.NodeAddress{
-		Host: host,
-		Port: port,
-	})
-	cfg.WithConnectionTimeout(timeout)
-	cfg.WithRequestTimeout(timeout)
-	client, err := glide.NewClient(cfg)
+	cfg := valkey.ClientOption{
+		InitAddress:      []string{fmt.Sprintf("%s:%d", host, port)},
+		ConnWriteTimeout: timeout,
+		ConnLifetime:     timeout,
+	}
+	client, err := valkey.NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -35,9 +33,9 @@ func (c *ValkeyClient) Close() {
 }
 
 func (c *ValkeyClient) Increment(key string, ctx context.Context) (int64, error) {
-	return c.client.Incr(ctx, key)
+	return c.client.Do(ctx, c.client.B().Incr().Key(key).Build()).AsInt64()
 }
 
 func (c *ValkeyClient) Expirer(key string, ctx context.Context, expiration time.Duration) (bool, error) {
-	return c.client.Expire(ctx, key, expiration)
+	return c.client.Do(ctx, c.client.B().Expire().Key(key).Seconds(int64(expiration)).Build()).AsBool()
 }
