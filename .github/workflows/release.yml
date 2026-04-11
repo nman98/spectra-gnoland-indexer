@@ -19,7 +19,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.8'
+          go-version: '1.26.1'
 
       - name: Get version
         id: version
@@ -67,8 +67,8 @@ jobs:
 
           go mod download
 
-          LDFLAGS_INDEXER="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}"
-          LDFLAGS_API="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}"
+          LDFLAGS_INDEXER="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION} -w -s"
+          LDFLAGS_API="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION} -w -s"
 
           # amd64
           GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-amd64 indexer/indexer.go

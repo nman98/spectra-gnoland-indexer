@@ -22,24 +22,16 @@ GIT_TAG := $(shell git describe --tags --exact-match 2>/dev/null || echo "")
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 VERSION := $(if $(GIT_TAG),$(GIT_TAG),$(GIT_BRANCH)-$(GIT_COMMIT))
 
-build:
+build-indexer:
 	mkdir -p build
-	go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION)" -o build/indexer indexer/indexer.go
-
-install:
-	go install -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION)" indexer/indexer.go
+	go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION) -w -s" -o build/indexer indexer/indexer.go
 
 build-api:
 	mkdir -p build
-	go build -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION)" -o build/api ./api
+	go build -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION) -w -s" -o build/api ./api
 
 clean:
 	rm -rf build
-
-# experimental build with greentea garbage collection
-# use at your own risk
-build-experimental:
-	GOEXPERIMENT=greenteagc go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION)" -o build/indexer-tea indexer/indexer.go
 
 ########################################################
 # Test the indexer
