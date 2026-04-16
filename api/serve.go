@@ -130,6 +130,9 @@ func runServe(cmd *cobra.Command, args []string) {
 		}
 
 		rl := ratelimit.NewRateLimiter(valkeyClient, ks, ipRPM, 1*time.Minute, conf.TrustedProxies)
+		// Only apply rate limiting to API routes; documentation and static
+		// assets (/docs, /openapi.yaml, /favicon.ico, /) are excluded.
+		rl.SetRatePaths([]string{"/v1"})
 		mux.Use(rl.Middleware)
 	}
 
