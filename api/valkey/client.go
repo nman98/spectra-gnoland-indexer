@@ -37,5 +37,13 @@ func (c *ValkeyClient) Increment(key string, ctx context.Context) (int64, error)
 }
 
 func (c *ValkeyClient) Expirer(key string, ctx context.Context, expiration time.Duration) (bool, error) {
-	return c.client.Do(ctx, c.client.B().Expire().Key(key).Seconds(int64(expiration)).Build()).AsBool()
+	return c.client.Do(ctx, c.client.B().Expire().Key(key).Seconds(int64(expiration.Seconds())).Build()).AsBool()
+}
+
+// ExpireNX sets the TTL on key only when the key currently has no expiry
+// (EXPIRE key seconds NX). This is idempotent and safe to call on every
+// request: it will not slide an already-running window, but it will
+// self-heal any key that was incremented without ever receiving a TTL.
+func (c *ValkeyClient) ExpireNX(key string, ctx context.Context, expiration time.Duration) (bool, error) {
+	return c.client.Do(ctx, c.client.B().Expire().Key(key).Seconds(int64(expiration.Seconds())).Nx().Build()).AsBool()
 }

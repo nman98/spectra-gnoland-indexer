@@ -17,6 +17,8 @@ import (
 type ValkeyLike interface {
 	Increment(key string, ctx context.Context) (int64, error)
 	Expirer(key string, ctx context.Context, expiration time.Duration) (bool, error)
+	// ExpireNX sets the TTL only when the key has no expiry (EXPIRE key seconds NX).
+	ExpireNX(key string, ctx context.Context, expiration time.Duration) (bool, error)
 }
 
 // KeyStoreLike abstracts the minimal keystore behavior used by the rate limiter.
@@ -30,6 +32,9 @@ type RateLimiter struct {
 	ipRPM          int
 	window         time.Duration
 	trustedProxies []*net.IPNet
+	// ratePaths restricts rate limiting to requests whose path starts with one
+	// of these prefixes. If empty, every request is subject to rate limiting.
+	ratePaths []string
 }
 
 func NewRateLimiter(
@@ -65,8 +70,30 @@ func NewRateLimiter(
 	}
 }
 
+// SetRatePaths restricts rate limiting to requests whose path starts with one
+// of the given prefixes. Paths that do not match any prefix are passed through
+// without consuming any quota. If never called (or called with an empty slice)
+// every request is subject to rate limiting.
+func (rl *RateLimiter) SetRatePaths(paths []string) {
+	rl.ratePaths = paths
+}
+
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if len(rl.ratePaths) > 0 {
+			matched := false
+			for _, prefix := range rl.ratePaths {
+				if strings.HasPrefix(r.URL.Path, prefix) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
 		apiKey := r.Header.Get("X-API-Key")
 
 		var identifier string
@@ -95,10 +122,11 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if count == 1 {
-			if _, err := rl.valkey.Expirer(valkeyKey, r.Context(), rl.window); err != nil {
-				log.Printf("ratelimit: valkey expire error: %v", err)
-			}
+		// Use EXPIRE NX so the TTL is set on creation and self-heals if it was
+		// ever lost (e.g. the Expirer call failed on a previous first request).
+		// NX ensures we never slide an already-running window.
+		if _, err := rl.valkey.ExpireNX(valkeyKey, r.Context(), rl.window); err != nil {
+			log.Printf("ratelimit: valkey expire error: %v", err)
 		}
 
 		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(limit))

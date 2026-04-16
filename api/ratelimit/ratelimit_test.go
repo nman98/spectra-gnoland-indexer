@@ -38,6 +38,14 @@ func (f *fakeValkey) Expirer(key string, ctx context.Context, expiration time.Du
 	return true, nil
 }
 
+func (f *fakeValkey) ExpireNX(key string, ctx context.Context, expiration time.Duration) (bool, error) {
+	if _, alreadySet := f.expireCalls[key]; alreadySet {
+		return false, nil
+	}
+	f.expireCalls[key] = expiration
+	return true, nil
+}
+
 // fakeKeyStore implements KeyStoreLike for tests.
 type fakeKeyStore struct {
 	limits map[[32]byte]int
@@ -76,7 +84,7 @@ func TestMiddleware_IPBased_AllowsAndSetsHeaders(t *testing.T) {
 	assert.Equal(t, "3", res.Header.Get("X-RateLimit-Limit"))
 	assert.Equal(t, "2", res.Header.Get("X-RateLimit-Remaining"))
 
-	// Expirer should be called only on first increment
+	// ExpireNX is called on every request; verify the key received a TTL.
 	key := "rl:ip:203.0.113.5"
 	if _, ok := vk.expireCalls[key]; !ok {
 		t.Fatalf("expected expirer to be called for key %s", key)
