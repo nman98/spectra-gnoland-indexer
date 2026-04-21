@@ -10,9 +10,10 @@ func RegisterTransactionsRoutes(api huma.API, h *handlers.TransactionsHandler) {
 		func(op *huma.Operation) {
 			op.Summary = "Get Transactions"
 			op.Description = `Retrieve transactions using cursor-based pagination.
-			Without a cursor you will fetch the latest data. To acquire older data, supply the cursor
-			returned by a previous response. The cursor is a string in the form
-			timestamp|tx_hash(base64url encoded). This query can be done in ascending or descending order.`
+			The response is always ordered newest-first. Omit the cursor to fetch the
+			most recent page. Use direction="next" with the next_cursor from a prior
+			response to walk toward older rows, and direction="prev" with the prev_cursor
+			to walk toward newer rows. Cursors have the form "<block_height>|<tx_hash_base64url>".`
 		})
 	huma.Get(api, "/transactions/{tx_hash}", h.GetTransactionBasic,
 		func(op *huma.Operation) {

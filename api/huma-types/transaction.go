@@ -56,13 +56,25 @@ type TransactionMessageGetOutput struct {
 }
 
 type TransactionGeneralListByCursorGetInput struct {
-	Cursor    string             `query:"cursor" doc:"Cursor to get the next set of transactions in form of timestamp|tx_hash(base64url encoded)" required:"false"`
-	Limit     uint64             `query:"limit" doc:"Limit of transactions to get" required:"true" min:"1" max:"100" default:"10"`
-	SortOrder database.SortOrder `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
+	Cursor    string             `query:"cursor" doc:"Cursor in the form '<block_height>|<tx_hash_base64url>'. Omit to fetch the most recent page." required:"false"`
+	Limit     uint64             `query:"limit" doc:"Number of transactions to return" required:"false" min:"1" max:"100" default:"25"`
+	Direction database.Direction `query:"direction" doc:"Direction to walk from the cursor. 'next' returns older rows; 'prev' returns newer rows and requires a cursor." enum:"next,prev" default:"next"`
+}
+
+// TransactionsRangeBody is the response body for cursor-based transaction
+// listings. Transactions are always returned newest-first. NextCursor points at
+// the oldest row on the page (use it to load an older page) while PrevCursor
+// points at the newest row (use it to load a newer page).
+type TransactionsRangeBody struct {
+	Transactions []*database.Transaction `json:"transactions" doc:"Transactions on this page, newest-first"`
+	HasNext      bool                    `json:"has_next" doc:"True when an older page exists"`
+	HasPrev      bool                    `json:"has_prev" doc:"True when a newer page exists"`
+	NextCursor   *string                 `json:"next_cursor" doc:"Cursor to request the next (older) page"`
+	PrevCursor   *string                 `json:"prev_cursor" doc:"Cursor to request the previous (newer) page"`
 }
 
 type TransactionGeneralListByCursorGetOutput struct {
-	Body []*database.Transaction
+	Body TransactionsRangeBody
 }
 
 type LastXTransactionsGetInput struct {

@@ -15,11 +15,12 @@ import (
 
 func TestTransactionsHandler_GetTransactionsByCursor_Success(t *testing.T) {
 	fixedTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	txHash := base64.StdEncoding.EncodeToString([]byte("tx_hash_1"))
 
 	db := MockDatabase{
 		transactions: map[string]*database.Transaction{
-			"tx_hash_1": {
-				TxHash:      "tx_hash_1",
+			txHash: {
+				TxHash:      txHash,
 				Timestamp:   fixedTime,
 				BlockHeight: 42,
 				TxEvents:    []database.Event{},
@@ -32,12 +33,17 @@ func TestTransactionsHandler_GetTransactionsByCursor_Success(t *testing.T) {
 	}
 
 	handler := handlers.NewTransactionsHandler(&db, "gnoland")
-	response, err := handler.GetTransactionsByCursor(context.Background(), &humatypes.TransactionGeneralListByCursorGetInput{Cursor: "", Limit: 1})
+	response, err := handler.GetTransactionsByCursor(
+		context.Background(),
+		&humatypes.TransactionGeneralListByCursorGetInput{Cursor: "", Limit: 1, Direction: database.Next},
+	)
 
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Equal(t, 1, len(response.Body))
-	assert.Equal(t, "tx_hash_1", response.Body[0].TxHash)
+	assert.Equal(t, 1, len(response.Body.Transactions))
+	assert.Equal(t, txHash, response.Body.Transactions[0].TxHash)
+	assert.False(t, response.Body.HasPrev)
+	assert.Nil(t, response.Body.PrevCursor)
 }
 
 func TestTransactionsHandler_GetTransactionsByCursor_Fail(t *testing.T) {
@@ -46,11 +52,27 @@ func TestTransactionsHandler_GetTransactionsByCursor_Fail(t *testing.T) {
 		errorMsg:    "error getting transactions by cursor",
 	}
 	handler := handlers.NewTransactionsHandler(&db, "gnoland")
-	response, err := handler.GetTransactionsByCursor(context.Background(), &humatypes.TransactionGeneralListByCursorGetInput{Cursor: "", Limit: 1})
+	response, err := handler.GetTransactionsByCursor(
+		context.Background(),
+		&humatypes.TransactionGeneralListByCursorGetInput{Cursor: "", Limit: 1, Direction: database.Next},
+	)
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
 	assert.Contains(t, err.Error(), "Transactions by cursor not found")
+}
+
+func TestTransactionsHandler_GetTransactionsByCursor_PrevWithoutCursor(t *testing.T) {
+	db := MockDatabase{}
+	handler := handlers.NewTransactionsHandler(&db, "gnoland")
+	response, err := handler.GetTransactionsByCursor(
+		context.Background(),
+		&humatypes.TransactionGeneralListByCursorGetInput{Cursor: "", Limit: 10, Direction: database.Prev},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "direction=prev requires a cursor")
 }
 
 func TestTransactionsHandler_GetTransactionBasic_Success(t *testing.T) {

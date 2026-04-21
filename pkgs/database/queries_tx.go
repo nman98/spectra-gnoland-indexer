@@ -216,33 +216,42 @@ func (t *TimescaleDb) GetTransactionsByOffset(
 	return transactions, nil
 }
 
-func (t *TimescaleDb) GetTransactionsByCursor(
+// GetTransactionsByRange returns a page of transactions using keyset (cursor) pagination
+// over the composite key (block_height, tx_hash).
+//
+// The response is always ordered newest-first (DESC by block_height, tx_hash). The caller
+// distinguishes whether it wants older rows ("next") or newer rows ("prev"):
+//
+//   - direction == Next: walk toward older rows. Without a cursor it returns the latest
+//     page. With a cursor it returns rows strictly older than the cursor.
+//   - direction == Prev: walk toward newer rows. A cursor is required; the query is run
+//     ASC and the result is reversed before returning so the caller still sees newest-first.
+//
+// The function fetches limit+1 rows internally and truncates. The returned hasMore flag
+// indicates that another page exists in the direction that was walked.
+//
+// Parameters:
+//   - chainName: the name of the chain
+//   - cursor: encoded cursor "<block_height>|<tx_hash_base64url>"; empty means "start"
+//   - limit: number of transactions to return (1..100)
+//   - direction: Next or Prev
+//
+// Returns:
+//   - []*Transaction: the page, newest-first
+//   - bool: hasMore, true if another page exists in the walked direction
+//   - error: if the query fails
+func (t *TimescaleDb) GetTransactionsByRange(
 	ctx context.Context,
 	chainName string,
 	cursor string,
 	limit uint64,
-	sortOrder SortOrder,
-) ([]*Transaction, error) {
-	var query string
-	// if txHash and timestamp are nil make same query as GetLastXTransactions
-	if cursor == "" {
-		return t.GetLastXTransactions(ctx, chainName, limit, &sortOrder)
-	}
-	timestamp, txHash, err := unmarshalCursorParam(cursor)
-	if err != nil {
-		return nil, err
+	direction Direction,
+) ([]*Transaction, bool, error) {
+	if limit == 0 || limit > 100 {
+		return nil, false, fmt.Errorf("limit must be between 1 and 100")
 	}
 
-	decodedTxHash, err := base64.URLEncoding.Strict().DecodeString(txHash)
-	if err != nil {
-		return nil, err
-	}
-	order := sortOrder.SQL()
-	seekOp := "<"
-	if sortOrder == SortOrderAsc {
-		seekOp = ">"
-	}
-	query = fmt.Sprintf(`
+	const selectCols = `
 	SELECT
 	encode(tx.tx_hash, 'base64') AS tx_hash,
 	tx.timestamp,
@@ -255,18 +264,73 @@ func (t *TimescaleDb) GetTransactionsByCursor(
 	tx.fee,
 	tx.msg_types
 	FROM transaction_general tx
-	WHERE tx.chain_name = $1
-	AND (tx.timestamp, tx.tx_hash) %s ($2, $3)
-	ORDER BY tx.timestamp %s, tx.tx_hash %s
-	LIMIT $4	
-	`, seekOp, order, order)
-	args := []any{chainName, timestamp, decodedTxHash, order, limit}
+	`
+
+	hasCursor := cursor != ""
+	var (
+		query         string
+		args          []any
+		reverse       bool
+		blockHeight   uint64
+		decodedTxHash []byte
+	)
+
+	if hasCursor {
+		bh, txHash, err := unmarshalCursorParam(cursor)
+		if err != nil {
+			return nil, false, err
+		}
+		decoded, err := base64.URLEncoding.Strict().DecodeString(txHash)
+		if err != nil {
+			return nil, false, fmt.Errorf("error decoding cursor tx hash: %w", err)
+		}
+		blockHeight = bh
+		decodedTxHash = decoded
+	}
+
+	fetchLimit := limit + 1
+
+	switch direction {
+	case Next:
+		if hasCursor {
+			query = selectCols + `
+			WHERE tx.chain_name = $1
+			AND (tx.block_height, tx.tx_hash) < ($2, $3)
+			ORDER BY tx.block_height DESC, tx.tx_hash DESC
+			LIMIT $4
+			`
+			args = []any{chainName, blockHeight, decodedTxHash, fetchLimit}
+		} else {
+			query = selectCols + `
+			WHERE tx.chain_name = $1
+			ORDER BY tx.block_height DESC, tx.tx_hash DESC
+			LIMIT $2
+			`
+			args = []any{chainName, fetchLimit}
+		}
+	case Prev:
+		if !hasCursor {
+			return nil, false, fmt.Errorf("prev direction requires a cursor")
+		}
+		query = selectCols + `
+		WHERE tx.chain_name = $1
+		AND (tx.block_height, tx.tx_hash) > ($2, $3)
+		ORDER BY tx.block_height ASC, tx.tx_hash ASC
+		LIMIT $4
+		`
+		args = []any{chainName, blockHeight, decodedTxHash, fetchLimit}
+		reverse = true
+	default:
+		return nil, false, fmt.Errorf("invalid direction: %q", direction)
+	}
+
 	rows, err := t.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer rows.Close()
-	transactions := make([]*Transaction, 0)
+
+	transactions := make([]*Transaction, 0, fetchLimit)
 	for rows.Next() {
 		transaction := &FullTxData{}
 		err := rows.Scan(
@@ -282,18 +346,28 @@ func (t *TimescaleDb) GetTransactionsByCursor(
 			&transaction.MsgTypes,
 		)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		tx, err := transaction.ToTransaction(decodeEvents)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		transactions = append(transactions, tx)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return transactions, nil
+
+	hasMore := uint64(len(transactions)) > limit
+	if hasMore {
+		transactions = transactions[:limit]
+	}
+	if reverse {
+		for i, j := 0, len(transactions)-1; i < j; i, j = i+1, j-1 {
+			transactions[i], transactions[j] = transactions[j], transactions[i]
+		}
+	}
+	return transactions, hasMore, nil
 }
 
 func decompressEvents(txEvents []byte) ([]byte, error) {

@@ -16,10 +16,10 @@ type AddressDbHandler interface {
 		fromTimestamp *time.Time,
 		toTimestamp *time.Time,
 		limit *uint64,
-		page *uint64,
 		cursor *string,
+		direction database.Direction,
 		sortOrder database.SortOrder,
-	) (*[]database.AddressTx, string, uint64, error)
+	) (*[]database.AddressTx, bool, error)
 	GetDailyActiveAccount(
 		ctx context.Context,
 		chainName string,
@@ -71,9 +71,9 @@ type TransactionDbHandler interface {
 	GetMsgCall(ctx context.Context, txHash string, chainName string) ([]*database.MsgCall, error)
 	GetMsgAddPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgAddPackage, error)
 	GetMsgRun(ctx context.Context, txHash string, chainName string) ([]*database.MsgRun, error)
-	GetTransactionsByCursor(
-		ctx context.Context, chainName string, cursor string, limit uint64, sortOrder database.SortOrder,
-	) ([]*database.Transaction, error)
+	GetTransactionsByRange(
+		ctx context.Context, chainName string, cursor string, limit uint64, direction database.Direction,
+	) ([]*database.Transaction, bool, error)
 	GetTotalTxCount24h(ctx context.Context, chainName string) (int64, error)
 	GetTotalTxCountByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date, sortOrder database.SortOrder) ([]*database.TxCountDateRange, error)
 	GetTotalTxCountByHour(ctx context.Context, chainName string, fromTimestamp time.Time, toTimestamp time.Time, sortOrder database.SortOrder) ([]*database.TxCountTimeRange, error)

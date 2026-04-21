@@ -17,6 +17,13 @@ const (
 	SortOrderAsc  SortOrder = "asc"
 )
 
+type Direction string
+
+const (
+	Next Direction = "next"
+	Prev Direction = "prev"
+)
+
 // SQL returns the uppercase SQL keyword for use in ORDER BY clauses.
 func (s SortOrder) SQL() string {
 	if s == SortOrderAsc {
@@ -32,6 +39,7 @@ type BlockData struct {
 	Timestamp time.Time `json:"timestamp" doc:"Block timestamp"`
 	ChainID   string    `json:"chain_id" doc:"Chain identifier"`
 	Txs       []string  `json:"txs" doc:"Transactions (base64 encoded)"`
+	Proposer  string    `json:"proposer" doc:"Proposer address"`
 	TxCounter int       `json:"tx_count" doc:"Number of transactions in the block"`
 }
 
@@ -160,9 +168,10 @@ type BlockSigners struct {
 }
 
 type AddressTx struct {
-	Hash      string    `json:"hash" doc:"Transaction hash (base64 encoded)"`
-	Timestamp time.Time `json:"timestamp" doc:"Transaction timestamp"`
-	MsgTypes  []string  `json:"msg_types" doc:"Message types"`
+	Hash        string    `json:"hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp   time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	MsgTypes    []string  `json:"msg_types" doc:"Message types"`
+	BlockHeight uint64    `json:"block_height" doc:"Block height"`
 }
 
 type BlockCountByDate struct {
