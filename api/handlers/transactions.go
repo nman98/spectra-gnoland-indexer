@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/danielgtaylor/huma/v2"
 )
 
@@ -88,18 +90,98 @@ func (h *TransactionsHandler) GetTransactionMessage(
 	}, nil
 }
 
-// Get tx by limit and limit and cursor
+// GetTransactionsByCursor returns a page of transactions using keyset (cursor) pagination.
+//
+// The response is always newest-first: transactions[0] is the newest row on the page and
+// transactions[len-1] is the oldest. Cursors are built from the (block_height, tx_hash)
+// pair of boundary rows so the caller can walk the history in either direction:
+//   - NextCursor points at the oldest row; use it with direction=next to load older data.
+//   - PrevCursor points at the newest row; use it with direction=prev to load newer data.
 func (h *TransactionsHandler) GetTransactionsByCursor(
 	ctx context.Context,
 	input *humatypes.TransactionGeneralListByCursorGetInput,
 ) (*humatypes.TransactionGeneralListByCursorGetOutput, error) {
-	transactions, err := h.db.GetTransactionsByCursor(ctx, h.chainName, input.Cursor, input.Limit, input.SortOrder)
+	limit := input.Limit
+	if limit == 0 {
+		limit = 25
+	}
+	if limit > 100 {
+		return nil, huma.Error400BadRequest("Invalid limit (1..100)", nil)
+	}
+
+	direction := input.Direction
+	if direction == "" {
+		direction = database.Next
+	}
+	if direction != database.Next && direction != database.Prev {
+		return nil, huma.Error400BadRequest("Invalid direction (must be 'next' or 'prev')", nil)
+	}
+	if direction == database.Prev && input.Cursor == "" {
+		return nil, huma.Error400BadRequest("direction=prev requires a cursor", nil)
+	}
+
+	transactions, hasMore, err := h.db.GetTransactionsByRange(
+		ctx, h.chainName, input.Cursor, limit, direction,
+	)
 	if err != nil {
 		return nil, huma.Error404NotFound("Transactions by cursor not found", err)
 	}
+
+	body := humatypes.TransactionsRangeBody{
+		Transactions: transactions,
+	}
+	if len(transactions) > 0 {
+		newest := transactions[0]
+		oldest := transactions[len(transactions)-1]
+		newestCur, err := makeTxCursor(newest.BlockHeight, newest.TxHash)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to build cursor", err)
+		}
+		oldestCur, err := makeTxCursor(oldest.BlockHeight, oldest.TxHash)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to build cursor", err)
+		}
+
+		switch direction {
+		case database.Next:
+			body.HasNext = hasMore
+			if hasMore {
+				body.NextCursor = &oldestCur
+			}
+			// A prev page exists only when the caller supplied a cursor, since
+			// the initial fetch (no cursor) already starts at the head.
+			if input.Cursor != "" {
+				body.HasPrev = true
+				body.PrevCursor = &newestCur
+			}
+		case database.Prev:
+			// We walked toward the head: hasMore means newer rows still remain
+			// between this page and the head.
+			body.HasPrev = hasMore
+			if hasMore {
+				body.PrevCursor = &newestCur
+			}
+			// A prev call implies the caller was already deeper in history, so
+			// older rows always exist past the oldest row on this page.
+			body.HasNext = true
+			body.NextCursor = &oldestCur
+		}
+	}
+
 	return &humatypes.TransactionGeneralListByCursorGetOutput{
-		Body: transactions,
+		Body: body,
 	}, nil
+}
+
+// makeTxCursor encodes a (block_height, tx_hash) pair into the "<height>|<hash>" form
+// used by the transactions range API. The tx hash is received as standard base64 and
+// re-encoded as URL-safe base64 so the cursor is safe to pass as a query parameter.
+func makeTxCursor(blockHeight uint64, txHashB64 string) (string, error) {
+	raw, err := base64.StdEncoding.DecodeString(txHashB64)
+	if err != nil {
+		return "", fmt.Errorf("error decoding tx hash: %w", err)
+	}
+	return strconv.FormatUint(blockHeight, 10) + "|" + base64.URLEncoding.Strict().EncodeToString(raw), nil
 }
 
 // GetLastXTransactions retrieves the most recent X transactions

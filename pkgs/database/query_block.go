@@ -73,12 +73,15 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*BlockData, error) {
 	query1 := `
 	SELECT encode(hash, 'base64'), 
-	height, 
-	timestamp, 
-	chain_id
-	FROM blocks
-	WHERE chain_name = $1
-	ORDER BY height DESC
+	b.height as height, 
+	b.timestamp as timestamp, 
+	b.chain_id as chain_id,
+	gv.address as proposer
+	FROM blocks b
+	JOIN validator_block_signing vb ON b.height = vb.block_height AND b.chain_name = vb.chain_name
+	JOIN gno_validators gv ON vb.proposer = gv.id
+	WHERE b.chain_name = $1
+	ORDER BY b.height DESC
 	LIMIT 1
 	`
 	query2 := `
@@ -136,12 +139,15 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x uint64) ([]*BlockData, error) {
 	query1 := `
 	SELECT encode(hash, 'base64'), 
-	height, 
-	timestamp, 
-	chain_id
-	FROM blocks
-	WHERE chain_name = $1
-	ORDER BY height DESC
+	b.height as height, 
+	b.timestamp as timestamp, 
+	b.chain_id as chain_id,
+	gv.address as proposer
+	FROM blocks b
+	JOIN validator_block_signing vb ON b.height = vb.block_height AND b.chain_name = vb.chain_name
+	JOIN gno_validators gv ON vb.proposer = gv.id
+	WHERE b.chain_name = $1
+	ORDER BY b.height DESC
 	LIMIT $2
 	`
 	query2 := `
@@ -202,12 +208,15 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, toHeight uint64, chainName string) ([]*BlockData, error) {
 	query1 := `
 	SELECT encode(hash, 'base64'), 
-	height, 
-	timestamp, 
-	chain_id
-	FROM blocks
-	WHERE height >= $1 AND height <= $2
-	AND chain_name = $3
+	b.height as height, 
+	b.timestamp as timestamp, 
+	b.chain_id as chain_id,
+	gv.address as proposer
+	FROM blocks b
+	JOIN validator_block_signing vb ON b.height = vb.block_height AND b.chain_name = vb.chain_name
+	JOIN gno_validators gv ON vb.proposer = gv.id
+	WHERE b.height >= $1 AND b.height <= $2
+	AND b.chain_name = $3
 	`
 
 	query2 := `
@@ -315,7 +324,7 @@ func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ..
 	blocks := make([]*BlockData, 0)
 	for rows.Next() {
 		block := &BlockData{}
-		err := rows.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID)
+		err := rows.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Proposer)
 		if err != nil {
 			return nil, err
 		}

@@ -81,19 +81,18 @@ func (m *MockDatabase) GetAddressTxs(
 	fromTimestamp *time.Time,
 	toTimestamp *time.Time,
 	limit *uint64,
-	page *uint64,
 	cursor *string,
+	direction database.Direction,
 	sortOrder database.SortOrder,
-) (*[]database.AddressTx, string, uint64, error) {
+) (*[]database.AddressTx, bool, error) {
 	if m.shouldError {
-		return nil, "", 0, fmt.Errorf("%s", m.errorMsg)
+		return nil, false, fmt.Errorf("%s", m.errorMsg)
 	}
 	addressTxs, ok := m.addressTxs[address]
 	if !ok {
-		return nil, "", 0, fmt.Errorf("address transactions not found")
+		return nil, false, fmt.Errorf("address transactions not found")
 	}
-	txCount := uint64(len(*addressTxs))
-	return addressTxs, "", txCount, nil
+	return addressTxs, false, nil
 }
 
 func (m *MockDatabase) GetLatestBlock(ctx context.Context, chainName string) (*database.BlockData, error) {
@@ -185,17 +184,17 @@ func (m *MockDatabase) GetMsgRun(ctx context.Context, txHash string, chainName s
 	return []*database.MsgRun{msgRun}, nil
 }
 
-func (m *MockDatabase) GetTransactionsByCursor(
-	ctx context.Context, chainName string, cursor string, limit uint64, sortOrder database.SortOrder,
-) ([]*database.Transaction, error) {
+func (m *MockDatabase) GetTransactionsByRange(
+	ctx context.Context, chainName string, cursor string, limit uint64, direction database.Direction,
+) ([]*database.Transaction, bool, error) {
 	if m.shouldError {
-		return nil, fmt.Errorf("%s", m.errorMsg)
+		return nil, false, fmt.Errorf("%s", m.errorMsg)
 	}
 	transactions := make([]*database.Transaction, 0, len(m.transactions))
 	for _, transaction := range m.transactions {
 		transactions = append(transactions, transaction)
 	}
-	return transactions, nil
+	return transactions, false, nil
 }
 
 func (m *MockDatabase) GetTotalTxCount24h(ctx context.Context, chainName string) (int64, error) {
