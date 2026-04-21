@@ -60,7 +60,7 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 		return nil, err
 	}
 	if len(blocks) == 0 {
-		return nil, fmt.Errorf("block not found at height %d", height)
+		return nil, fmt.Errorf("block at height %d: %w", height, ErrNotFound)
 	}
 
 	if txs[blocks[0].Height] != nil {
@@ -113,7 +113,7 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 		return nil, err
 	}
 	if len(blocks) == 0 {
-		return nil, fmt.Errorf("no blocks found for chain %q", chainName)
+		return nil, fmt.Errorf("no blocks for chain %q: %w", chainName, ErrNotFound)
 	}
 
 	if txs[blocks[0].Height] != nil {
@@ -182,6 +182,9 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 		return nil, err
 	}
 
+	if len(blocks) == 0 {
+		return nil, fmt.Errorf("no blocks for chain %q: %w", chainName, ErrNotFound)
+	}
 	for _, block := range blocks {
 		if txs[block.Height] != nil {
 			block.Txs = append(block.Txs, txs[block.Height]...)
@@ -246,6 +249,13 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 
 	if err := eg.Wait(); err != nil {
 		return nil, err
+	}
+
+	if len(blocks) == 0 {
+		return nil, fmt.Errorf(
+			"no blocks between heights %d and %d for chain %q: %w",
+			fromHeight, toHeight, chainName, ErrNotFound,
+		)
 	}
 
 	for _, block := range blocks {

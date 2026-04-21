@@ -49,10 +49,12 @@ func TestAddressHandler_GetAddressTxs_Success(t *testing.T) {
 	assert.Nil(t, response.Body.PrevCursor)
 }
 
-func TestAddressHandler_GetAddressTxs_Fail(t *testing.T) {
+// An unexpected database error (e.g. SQL failure) must be masked behind a
+// generic 500 so internal details don't leak to the client.
+func TestAddressHandler_GetAddressTxs_InternalError(t *testing.T) {
 	db := MockDatabase{
 		shouldError: true,
-		errorMsg:    "error getting address transactions",
+		errorMsg:    "sql: connection refused",
 	}
 	handler := handlers.NewAddressHandler(&db, "gnoland")
 	response, err := handler.GetAddressTxs(context.Background(), &humatypes.AddressGetInput{
@@ -63,7 +65,28 @@ func TestAddressHandler_GetAddressTxs_Fail(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
-	assert.Contains(t, err.Error(), "Address not found")
+	assert.Contains(t, err.Error(), "internal server error")
+	assert.NotContains(t, err.Error(), "sql: connection refused")
+}
+
+// When the DB ran fine but the address doesn't exist (sentinel ErrNotFound),
+// the handler should surface a 404 with a user-friendly message.
+func TestAddressHandler_GetAddressTxs_NotFound(t *testing.T) {
+	db := MockDatabase{
+		shouldError:   true,
+		notFoundError: true,
+		errorMsg:      "address lookup",
+	}
+	handler := handlers.NewAddressHandler(&db, "gnoland")
+	response, err := handler.GetAddressTxs(context.Background(), &humatypes.AddressGetInput{
+		Address:   "gno_address_1",
+		Limit:     10,
+		Direction: database.Next,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "address not found")
 }
 
 func TestAddressHandler_GetAddressTxs_PrevWithoutCursor(t *testing.T) {

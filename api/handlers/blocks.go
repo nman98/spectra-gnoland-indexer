@@ -6,7 +6,6 @@ import (
 	"time"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
-	"github.com/danielgtaylor/huma/v2"
 )
 
 // BlocksHandler handles block-related API requests
@@ -22,16 +21,16 @@ func NewBlocksHandler(db BlockDbHandler, chainName string) *BlocksHandler {
 
 // GetBlock retrieves a block by height
 func (h *BlocksHandler) GetBlock(ctx context.Context, input *humatypes.BlockGetInput) (*humatypes.BlockGetOutput, error) {
-	// Fetch from database
 	block, err := h.db.GetBlock(ctx, input.Height, h.chainName)
 	if err != nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf("Block at height %d not found", input.Height), err)
+		return nil, mapDbError(
+			"GetBlock",
+			fmt.Sprintf("block at height %d not found", input.Height),
+			err,
+		)
 	}
 
-	response := &humatypes.BlockGetOutput{
-		Body: block,
-	}
-	return response, nil
+	return &humatypes.BlockGetOutput{Body: block}, nil
 }
 
 // Get from block height a to block height b
@@ -39,63 +38,60 @@ func (h *BlocksHandler) GetFromToBlocks(
 	ctx context.Context,
 	input *humatypes.FromToBlocksGetInput,
 ) (*humatypes.FromToBlocksGetOutput, error) {
-	// Fetch from database
-	// validate input
 	if input.FromHeight > input.ToHeight {
-		return nil, huma.Error400BadRequest("From height must be less than to height", nil)
+		return nil, badRequest("from_height must be less than or equal to to_height")
 	}
 	if input.ToHeight-input.FromHeight > 100 {
-		return nil, huma.Error400BadRequest("From height and to height difference must be less than 100", nil)
+		return nil, badRequest("from_height and to_height difference must be less than 100")
 	}
 
 	blocks, err := h.db.GetFromToBlocks(ctx, input.FromHeight, input.ToHeight, h.chainName)
 	if err != nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf("Blocks from height %d to height %d not found", input.FromHeight, input.ToHeight), err)
+		return nil, mapDbError(
+			"GetFromToBlocks",
+			fmt.Sprintf("blocks from height %d to %d not found", input.FromHeight, input.ToHeight),
+			err,
+		)
 	}
-	response := &humatypes.FromToBlocksGetOutput{
-		Body: blocks,
+	if len(blocks) == 0 {
+		return nil, notFound(fmt.Sprintf(
+			"blocks from height %d to %d not found", input.FromHeight, input.ToHeight,
+		))
 	}
-	return response, nil
+	return &humatypes.FromToBlocksGetOutput{Body: blocks}, nil
 }
 
 func (h *BlocksHandler) GetAllBlockSigners(
 	ctx context.Context,
 	input *humatypes.AllBlockSignersGetInput,
 ) (*humatypes.AllBlockSignersGetOutput, error) {
-	// Fetch from database
 	blockSigners, err := h.db.GetAllBlockSigners(ctx, h.chainName, input.BlockHeight)
 	if err != nil {
-		return nil, huma.Error404NotFound("Block signers not found", err)
+		return nil, mapDbError(
+			"GetAllBlockSigners",
+			fmt.Sprintf("block signers at height %d not found", input.BlockHeight),
+			err,
+		)
 	}
-	response := &humatypes.AllBlockSignersGetOutput{
-		Body: blockSigners,
-	}
-	return response, nil
+	return &humatypes.AllBlockSignersGetOutput{Body: blockSigners}, nil
 }
 
 // Get latest block height
 func (h *BlocksHandler) GetLatestBlock(ctx context.Context, _ *humatypes.LatestBlockHeightGetInput) (*humatypes.LatestBlockHeightGetOutput, error) {
 	block, err := h.db.GetLatestBlock(ctx, h.chainName)
 	if err != nil {
-		return nil, huma.Error404NotFound("Latest block height not found", err)
+		return nil, mapDbError("GetLatestBlock", "latest block not found", err)
 	}
-	response := &humatypes.LatestBlockHeightGetOutput{
-		Body: block,
-	}
-	return response, nil
+	return &humatypes.LatestBlockHeightGetOutput{Body: block}, nil
 }
 
 // Get last x blocks
 func (h *BlocksHandler) GetLastXBlocks(ctx context.Context, input *humatypes.LastXBlocksGetInput) (*humatypes.LastXBlocksGetOutput, error) {
-	// Fetch from database
 	blocks, err := h.db.GetLastXBlocks(ctx, h.chainName, input.Amount)
 	if err != nil {
-		return nil, huma.Error404NotFound("Last x blocks not found", err)
+		return nil, mapDbError("GetLastXBlocks", "no recent blocks found", err)
 	}
-	response := &humatypes.LastXBlocksGetOutput{
-		Body: blocks,
-	}
-	return response, nil
+	return &humatypes.LastXBlocksGetOutput{Body: blocks}, nil
 }
 
 // GetBlockCount24h returns the total number of blocks produced in the last 24 hours
@@ -105,11 +101,9 @@ func (h *BlocksHandler) GetBlockCount24h(
 ) (*humatypes.BlockCount24hGetOutput, error) {
 	count, err := h.db.GetBlockCount24h(ctx, h.chainName)
 	if err != nil {
-		return nil, huma.Error404NotFound("Block count for last 24h not found", err)
+		return nil, mapDbError("GetBlockCount24h", "block count for last 24h not found", err)
 	}
-	body := &humatypes.BlockCount24hGetBody{
-		Count: count,
-	}
+	body := &humatypes.BlockCount24hGetBody{Count: count}
 	return &humatypes.BlockCount24hGetOutput{Body: body}, nil
 }
 
@@ -121,18 +115,24 @@ func (h *BlocksHandler) GetBlockCountByDate(
 	startDate := input.StartDate
 	endDate := input.EndDate
 	if !startDate.Before(endDate.Time) {
-		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
+		return nil, badRequest("start_date must be before end_date")
 	}
 	if endDate.Sub(startDate.Time) > 24*time.Hour*30 {
-		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
+		return nil, badRequest("end_date must be within 30 days of start_date")
 	}
 
 	counts, err := h.db.GetBlockCountByDate(
 		ctx, h.chainName, startDate, endDate, input.SortOrder,
 	)
 	if err != nil {
-		return nil, huma.Error404NotFound(
-			fmt.Sprintf("Block count from %s to %s not found", startDate, endDate), err)
+		return nil, mapDbError(
+			"GetBlockCountByDate",
+			"block count for the given date range not found",
+			err,
+		)
+	}
+	if len(counts) == 0 {
+		return nil, notFound("block count for the given date range not found")
 	}
 	return &humatypes.BlockCountByDateGetOutput{Body: counts}, nil
 }

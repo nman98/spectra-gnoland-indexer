@@ -2,10 +2,12 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
+	"github.com/jackc/pgx/v5"
 )
 
 func (t *TimescaleDb) GetBlockCountByDate(
@@ -342,7 +344,10 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 	var validatorId int32
 	err := row1.Scan(&validatorId)
 	if err != nil {
-		return nil, fmt.Errorf("validator seems to not exist: %w", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("validator %q: %w", validatorAddress, ErrNotFound)
+		}
+		return nil, fmt.Errorf("validator lookup failed: %w", err)
 	}
 
 	query2 := `
@@ -395,7 +400,10 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	var validatorId int32
 	err := row1.Scan(&validatorId)
 	if err != nil {
-		return nil, fmt.Errorf("validator seems to not exist: %w", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("validator %q: %w", validatorAddress, ErrNotFound)
+		}
+		return nil, fmt.Errorf("validator lookup failed: %w", err)
 	}
 
 	query2 := fmt.Sprintf(`

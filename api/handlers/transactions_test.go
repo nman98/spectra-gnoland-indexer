@@ -46,10 +46,10 @@ func TestTransactionsHandler_GetTransactionsByCursor_Success(t *testing.T) {
 	assert.Nil(t, response.Body.PrevCursor)
 }
 
-func TestTransactionsHandler_GetTransactionsByCursor_Fail(t *testing.T) {
+func TestTransactionsHandler_GetTransactionsByCursor_InternalError(t *testing.T) {
 	db := MockDatabase{
 		shouldError: true,
-		errorMsg:    "error getting transactions by cursor",
+		errorMsg:    "sql syntax error at or near SELECT",
 	}
 	handler := handlers.NewTransactionsHandler(&db, "gnoland")
 	response, err := handler.GetTransactionsByCursor(
@@ -59,7 +59,25 @@ func TestTransactionsHandler_GetTransactionsByCursor_Fail(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
-	assert.Contains(t, err.Error(), "Transactions by cursor not found")
+	assert.Contains(t, err.Error(), "internal server error")
+	assert.NotContains(t, err.Error(), "sql syntax error")
+}
+
+func TestTransactionsHandler_GetTransactionsByCursor_NotFound(t *testing.T) {
+	db := MockDatabase{
+		shouldError:   true,
+		notFoundError: true,
+		errorMsg:      "no transactions for chain",
+	}
+	handler := handlers.NewTransactionsHandler(&db, "gnoland")
+	response, err := handler.GetTransactionsByCursor(
+		context.Background(),
+		&humatypes.TransactionGeneralListByCursorGetInput{Cursor: "", Limit: 1, Direction: database.Next},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "transactions not found")
 }
 
 func TestTransactionsHandler_GetTransactionsByCursor_PrevWithoutCursor(t *testing.T) {
@@ -102,14 +120,46 @@ func TestTransactionsHandler_GetTransactionBasic_Success(t *testing.T) {
 	assert.Equal(t, txHash, response.Body.TxHash)
 }
 
-func TestTransactionsHandler_GetTransactionBasic_Fail(t *testing.T) {
+func TestTransactionsHandler_GetTransactionBasic_InternalError(t *testing.T) {
+	txHash := base64.RawURLEncoding.EncodeToString([]byte("tx_hash_1"))
 	db := MockDatabase{
 		shouldError: true,
-		errorMsg:    "error getting transaction basic",
+		errorMsg:    "connection reset by peer",
 	}
 	handler := handlers.NewTransactionsHandler(&db, "gnoland")
-	response, err := handler.GetTransactionBasic(context.Background(), &humatypes.TransactionGetInput{TxHash: "invalid"})
+	response, err := handler.GetTransactionBasic(context.Background(), &humatypes.TransactionGetInput{TxHash: txHash})
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "internal server error")
+	assert.NotContains(t, err.Error(), "connection reset")
+}
+
+func TestTransactionsHandler_GetTransactionBasic_NotFound(t *testing.T) {
+	txHash := base64.RawURLEncoding.EncodeToString([]byte("tx_hash_1"))
+	db := MockDatabase{
+		shouldError:   true,
+		notFoundError: true,
+		errorMsg:      "tx lookup",
+	}
+	handler := handlers.NewTransactionsHandler(&db, "gnoland")
+	response, err := handler.GetTransactionBasic(context.Background(), &humatypes.TransactionGetInput{TxHash: txHash})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestTransactionsHandler_GetTransactionBasic_BadHash(t *testing.T) {
+	db := MockDatabase{}
+	handler := handlers.NewTransactionsHandler(&db, "gnoland")
+	response, err := handler.GetTransactionBasic(
+		context.Background(),
+		// Contains a character that is invalid in URL-safe base64.
+		&humatypes.TransactionGetInput{TxHash: "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "transaction hash is not valid base64url encoded")
 }
