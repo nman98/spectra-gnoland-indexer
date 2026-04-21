@@ -30,8 +30,8 @@ type AddressTxsBody struct {
 	AddressTxs []database.AddressTx `json:"address_txs" doc:"Data about address transactions"`
 	HasNext    bool                 `json:"has_next" doc:"True when an older page exists (cursor mode only)"`
 	HasPrev    bool                 `json:"has_prev" doc:"True when a newer page exists (cursor mode only)"`
-	NextCursor *string              `json:"next_cursor,omitempty" doc:"Cursor to request the next (older) page"`
-	PrevCursor *string              `json:"prev_cursor,omitempty" doc:"Cursor to request the previous (newer) page"`
+	NextCursor *string              `json:"next_cursor" doc:"Cursor to request the next (older) page"`
+	PrevCursor *string              `json:"prev_cursor" doc:"Cursor to request the previous (newer) page"`
 }
 
 type DailyActiveAccountGetInput struct {
