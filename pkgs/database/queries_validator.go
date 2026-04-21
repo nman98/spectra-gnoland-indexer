@@ -29,7 +29,7 @@ func (t *TimescaleDb) GetAllValidators(ctx context.Context, chainName string) (*
 		return nil, err
 	}
 	if len(validators) == 0 {
-		return nil, fmt.Errorf("error: the validator list is empty!")
+		return nil, fmt.Errorf("validator list: %w", ErrNotFound)
 	}
 	return &ValidatorList{
 		ValAddresses: validators,

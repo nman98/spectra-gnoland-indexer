@@ -1,6 +1,12 @@
 package database
 
-import "context"
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/jackc/pgx/v5"
+)
 
 // GetAllBlockSigners gets all of the validators that signed that block + the proposer
 //
@@ -38,6 +44,9 @@ func (t *TimescaleDb) GetAllBlockSigners(
 	var blockSigners BlockSigners
 	err := row.Scan(&blockSigners.BlockHeight, &blockSigners.Proposer, &blockSigners.SignedVals)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("block signers at height %d: %w", blockHeight, ErrNotFound)
+		}
 		return nil, err
 	}
 	return &blockSigners, nil
@@ -340,6 +349,9 @@ func (t *TimescaleDb) GetMsgTypes(ctx context.Context, txHash string, chainName 
 	var msgTypes []string
 	err := row.Scan(&msgTypes)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("msg types for tx %s: %w", txHash, ErrNotFound)
+		}
 		return nil, err
 	}
 	return msgTypes, nil

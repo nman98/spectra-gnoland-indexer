@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	"github.com/cosmos/gogoproto/proto"
+	"github.com/jackc/pgx/v5"
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -73,6 +75,9 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 		&transaction.MsgTypes,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("transaction %s: %w", txHash, ErrNotFound)
+		}
 		log.Println("error getting transaction", err)
 		return nil, err
 	}
@@ -152,6 +157,9 @@ func (t *TimescaleDb) GetLastXTransactions(
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if len(transactions) == 0 {
+		return nil, fmt.Errorf("no transactions for chain %q: %w", chainName, ErrNotFound)
 	}
 	return transactions, nil
 }

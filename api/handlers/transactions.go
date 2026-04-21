@@ -10,7 +10,6 @@ import (
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
-	"github.com/danielgtaylor/huma/v2"
 )
 
 type TransactionsHandler struct {
@@ -29,13 +28,17 @@ func (h *TransactionsHandler) GetTransactionBasic(
 ) (*humatypes.TransactionBasicGetOutput, error) {
 	input.TxHash = strings.Trim(input.TxHash, " ")
 	txHash, err := base64.URLEncoding.DecodeString(input.TxHash)
-	txHashBase64 := base64.StdEncoding.EncodeToString(txHash)
 	if err != nil {
-		return nil, huma.Error400BadRequest("Transaction hash is not valid base64url encoded", err)
+		return nil, badRequest("transaction hash is not valid base64url encoded")
 	}
+	txHashBase64 := base64.StdEncoding.EncodeToString(txHash)
 	transaction, err := h.db.GetTransaction(ctx, txHashBase64, h.chainName)
 	if err != nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
+		return nil, mapDbError(
+			"GetTransaction",
+			fmt.Sprintf("transaction with hash %s not found", input.TxHash),
+			err,
+		)
 	}
 	return &humatypes.TransactionBasicGetOutput{
 		Body: *transaction,
@@ -49,40 +52,46 @@ func (h *TransactionsHandler) GetTransactionMessage(
 ) (*humatypes.TransactionMessageGetOutput, error) {
 	input.TxHash = strings.Trim(input.TxHash, " ")
 	txHash, err := base64.URLEncoding.DecodeString(input.TxHash)
+	if err != nil {
+		return nil, badRequest("transaction hash is not valid base64url encoded")
+	}
 	txHashBase64 := base64.StdEncoding.EncodeToString(txHash)
 	response := make(map[int16]humatypes.TransactionMessage)
-	if err != nil {
-		return nil, huma.Error400BadRequest("Transaction hash is not valid base64url encoded", err)
-	}
 	msgTypes, err := h.db.GetMsgTypes(ctx, txHashBase64, h.chainName)
 	if err != nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
+		return nil, mapDbError(
+			"GetMsgTypes",
+			fmt.Sprintf("transaction with hash %s not found", input.TxHash),
+			err,
+		)
 	}
 
 	for _, msgType := range msgTypes {
 		switch msgType {
 		case "bank_msg_send":
-			err := h.getBankSendResponse(ctx, msgType, txHashBase64, h.chainName, &response)
-			if err != nil {
+			if err := h.getBankSendResponse(ctx, msgType, txHashBase64, h.chainName, &response); err != nil {
 				return nil, err
 			}
 		case "vm_msg_call":
-			err := h.getMsgCallResponse(ctx, msgType, txHashBase64, h.chainName, &response)
-			if err != nil {
+			if err := h.getMsgCallResponse(ctx, msgType, txHashBase64, h.chainName, &response); err != nil {
 				return nil, err
 			}
 		case "vm_msg_add_package":
-			err := h.getMsgAddPackageResponse(ctx, msgType, txHashBase64, h.chainName, &response)
-			if err != nil {
+			if err := h.getMsgAddPackageResponse(ctx, msgType, txHashBase64, h.chainName, &response); err != nil {
 				return nil, err
 			}
 		case "vm_msg_run":
-			err := h.getMsgRunResponse(ctx, msgType, txHashBase64, h.chainName, &response)
-			if err != nil {
+			if err := h.getMsgRunResponse(ctx, msgType, txHashBase64, h.chainName, &response); err != nil {
 				return nil, err
 			}
 		default:
-			return nil, huma.Error400BadRequest("Transaction message type not found", nil)
+			// An unknown message type coming out of the database is a server-side
+			// integrity problem, not something the caller can fix. Log it and
+			// return a generic 500 so we don't expose the internal type name.
+			return nil, internalError(
+				"GetTransactionMessage",
+				fmt.Errorf("unknown message type %q for tx %s", msgType, input.TxHash),
+			)
 		}
 	}
 	return &humatypes.TransactionMessageGetOutput{
@@ -106,7 +115,7 @@ func (h *TransactionsHandler) GetTransactionsByCursor(
 		limit = 25
 	}
 	if limit > 100 {
-		return nil, huma.Error400BadRequest("Invalid limit (1..100)", nil)
+		return nil, badRequest("invalid limit (1..100)")
 	}
 
 	direction := input.Direction
@@ -114,17 +123,17 @@ func (h *TransactionsHandler) GetTransactionsByCursor(
 		direction = database.Next
 	}
 	if direction != database.Next && direction != database.Prev {
-		return nil, huma.Error400BadRequest("Invalid direction (must be 'next' or 'prev')", nil)
+		return nil, badRequest("invalid direction (must be 'next' or 'prev')")
 	}
 	if direction == database.Prev && input.Cursor == "" {
-		return nil, huma.Error400BadRequest("direction=prev requires a cursor", nil)
+		return nil, badRequest("direction=prev requires a cursor")
 	}
 
 	transactions, hasMore, err := h.db.GetTransactionsByRange(
 		ctx, h.chainName, input.Cursor, limit, direction,
 	)
 	if err != nil {
-		return nil, huma.Error404NotFound("Transactions by cursor not found", err)
+		return nil, mapDbError("GetTransactionsByRange", "transactions not found", err)
 	}
 
 	body := humatypes.TransactionsRangeBody{
@@ -135,11 +144,11 @@ func (h *TransactionsHandler) GetTransactionsByCursor(
 		oldest := transactions[len(transactions)-1]
 		newestCur, err := makeTxCursor(newest.BlockHeight, newest.TxHash)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to build cursor", err)
+			return nil, internalError("GetTransactionsByCursor.makeTxCursor", err)
 		}
 		oldestCur, err := makeTxCursor(oldest.BlockHeight, oldest.TxHash)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to build cursor", err)
+			return nil, internalError("GetTransactionsByCursor.makeTxCursor", err)
 		}
 
 		switch direction {
@@ -191,7 +200,7 @@ func (h *TransactionsHandler) GetLastXTransactions(
 ) (*humatypes.LastXTransactionsGetOutput, error) {
 	transactions, err := h.db.GetLastXTransactions(ctx, h.chainName, input.Amount, nil)
 	if err != nil {
-		return nil, huma.Error404NotFound("Last transactions not found", err)
+		return nil, mapDbError("GetLastXTransactions", "no recent transactions found", err)
 	}
 	return &humatypes.LastXTransactionsGetOutput{Body: transactions}, nil
 }
@@ -203,7 +212,7 @@ func (h *TransactionsHandler) GetTotalTxCount24h(
 ) (*humatypes.TotalTxCount24hGetOutput, error) {
 	count, err := h.db.GetTotalTxCount24h(ctx, h.chainName)
 	if err != nil {
-		return nil, huma.Error404NotFound("Transaction count for last 24h not found", err)
+		return nil, mapDbError("GetTotalTxCount24h", "transaction count for last 24h not found", err)
 	}
 	body := &humatypes.TotalTxCount24hBody{Count: count}
 	return &humatypes.TotalTxCount24hGetOutput{Body: body}, nil
@@ -214,20 +223,25 @@ func (h *TransactionsHandler) GetTotalTxCountByDate(
 	ctx context.Context,
 	input *humatypes.TxCountByDateGetInput,
 ) (*humatypes.TxCountByDateGetOutput, error) {
-	// validate input
 	startDate := input.StartDate
 	endDate := input.EndDate
 	if !startDate.Before(endDate.Time) {
-		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
+		return nil, badRequest("start_date must be before end_date")
 	}
 	if endDate.Sub(startDate.Time) > 24*time.Hour*30 {
-		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
+		return nil, badRequest("end_date must be within 30 days of start_date")
 	}
 
 	counts, err := h.db.GetTotalTxCountByDate(ctx, h.chainName, startDate, endDate, input.SortOrder)
 	if err != nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf(
-			"Transaction count from %s to %s not found", startDate, endDate), err)
+		return nil, mapDbError(
+			"GetTotalTxCountByDate",
+			"transaction count for the given date range not found",
+			err,
+		)
+	}
+	if len(counts) == 0 {
+		return nil, notFound("transaction count for the given date range not found")
 	}
 	return &humatypes.TxCountByDateGetOutput{Body: counts}, nil
 }
@@ -237,18 +251,23 @@ func (h *TransactionsHandler) GetTotalTxCountByHour(
 	ctx context.Context,
 	input *humatypes.TxCountByHourGetInput,
 ) (*humatypes.TxCountByHourGetOutput, error) {
-	// validate input
 	if !input.StartTimestamp.Before(input.EndTimestamp) {
-		return nil, huma.Error400BadRequest("start_timestamp must be before end_timestamp", nil)
+		return nil, badRequest("start_timestamp must be before end_timestamp")
 	}
 	if input.EndTimestamp.Sub(input.StartTimestamp) > 24*time.Hour*7 { // 7 days
-		return nil, huma.Error400BadRequest("end_timestamp must be within 7 days of start_timestamp", nil)
+		return nil, badRequest("end_timestamp must be within 7 days of start_timestamp")
 	}
 
 	counts, err := h.db.GetTotalTxCountByHour(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp, input.SortOrder)
 	if err != nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf(
-			"Transaction count by hour from %s to %s not found", input.StartTimestamp, input.EndTimestamp), err)
+		return nil, mapDbError(
+			"GetTotalTxCountByHour",
+			"transaction count for the given time range not found",
+			err,
+		)
+	}
+	if len(counts) == 0 {
+		return nil, notFound("transaction count for the given time range not found")
 	}
 	return &humatypes.TxCountByHourGetOutput{Body: counts}, nil
 }
@@ -256,16 +275,22 @@ func (h *TransactionsHandler) GetTotalTxCountByHour(
 // GetVolumeByDate returns the transaction volume grouped by denom per day within the given date range
 func (h *TransactionsHandler) GetVolumeByDate(ctx context.Context, input *humatypes.VolumeByDateGetInput) (*humatypes.VolumeByDateGetOutput, error) {
 	if !input.StartDate.Before(input.EndDate.Time) {
-		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
+		return nil, badRequest("start_date must be before end_date")
 	}
 	if input.StartDate.Sub(input.EndDate.Time) > 24*time.Hour*30 {
-		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
+		return nil, badRequest("end_date must be within 30 days of start_date")
 	}
 
 	volume, err := h.db.GetVolumeByDate(ctx, h.chainName, input.StartDate, input.EndDate, input.SortOrder)
 	if err != nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf(
-			"Volume from %s to %s not found", input.StartDate, input.EndDate), err)
+		return nil, mapDbError(
+			"GetVolumeByDate",
+			"volume for the given date range not found",
+			err,
+		)
+	}
+	if len(volume) == 0 {
+		return nil, notFound("volume for the given date range not found")
 	}
 	return &humatypes.VolumeByDateGetOutput{Body: volume}, nil
 }
@@ -273,16 +298,22 @@ func (h *TransactionsHandler) GetVolumeByDate(ctx context.Context, input *humaty
 // GetVolumeByHour returns the transaction volume grouped by denom per hour within the given datetime range
 func (h *TransactionsHandler) GetVolumeByHour(ctx context.Context, input *humatypes.VolumeByHourGetInput) (*humatypes.VolumeByHourGetOutput, error) {
 	if !input.StartTimestamp.Before(input.EndTimestamp) {
-		return nil, huma.Error400BadRequest("start_timestamp must be before end_timestamp", nil)
+		return nil, badRequest("start_timestamp must be before end_timestamp")
 	}
 	if input.EndTimestamp.Sub(input.StartTimestamp) > 24*time.Hour*7 { // 7 days
-		return nil, huma.Error400BadRequest("end_timestamp must be within 7 days of start_timestamp", nil)
+		return nil, badRequest("end_timestamp must be within 7 days of start_timestamp")
 	}
 
 	volume, err := h.db.GetVolumeByHour(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp, input.SortOrder)
 	if err != nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf(
-			"Volume by hour from %s to %s not found", input.StartTimestamp, input.EndTimestamp), err)
+		return nil, mapDbError(
+			"GetVolumeByHour",
+			"volume for the given time range not found",
+			err,
+		)
+	}
+	if len(volume) == 0 {
+		return nil, notFound("volume for the given time range not found")
 	}
 	return &humatypes.VolumeByHourGetOutput{Body: volume}, nil
 }
@@ -297,8 +328,7 @@ func (h *TransactionsHandler) getMsgCallResponse(
 ) error {
 	data, err := h.db.GetMsgCall(ctx, txHash, chainName)
 	if err != nil {
-		return huma.Error400BadRequest(
-			fmt.Sprintf("Failed to fetch %s data for transaction %s", "vm_msg_call", txHash), err)
+		return internalError("GetMsgCall", err)
 	}
 	for _, d := range data {
 		index := d.MessageCounter
@@ -328,8 +358,7 @@ func (h *TransactionsHandler) getMsgAddPackageResponse(
 ) error {
 	data, err := h.db.GetMsgAddPackage(ctx, txHash, chainName)
 	if err != nil {
-		return huma.Error400BadRequest(
-			fmt.Sprintf("Failed to fetch %s data for transaction %s", "vm_msg_add_package", txHash), err)
+		return internalError("GetMsgAddPackage", err)
 	}
 	for _, d := range data {
 		index := d.MessageCounter
@@ -359,8 +388,7 @@ func (h *TransactionsHandler) getMsgRunResponse(
 ) error {
 	data, err := h.db.GetMsgRun(ctx, txHash, chainName)
 	if err != nil {
-		return huma.Error400BadRequest(
-			fmt.Sprintf("Failed to fetch %s data for transaction %s", "vm_msg_run", txHash), err)
+		return internalError("GetMsgRun", err)
 	}
 	for _, d := range data {
 		index := d.MessageCounter
@@ -390,8 +418,7 @@ func (h *TransactionsHandler) getBankSendResponse(
 ) error {
 	data, err := h.db.GetBankSend(ctx, txHash, chainName)
 	if err != nil {
-		return huma.Error400BadRequest(
-			fmt.Sprintf("Failed to fetch %s data for transaction %s", "bank_msg_send", txHash), err)
+		return internalError("GetBankSend", err)
 	}
 	for _, d := range data {
 		index := d.MessageCounter

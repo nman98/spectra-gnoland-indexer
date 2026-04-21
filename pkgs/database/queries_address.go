@@ -3,10 +3,13 @@ package database
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 var defaultLimit = uint64(10)
@@ -58,6 +61,9 @@ func (t *TimescaleDb) GetAddressTxs(
 
 	accountId, err := t.getAccountId(ctx, address, chainName)
 	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, false, err
+		}
 		return nil, false, fmt.Errorf("error getting account id: %w", err)
 	}
 
@@ -279,6 +285,9 @@ func (t *TimescaleDb) getAccountId(
 	var id int32
 	err := row.Scan(&id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, fmt.Errorf("address %q: %w", address, ErrNotFound)
+		}
 		return 0, err
 	}
 	return id, nil

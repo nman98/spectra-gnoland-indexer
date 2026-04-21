@@ -24,17 +24,32 @@ func TestBlocksHandler_GetBlock_Success(t *testing.T) {
 	require.Equal(t, uint64(42), response.Body.Height)
 }
 
-func TestBlocksHandler_GetBlock_Fail(t *testing.T) {
+func TestBlocksHandler_GetBlock_InternalError(t *testing.T) {
 	db := MockDatabase{
 		shouldError: true,
-		errorMsg:    "error getting block",
+		errorMsg:    "pgx: timeout",
 	}
 	handler := handlers.NewBlocksHandler(&db, "gnoland")
 	response, err := handler.GetBlock(context.Background(), &humatypes.BlockGetInput{Height: 42})
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
-	assert.Contains(t, err.Error(), "not found")
+	assert.Contains(t, err.Error(), "internal server error")
+	assert.NotContains(t, err.Error(), "pgx: timeout")
+}
+
+func TestBlocksHandler_GetBlock_NotFound(t *testing.T) {
+	db := MockDatabase{
+		shouldError:   true,
+		notFoundError: true,
+		errorMsg:      "block lookup",
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetBlock(context.Background(), &humatypes.BlockGetInput{Height: 42})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "block at height 42 not found")
 }
 
 func TestBlocksHandler_GetFromToBlocks_Success(t *testing.T) {
@@ -54,17 +69,32 @@ func TestBlocksHandler_GetFromToBlocks_Success(t *testing.T) {
 	assert.Equal(t, uint64(43), response.Body[1].Height)
 }
 
-func TestBlocksHandler_GetFromToBlocks_Fail(t *testing.T) {
+func TestBlocksHandler_GetFromToBlocks_InternalError(t *testing.T) {
 	db := MockDatabase{
 		shouldError: true,
-		errorMsg:    "error getting from to blocks",
+		errorMsg:    "relation blocks does not exist",
 	}
 	handler := handlers.NewBlocksHandler(&db, "gnoland")
 	response, err := handler.GetFromToBlocks(context.Background(), &humatypes.FromToBlocksGetInput{FromHeight: 42, ToHeight: 43})
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
-	assert.Contains(t, err.Error(), "Blocks from height")
+	assert.Contains(t, err.Error(), "internal server error")
+	assert.NotContains(t, err.Error(), "relation blocks")
+}
+
+func TestBlocksHandler_GetFromToBlocks_NotFound(t *testing.T) {
+	db := MockDatabase{
+		shouldError:   true,
+		notFoundError: true,
+		errorMsg:      "block range empty",
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetFromToBlocks(context.Background(), &humatypes.FromToBlocksGetInput{FromHeight: 42, ToHeight: 43})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "blocks from height 42 to 43 not found")
 }
 
 func TestBlocksHandler_GetAllBlockSigners_Success(t *testing.T) {
@@ -80,17 +110,32 @@ func TestBlocksHandler_GetAllBlockSigners_Success(t *testing.T) {
 	require.Equal(t, database.BlockSigners{BlockHeight: 42, Proposer: "abc123", SignedVals: []string{"val1", "val2"}}, *response.Body)
 }
 
-func TestBlocksHandler_GetAllBlockSigners_Fail(t *testing.T) {
+func TestBlocksHandler_GetAllBlockSigners_InternalError(t *testing.T) {
 	db := MockDatabase{
 		shouldError: true,
-		errorMsg:    "error getting all block signers",
+		errorMsg:    "deadlock detected",
 	}
 	handler := handlers.NewBlocksHandler(&db, "gnoland")
 	response, err := handler.GetAllBlockSigners(context.Background(), &humatypes.AllBlockSignersGetInput{BlockHeight: 42})
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
-	assert.Contains(t, err.Error(), "Block signers not found")
+	assert.Contains(t, err.Error(), "internal server error")
+	assert.NotContains(t, err.Error(), "deadlock")
+}
+
+func TestBlocksHandler_GetAllBlockSigners_NotFound(t *testing.T) {
+	db := MockDatabase{
+		shouldError:   true,
+		notFoundError: true,
+		errorMsg:      "signers lookup",
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetAllBlockSigners(context.Background(), &humatypes.AllBlockSignersGetInput{BlockHeight: 42})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "block signers at height 42 not found")
 }
 
 func TestBlocksHandler_GetLatestBlockHeight_Success(t *testing.T) {
@@ -104,17 +149,32 @@ func TestBlocksHandler_GetLatestBlockHeight_Success(t *testing.T) {
 	require.Equal(t, database.BlockData{Height: 42, Hash: "abc123"}, *response.Body)
 }
 
-func TestBlocksHandler_GetLatestBlockHeight_Fail(t *testing.T) {
+func TestBlocksHandler_GetLatestBlockHeight_InternalError(t *testing.T) {
 	db := MockDatabase{
 		shouldError: true,
-		errorMsg:    "error getting latest block height",
+		errorMsg:    "pool exhausted",
 	}
 	handler := handlers.NewBlocksHandler(&db, "gnoland")
 	response, err := handler.GetLatestBlock(context.Background(), &humatypes.LatestBlockHeightGetInput{})
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
-	assert.Contains(t, err.Error(), "Latest block height not found")
+	assert.Contains(t, err.Error(), "internal server error")
+	assert.NotContains(t, err.Error(), "pool exhausted")
+}
+
+func TestBlocksHandler_GetLatestBlockHeight_NotFound(t *testing.T) {
+	db := MockDatabase{
+		shouldError:   true,
+		notFoundError: true,
+		errorMsg:      "latest block lookup",
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetLatestBlock(context.Background(), &humatypes.LatestBlockHeightGetInput{})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "latest block not found")
 }
 
 func TestBlocksHandler_GetLastXBlocks_Success(t *testing.T) {
@@ -135,10 +195,10 @@ func TestBlocksHandler_GetLastXBlocks_Success(t *testing.T) {
 	assert.NotEmpty(t, response.Body)
 }
 
-func TestBlocksHandler_GetLastXBlocks_Fail(t *testing.T) {
+func TestBlocksHandler_GetLastXBlocks_InternalError(t *testing.T) {
 	db := MockDatabase{
 		shouldError: true,
-		errorMsg:    "error getting last x blocks",
+		errorMsg:    "tls handshake failed",
 	}
 
 	handler := handlers.NewBlocksHandler(&db, "gnoland")
@@ -146,5 +206,21 @@ func TestBlocksHandler_GetLastXBlocks_Fail(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
-	assert.Contains(t, err.Error(), "Last x blocks not found")
+	assert.Contains(t, err.Error(), "internal server error")
+	assert.NotContains(t, err.Error(), "tls handshake")
+}
+
+func TestBlocksHandler_GetLastXBlocks_NotFound(t *testing.T) {
+	db := MockDatabase{
+		shouldError:   true,
+		notFoundError: true,
+		errorMsg:      "no blocks",
+	}
+
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetLastXBlocks(context.Background(), &humatypes.LastXBlocksGetInput{Amount: 2})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "no recent blocks found")
 }

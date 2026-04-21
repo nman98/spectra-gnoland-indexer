@@ -3,11 +3,9 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
-	"github.com/danielgtaylor/huma/v2"
 )
 
 type ValidatorsHandler struct {
@@ -25,11 +23,15 @@ func (h *ValidatorsHandler) GetValidatorSigning24h(
 	input *humatypes.ValidatorSigning24hGetInput,
 ) (*humatypes.ValidatorSigning24hGetOutput, error) {
 	if input.ValidatorAddress == "" {
-		return nil, huma.Error400BadRequest("validator_address is required", nil)
+		return nil, badRequest("validator_address is required")
 	}
 	signing, err := h.db.GetValidatorSigning24h(ctx, input.ValidatorAddress, h.chainName)
 	if err != nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf("Signing data for validator %s not found", input.ValidatorAddress), err)
+		return nil, mapDbError(
+			"GetValidatorSigning24h",
+			fmt.Sprintf("signing data for validator %s not found", input.ValidatorAddress),
+			err,
+		)
 	}
 	return &humatypes.ValidatorSigning24hGetOutput{Body: signing}, nil
 }
@@ -40,21 +42,29 @@ func (h *ValidatorsHandler) GetValidatorSigningByHour(
 	input *humatypes.ValidatorSigningByHourGetInput,
 ) (*humatypes.ValidatorSigningByHourGetOutput, error) {
 	if input.ValidatorAddress == "" {
-		return nil, huma.Error400BadRequest("validator_address is required", nil)
+		return nil, badRequest("validator_address is required")
 	}
 	if !input.StartTimestamp.Before(input.EndTimestamp) {
-		return nil, huma.Error400BadRequest("start_timestamp must be before end_timestamp", nil)
+		return nil, badRequest("start_timestamp must be before end_timestamp")
 	}
 	if input.EndTimestamp.Sub(input.StartTimestamp) > 24*time.Hour*7 { // 7 days
-		return nil, huma.Error400BadRequest("end_timestamp must be within 7 days of start_timestamp", nil)
+		return nil, badRequest("end_timestamp must be within 7 days of start_timestamp")
 	}
 
 	signing, err := h.db.GetValidatorSigningByHour(
 		ctx, input.ValidatorAddress, h.chainName, input.StartTimestamp, input.EndTimestamp, input.SortOrder,
 	)
 	if err != nil {
-		return nil, huma.Error404NotFound(
-			fmt.Sprintf("Signing data for validator %s in the given time range not found", input.ValidatorAddress), err)
+		return nil, mapDbError(
+			"GetValidatorSigningByHour",
+			fmt.Sprintf("signing data for validator %s in the given time range not found", input.ValidatorAddress),
+			err,
+		)
+	}
+	if len(signing) == 0 {
+		return nil, notFound(fmt.Sprintf(
+			"signing data for validator %s in the given time range not found", input.ValidatorAddress,
+		))
 	}
 	return &humatypes.ValidatorSigningByHourGetOutput{Body: signing}, nil
 }
@@ -63,14 +73,9 @@ func (h *ValidatorsHandler) GetValidatorsList(
 	ctx context.Context,
 	input *humatypes.ValidatorsListGetInput,
 ) (*humatypes.ValidatorListGetOutput, error) {
-	valList, err := h.db.GetAllValidators(
-		ctx, h.chainName,
-	)
+	valList, err := h.db.GetAllValidators(ctx, h.chainName)
 	if err != nil {
-		log.Printf("Error, ValidatorsHandler: %v", err)
-		return nil, huma.Error500InternalServerError(
-			fmt.Sprintln("Error, there seems to be problem with the query. Check logs for more details."),
-		)
+		return nil, mapDbError("GetAllValidators", "validator list not found", err)
 	}
 	return &humatypes.ValidatorListGetOutput{Body: valList}, nil
 }

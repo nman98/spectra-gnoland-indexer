@@ -6,7 +6,6 @@ import (
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
-	"github.com/danielgtaylor/huma/v2"
 )
 
 type AddressHandler struct {
@@ -26,17 +25,20 @@ func (h *AddressHandler) GetDailyActiveAccount(
 	endDate := input.EndDate
 	// validate input
 	if !startDate.Before(endDate.Time) {
-		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
+		return nil, badRequest("start_date must be before end_date")
 	}
 	if endDate.Sub(startDate.Time) > 24*time.Hour*30 {
-		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
+		return nil, badRequest("end_date must be within 30 days of start_date")
 	}
 
 	data, err := h.db.GetDailyActiveAccount(
 		ctx, h.chainName, startDate, endDate, input.SortOrder,
 	)
 	if err != nil {
-		return nil, huma.Error404NotFound("Daily active account data not found", err)
+		return nil, mapDbError("GetDailyActiveAccount", "daily active account data not found", err)
+	}
+	if len(data) == 0 {
+		return nil, notFound("daily active account data not found")
 	}
 	return &humatypes.DailyActiveAccountGetOutput{Body: data}, nil
 }
@@ -62,7 +64,7 @@ func (h *AddressHandler) GetAddressTxs(
 		toTs = &input.ToTimestamp
 	}
 	if (fromTs == nil) != (toTs == nil) {
-		return nil, huma.Error400BadRequest("from_timestamp and to_timestamp must both be set or both be unset", nil)
+		return nil, badRequest("from_timestamp and to_timestamp must both be set or both be unset")
 	}
 	timestampMode := fromTs != nil && toTs != nil
 
@@ -81,10 +83,10 @@ func (h *AddressHandler) GetAddressTxs(
 	}
 	if !timestampMode {
 		if direction != database.Next && direction != database.Prev {
-			return nil, huma.Error400BadRequest("Invalid direction (must be 'next' or 'prev')", nil)
+			return nil, badRequest("invalid direction (must be 'next' or 'prev')")
 		}
 		if direction == database.Prev && cursor == nil {
-			return nil, huma.Error400BadRequest("direction=prev requires a cursor", nil)
+			return nil, badRequest("direction=prev requires a cursor")
 		}
 	}
 
@@ -100,7 +102,7 @@ func (h *AddressHandler) GetAddressTxs(
 		input.SortOrder,
 	)
 	if err != nil {
-		return nil, huma.Error404NotFound("Address not found", err)
+		return nil, mapDbError("GetAddressTxs", "address not found", err)
 	}
 
 	body := humatypes.AddressTxsBody{
@@ -115,11 +117,11 @@ func (h *AddressHandler) GetAddressTxs(
 		oldest := rows[len(rows)-1]
 		newestCur, err := makeTxCursor(newest.BlockHeight, newest.Hash)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to build cursor", err)
+			return nil, internalError("GetAddressTxs.makeTxCursor", err)
 		}
 		oldestCur, err := makeTxCursor(oldest.BlockHeight, oldest.Hash)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to build cursor", err)
+			return nil, internalError("GetAddressTxs.makeTxCursor", err)
 		}
 
 		switch direction {
