@@ -34,6 +34,7 @@ type ColumnInfo struct {
 	Nullable *bool
 	Primary  *bool
 	Unique   *bool
+	Default  *string
 }
 
 // Special Type is a postgres type that is to be used for a table
@@ -45,7 +46,7 @@ type SpecialType struct {
 }
 
 // GetTableInfo extracts database table information from a struct using reflection
-// This function reads the struct tags and converts them to database metadata
+// This function reads the struct tags and converts them to database metadata.
 //
 // Parameters:
 // - structType: the struct type to get the table info from
@@ -80,14 +81,14 @@ func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) 
 		// Read struct tags
 		dbTag := field.Tag.Get("db")
 		if dbTag == "" || dbTag == "-" {
-			// stop the program here if the field is not set
+			// Stop the program here if the field is not set.
 			//
-			// this function should always receive the sql data types
-			// which should have the db tag set
+			// This function should always receive the SQL data types
+			// which should have the db tag set.
 			//
-			// if the function receives a struct that is not a sql data type
-			// kill the program here explicitly
-			// TODO the cmd that will handle this will need to check if the db table already exists
+			// If the function receives a struct that is not a SQL data type
+			// kill the program here explicitly.
+			// TODO: the cmd that will handle this will need to check if the db table already exists
 			panic(fmt.Sprintf(
 				`field %s is not set, to proceed with the program you need to set the db tag,
 				this panic is related to %s table`,
@@ -142,6 +143,8 @@ func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 			columnDef += " NOT NULL"
 		} else if col.Nullable != nil && *col.Nullable {
 			columnDef += " NULL"
+		} else if col.Default != nil {
+			columnDef += fmt.Sprintf(" DEFAULT %s", *col.Default)
 		}
 		// coment this out for now
 		// better to have a explicit null value than to have a implicit null value
@@ -453,7 +456,7 @@ func (db *DBInitializer) CreateSpecialTypeFromStruct(structType interface{}, typ
 	return nil
 }
 
-// CreateHypertableFromStruct creates a hypertable using the appropriate method based on TimescaleDB version
+// CreateHypertableFromStruct creates a hypertable using the appropriate method based on TimescaleDB version.
 //
 // Parameters:
 // - structType: the struct type to create the hypertable from

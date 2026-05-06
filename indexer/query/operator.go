@@ -87,7 +87,7 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 		return nil
 	}
 
-	// Preallocate with exact size
+	// Pre-allocate with exact size
 	blocks := make([]*rc.BlockResponse, diff)
 	var mu sync.Mutex
 	wg := sync.WaitGroup{}
@@ -237,7 +237,7 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rc.TxResponse {
 		return nil
 	}
 
-	// Preallocate with exact size
+	// Pre allocate with exact size
 	transactions := make([]*rc.TxResponse, nTxs)
 	var mu sync.Mutex
 	wg := sync.WaitGroup{}

@@ -30,11 +30,11 @@ func init() {
 	}
 }
 
-// GetTransaction gets the transaction for a given transaction hash
+// GetTransaction gets the transaction for a given transaction hash.
 //
 // Usage:
 //
-// # Used to get the transaction for a given transaction hash
+// # Used to get the transaction for a given transaction hash.
 //
 // Parameters:
 //   - txHash: the hash of the transaction
@@ -55,7 +55,9 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 	tx.gas_used,
 	tx.gas_wanted,
 	tx.fee,
-	tx.msg_types
+	tx.msg_types,
+	tx.success,
+	tx.error_log
 	FROM transaction_general tx
 	WHERE tx.tx_hash = decode($1, 'base64')
 	AND tx.chain_name = $2
@@ -73,6 +75,8 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 		&transaction.GasWanted,
 		&transaction.Fee,
 		&transaction.MsgTypes,
+		&transaction.Success,
+		&transaction.ErrorLog,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

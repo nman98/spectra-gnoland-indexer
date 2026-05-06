@@ -118,6 +118,8 @@ type Transaction struct {
 	GasWanted   uint64    `json:"gas_wanted" doc:"Gas wanted"`
 	Fee         Amount    `json:"fee" doc:"Fee"`
 	MsgTypes    []string  `json:"msg_types" doc:"Message types"`
+	Success     bool      `json:"success" doc:"Success"`
+	ErrorLog    *string   `json:"error_log,omitempty" doc:"Error log"`
 }
 
 type FullTxData struct {
@@ -131,6 +133,8 @@ type FullTxData struct {
 	GasWanted          uint64
 	Fee                Amount
 	MsgTypes           []string
+	Success            bool
+	ErrorLog           *string
 }
 
 func (f *FullTxData) ToTransaction(decode func([]byte) (*[]Event, error)) (*Transaction, error) {
@@ -145,6 +149,8 @@ func (f *FullTxData) ToTransaction(decode func([]byte) (*[]Event, error)) (*Tran
 		GasWanted:   f.GasWanted,
 		Fee:         f.Fee,
 		MsgTypes:    f.MsgTypes,
+		Success:     f.Success,
+		ErrorLog:    f.ErrorLog,
 	}
 	if f.CompressionOn {
 		events, err := decode(f.TxEventsCompressed)
@@ -172,6 +178,7 @@ type AddressTx struct {
 	Timestamp   time.Time `json:"timestamp" doc:"Transaction timestamp"`
 	MsgTypes    []string  `json:"msg_types" doc:"Message types"`
 	BlockHeight uint64    `json:"block_height" doc:"Block height"`
+	Success     bool      `json:"success" doc:"Weather a tx was a success of a fail."`
 }
 
 type BlockCountByDate struct {

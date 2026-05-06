@@ -152,7 +152,8 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 		encode(tx.tx_hash, 'base64') AS tx_hash,
 		tx.timestamp,
 		tx.msg_types,
-		tg.block_height AS block_height
+		tg.block_height AS block_height,
+		tg.success AS success
 		FROM address_tx tx
 		JOIN transaction_general tg ON tx.tx_hash = tg.tx_hash AND tx.chain_name = tg.chain_name
 	`
@@ -261,7 +262,7 @@ func (t *TimescaleDb) execAccQuery(
 	defer rows.Close()
 	for rows.Next() {
 		var addressTx AddressTx
-		err := rows.Scan(&addressTx.Hash, &addressTx.Timestamp, &addressTx.MsgTypes, &addressTx.BlockHeight)
+		err := rows.Scan(&addressTx.Hash, &addressTx.Timestamp, &addressTx.MsgTypes, &addressTx.BlockHeight, &addressTx.Success)
 		if err != nil {
 			return nil, err
 		}
