@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd"
+	cmd "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cli"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"

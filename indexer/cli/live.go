@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	mainOperator "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_operator"
