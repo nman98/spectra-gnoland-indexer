@@ -38,3 +38,21 @@ type TransactionsData struct {
 	Timestamp   time.Time
 	BlockHeight uint64
 }
+
+func (t *TransactionsData) GetSuccess() bool {
+	return t.Response.Result.TxResult.ResponseBase.Error == nil
+}
+
+func (t *TransactionsData) GetTransactionErrorDetails() *string {
+	if t.Response.Result.TxResult.ResponseBase.Log == "" {
+		return nil
+	}
+	// Limit the log to 255 characters to avoid overflow.
+	var log string
+	if len(t.Response.Result.TxResult.ResponseBase.Log) > 255 {
+		log = t.Response.Result.TxResult.ResponseBase.Log[:255]
+	} else {
+		log = t.Response.Result.TxResult.ResponseBase.Log
+	}
+	return &log
+}

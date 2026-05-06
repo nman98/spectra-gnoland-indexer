@@ -161,6 +161,8 @@ func (t *TimescaleDb) InsertTransactionsGeneral(
 			transactionsGeneral[i].GasUsed,
 			transactionsGeneral[i].GasWanted,
 			transactionsGeneral[i].Fee,
+			transactionsGeneral[i].Success,
+			transactionsGeneral[i].ErrorLog,
 		}, nil
 	})
 

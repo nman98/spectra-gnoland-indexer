@@ -37,7 +37,8 @@ func (b Blocks) GetTableInfo() (*dbinit.TableInfo, error) {
 func (b Blocks) TableColumns() []string {
 	columns := make([]string, 0)
 	fields := reflect.TypeOf(b)
-	for i := 0; i < fields.NumField(); i++ {
+	numFields := fields.NumField()
+	for i := 0; i < numFields; i++ {
 		field := fields.Field(i)
 		columns = append(columns, field.Tag.Get("db"))
 	}
@@ -131,6 +132,7 @@ func (at AddressTx) TableColumns() []string {
 // - GasUsed (uint64)
 // - GasWanted (uint64)
 // - Fee (Fee)
+// - Success (bool)
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
 type TransactionGeneral struct {
@@ -147,6 +149,9 @@ type TransactionGeneral struct {
 	GasUsed            uint64  `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
 	GasWanted          uint64  `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
 	Fee                Amount  `db:"fee" dbtype:"amount" nullable:"false" primary:"false"`
+	Success            bool    `db:"success" dbtype:"boolean" nullable:"false" primary:"false" default:"false"`
+	// stored only if there is error
+	ErrorLog *string `db:"error_log" dbtype:"TEXT" nullable:"true" primary:"false"`
 }
 
 // TableName returns the name of the table for the TransactionGeneral struct

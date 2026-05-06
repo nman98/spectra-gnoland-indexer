@@ -130,7 +130,7 @@ func processPrecommits(
 
 // ProcessBlocks is a "swarm" method to process the blocks from a slice of blocks
 // it will process the blocks using async workers and store them directly into a result slice
-// it will then insert the blocks into the database
+// it will then insert the blocks into the database.
 //
 // Parameters:
 //   - blocks: a slice of blocks
@@ -140,7 +140,7 @@ func processPrecommits(
 // Returns:
 //   - nil
 //
-// The method will not throw an error if the blocks are not found, it will just return nil
+// The method will not throw an error if the blocks are not found, it will just return nil.
 func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) {
 	// Preallocate slice to avoid growing allocations
 	blockAmount := len(blocks)
@@ -210,9 +210,9 @@ func (d *DataProcessor) processBlock(
 	}
 }
 
-// ProcessTransactions is a swarm method to process the transactions from a map of transactions and timestamps
-// it will process the transactions using async workers and collect them in a preallocated slice
-// it will then insert the transactions into the database
+// ProcessTransactions is a swarm method to process the transactions from a map of transactions and timestamps.
+// It will process the transactions using async workers and collect them in a pre allocated slice
+// it will then insert the transactions into the database.
 //
 // Parameters:
 //   - transactions: a map of transactions and timestamps
@@ -330,6 +330,13 @@ func (d *DataProcessor) processTransaction(
 		return
 	}
 
+	// if transaction is successful, mark it as such
+	success := transaction.GetSuccess()
+	var errLog *string
+	if !success {
+		errLog = transaction.GetTransactionErrorDetails()
+	}
+
 	transactionsData[idx] = sqlDataTypes.TransactionGeneral{
 		TxHash:             txHash,
 		ChainName:          d.chainName,
@@ -342,6 +349,8 @@ func (d *DataProcessor) processTransaction(
 		GasUsed:            gasUsed,
 		GasWanted:          gasWanted,
 		Fee:                fee,
+		Success:            success,
+		ErrorLog:           errLog,
 	}
 	*valid = true
 }
