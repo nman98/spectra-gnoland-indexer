@@ -3,6 +3,7 @@ package mainoperator
 import (
 	"encoding/json"
 	"fmt"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"time"
@@ -28,7 +29,8 @@ func InitMainOperator(
 	configPath string,
 	envPath string,
 	rpcFlags mainTypes.RpcFlags,
-	runningFlags mainTypes.RunningFlags) {
+	runningFlags mainTypes.RunningFlags,
+ ) {
 	// load config
 	conf, err := config.LoadConfig(configPath)
 	if err != nil {
@@ -91,6 +93,7 @@ func InitMainOperator(
 	// let the orchestrator do it's thing
 	switch runningFlags.RunningMode {
 	case "live":
+		go InitDebug(signalHandler.Context())
 		orch.LiveProcess(signalHandler.Context(), runningFlags.SkipInitialDbCheck, runningFlags.CompressEvents)
 	case "historic":
 		if runningFlags.FromHeight == 0 || runningFlags.ToHeight == 0 {
@@ -98,6 +101,7 @@ func InitMainOperator(
 		} else if runningFlags.FromHeight > runningFlags.ToHeight {
 			l.Fatal().Caller().Stack().Msg("from height must be less than to height")
 		}
+		go InitDebug(signalHandler.Context())
 		// Historic processing doesn't need context cancellation in the same way,
 		// but we should still respect shutdown signals
 		go func() {

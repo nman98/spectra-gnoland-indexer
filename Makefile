@@ -1,20 +1,8 @@
-.PHONY: build 
-		install 
-		clean 
-		build-experimental 
-		install-experimental 
-		build-api 
-		integration-test 
-		test 
-		vulnerability-scan 
-		snyk 
-		semgrep 
-		code-quality
-
 ########################################################
-# Build and install the indexer
+# Build and install the indexer and API
 ########################################################
 
+.PHONY: build build-indexer build-api clean
 
 # Get git information
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -22,13 +10,22 @@ GIT_TAG := $(shell git describe --tags --exact-match 2>/dev/null || echo "")
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 VERSION := $(if $(GIT_TAG),$(GIT_TAG),$(GIT_BRANCH)-$(GIT_COMMIT))
 
+indexer_flags := -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) \
+					-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION)
+
+api_flags := -X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION) -w -s
+
 build-indexer:
 	mkdir -p build
-	go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION) -w -s" -o build/indexer indexer/indexer.go
+	go build -ldflags "$(indexer_flags) -w -s" -o build/indexer indexer/cmd/indexer.go
 
 build-api:
 	mkdir -p build
-	go build -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION) -w -s" -o build/api ./api
+	go build -ldflags="$(api_flags)" -o build/api ./api
+
+build-dev:
+	mkdir -p build
+	go build -gcflags="-m=2" -tags=devmode -ldflags "$(indexer_flags)" -o build/dev indexer/cmd/indexer.go
 
 clean:
 	rm -rf build
@@ -51,7 +48,7 @@ vulnerability-scan:
 	govulncheck ./...
 
 snyk:
-	snyk test 
+	snyk test
 
 semgrep:
 	semgrep ci
