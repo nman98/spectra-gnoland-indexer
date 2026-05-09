@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	cmd "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cli"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cli"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
@@ -37,7 +37,7 @@ func main() {
 		Pretty:      true,
 	})
 
-	if err := cmd.RootCmd.ExecuteContext(ctx); err != nil {
+	if err := cli.RootCmd.ExecuteContext(ctx); err != nil {
 		logger.Get().Fatal().Err(err).Msg("failed to execute command")
 	}
 }
