@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strconv"
 	"syscall"
 	"text/tabwriter"
 	"time"
@@ -64,11 +65,9 @@ func init() {
 		cmd.Flags().StringP("ssl-mode", "s", "", "SSL mode (default: disable)")
 	}
 
-	keyCreateCmd.Flags().String("name", "", "Name for the API key (required)")
-	keyCreateCmd.Flags().Int("rpm-limit", 0, "Requests per minute limit (required)")
-
-	keyDisableCmd.Flags().String("name", "", "Name of the API key to disable (required)")
-	keyEnableCmd.Flags().String("name", "", "Name of the API key to enable (required)")
+	keyCreateCmd.Example = "	api key create my-app 10000"
+	keyDisableCmd.Example = "	api key disable my-app"
+	keyEnableCmd.Example = "	api key enable my-app"
 }
 
 func parseKeyDbFlags(cmd *cobra.Command) (*keyDbParams, error) {
@@ -155,16 +154,17 @@ func connectKeyDb(cmd *cobra.Command) (*database.TimescaleDb, error) {
 }
 
 var keyCreateCmd = &cobra.Command{
-	Use:   "create",
+	Use:   "create NAME RPM_LIMIT",
 	Short: "Create a new API key",
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name, _ := cmd.Flags().GetString("name")
+		name := args[0]
 		if name == "" {
-			return fmt.Errorf("--name is required")
+			return fmt.Errorf("NAME must be non-empty")
 		}
-		rpmLimit, _ := cmd.Flags().GetInt("rpm-limit")
-		if rpmLimit <= 0 {
-			return fmt.Errorf("--rpm-limit must be a positive integer")
+		rpmLimit, err := strconv.Atoi(args[1])
+		if err != nil || rpmLimit <= 0 {
+			return fmt.Errorf("RPM_LIMIT must be a positive integer")
 		}
 
 		rawKey, prefix, hash, err := key.GenerateApiKey()
@@ -203,12 +203,13 @@ var keyCreateCmd = &cobra.Command{
 }
 
 var keyDisableCmd = &cobra.Command{
-	Use:   "disable",
+	Use:   "disable NAME",
 	Short: "Disable an API key by name",
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name, _ := cmd.Flags().GetString("name")
+		name := args[0]
 		if name == "" {
-			return fmt.Errorf("--name is required")
+			return fmt.Errorf("NAME must be non-empty")
 		}
 
 		db, err := connectKeyDb(cmd)
@@ -229,12 +230,13 @@ var keyDisableCmd = &cobra.Command{
 }
 
 var keyEnableCmd = &cobra.Command{
-	Use:   "enable",
+	Use:   "enable NAME",
 	Short: "Enable an API key by name",
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name, _ := cmd.Flags().GetString("name")
+		name := args[0]
 		if name == "" {
-			return fmt.Errorf("--name is required")
+			return fmt.Errorf("NAME must be non-empty")
 		}
 
 		db, err := connectKeyDb(cmd)
