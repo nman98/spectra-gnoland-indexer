@@ -105,7 +105,6 @@ func (m *MockDatabase) GetAddressTxs(
 	limit *uint64,
 	cursor *string,
 	direction database.Direction,
-	sortOrder database.SortOrder,
 ) (*[]database.AddressTx, bool, error) {
 	if m.shouldError {
 		return nil, false, m.simulatedError()

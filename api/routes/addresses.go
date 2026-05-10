@@ -11,7 +11,7 @@ func RegisterAddressesRoutes(api huma.API, h *handlers.AddressHandler, m *handle
 			op.Summary = "Get Address Transactions"
 			op.Description = `Retrieve transactions for a given address. Two query modes are supported:
 
-			1. Timestamp range: specify both from_timestamp and to_timestamp. The response is ordered by sort_order.
+			1. Timestamp range: specify both from_timestamp and to_timestamp. To traverse the time range you can use direction and cursor.
 			2. Cursor pagination: omit the timestamps. The response is always newest-first. Omit the cursor to fetch
 			   the latest page. Use direction="next" with next_cursor to load older rows, and direction="prev" with
 			   prev_cursor to load newer rows. Cursors have the form "<block_height>|<tx_hash_base64url>".`

@@ -14,7 +14,6 @@ type AddressGetInput struct {
 	Limit         uint64             `query:"limit" doc:"Limit of transactions to return" min:"1" max:"100" default:"10"`
 	Cursor        string             `query:"cursor" doc:"Cursor in the form '<block_height>|<tx_hash_base64url>'. Used in cursor mode only." required:"false"`
 	Direction     database.Direction `query:"direction" doc:"Direction to walk from the cursor. 'next' returns older rows; 'prev' returns newer rows and requires a cursor. Used in cursor mode only." enum:"next,prev" default:"next"`
-	SortOrder     database.SortOrder `query:"sort_order" doc:"Sort order for timestamp-range mode. Ignored in cursor mode (which is always newest-first)." enum:"asc,desc" default:"desc"`
 }
 
 type AddressGetOutput struct {

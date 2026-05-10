@@ -99,7 +99,6 @@ func (h *AddressHandler) GetAddressTxs(
 		limit,
 		cursor,
 		direction,
-		input.SortOrder,
 	)
 	if err != nil {
 		return nil, mapDbError("GetAddressTxs", "address not found", err)
@@ -109,9 +108,7 @@ func (h *AddressHandler) GetAddressTxs(
 		AddressTxs: *addressTxs,
 	}
 
-	// Pagination metadata only makes sense in cursor mode; timestamp-range
-	// responses are returned as-is.
-	if !timestampMode && len(*addressTxs) > 0 {
+	if len(*addressTxs) > 0 {
 		rows := *addressTxs
 		newest := rows[0]
 		oldest := rows[len(rows)-1]
