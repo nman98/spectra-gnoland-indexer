@@ -67,7 +67,7 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 
 	// Process blocks concurrently to extract addresses
 	for _, block := range blocks {
-		go processPrecommits(&mu, &addressesMap, &wg, block)
+		go processPrecommits(&mu, addressesMap, &wg, block)
 	}
 
 	wg.Wait()
@@ -105,7 +105,7 @@ func extractAddresses(addressesMap map[string]struct{}) []string {
 
 func processPrecommits(
 	mu *sync.Mutex,
-	addressesMap *map[string]struct{},
+	addressesMap map[string]struct{},
 	wg *sync.WaitGroup,
 	block *rpcClient.BlockResponse,
 ) {
@@ -116,7 +116,7 @@ func processPrecommits(
 	for _, precommit := range precommits {
 		if precommit != nil {
 			mu.Lock()
-			(*addressesMap)[precommit.ValidatorAddress] = struct{}{}
+			addressesMap[precommit.ValidatorAddress] = struct{}{}
 			mu.Unlock()
 		}
 	}
@@ -124,7 +124,7 @@ func processPrecommits(
 	// Process proposer
 	proposer := block.Result.Block.Header.ProposerAddress
 	mu.Lock()
-	(*addressesMap)[proposer] = struct{}{}
+	addressesMap[proposer] = struct{}{}
 	mu.Unlock()
 }
 
@@ -400,7 +400,7 @@ func (d *DataProcessor) ProcessMessages(
 			wg.Done()
 			continue
 		}
-		go d.processMessageGroup(idx, transaction, allDecodedMsgs[idx], &wg, &msgResults)
+		go d.processMessageGroup(idx, transaction, allDecodedMsgs[idx], &wg, msgResults)
 	}
 
 	wg.Wait()
@@ -455,7 +455,7 @@ func transactionDecoding(
 	wg.Add(txCount)
 
 	for idx, transaction := range transactions {
-		go decodeTx(mu, &addressesMap, &wg, decodedMsgs, transaction, idx)
+		go decodeTx(mu, addressesMap, &wg, decodedMsgs, transaction, idx)
 	}
 
 	wg.Wait()
@@ -466,7 +466,7 @@ func transactionDecoding(
 // decodeTx decodes a transaction and stores the decoded message at the pre-allocated index.
 func decodeTx(
 	mu *sync.Mutex,
-	addressesMap *map[string]struct{},
+	addressesMap map[string]struct{},
 	wg *sync.WaitGroup,
 	decodedMsgs []*decoder.DecodedMsg,
 	transaction TransactionsData,
@@ -488,7 +488,7 @@ func decodeTx(
 	addresses := decodedMsg.CollectAllAddresses()
 	mu.Lock()
 	for _, address := range addresses {
-		(*addressesMap)[address] = struct{}{}
+		addressesMap[address] = struct{}{}
 	}
 	decodedMsgs[idx] = decodedMsg
 	mu.Unlock()
@@ -502,7 +502,7 @@ func (d *DataProcessor) processMessageGroup(
 	transaction TransactionsData,
 	decodedMsg *decoder.DecodedMsg,
 	wg *sync.WaitGroup,
-	results *[]*decoder.DbMessageGroups,
+	results []*decoder.DbMessageGroups,
 ) {
 	defer wg.Done()
 
@@ -545,7 +545,7 @@ func (d *DataProcessor) processMessageGroup(
 		return
 	}
 
-	(*results)[idx] = dbMessageGroups
+	results[idx] = dbMessageGroups
 }
 
 // insertDbMessageGroups performs optimized batch insertions using address IDs
@@ -712,81 +712,52 @@ func (d *DataProcessor) processValidatorSigning(
 
 // createAddressTx builds a flat slice of AddressTx rows from all message groups.
 func createAddressTx(msgGroups *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
-	msgSendCount := len(msgGroups.MsgSend)
-	msgCallCount := len(msgGroups.MsgCall)
-	msgAddPkgCount := len(msgGroups.MsgAddPkg)
-	msgRunCount := len(msgGroups.MsgRun)
-	addresses := make([]sqlDataTypes.AddressTx, 0)
-
-	if msgSendCount > 0 {
-		for _, msgItem := range msgGroups.MsgSend {
-			addresses = append(
-				addresses, addressTxFromMsg(
-					msgItem.GetAllAddresses(),
-					msgItem.ChainName,
-					msgItem.Timestamp,
-					msgItem.TableName(),
-				)...,
-			)
-		}
+	seen := make(map[key]*entry)
+	for _, m := range msgGroups.MsgSend {
+		addToAddressTx(&seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
 	}
-	if msgCallCount > 0 {
-		for _, msgItem := range msgGroups.MsgCall {
-			addresses = append(
-				addresses, addressTxFromMsg(
-					msgItem.GetAllAddresses(),
-					msgItem.ChainName,
-					msgItem.Timestamp,
-					msgItem.TableName(),
-				)...,
-			)
-		}
+	for _, m := range msgGroups.MsgCall {
+		addToAddressTx(&seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
 	}
-	if msgAddPkgCount > 0 {
-		for _, msgItem := range msgGroups.MsgAddPkg {
-			addresses = append(
-				addresses, addressTxFromMsg(
-					msgItem.GetAllAddresses(),
-					msgItem.ChainName,
-					msgItem.Timestamp,
-					msgItem.TableName(),
-				)...,
-			)
-		}
+	for _, m := range msgGroups.MsgAddPkg {
+		addToAddressTx(&seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
 	}
-	if msgRunCount > 0 {
-		for _, msgItem := range msgGroups.MsgRun {
-			addresses = append(
-				addresses, addressTxFromMsg(
-					msgItem.GetAllAddresses(),
-					msgItem.ChainName,
-					msgItem.Timestamp,
-					msgItem.TableName(),
-				)...,
-			)
-		}
+	for _, m := range msgGroups.MsgRun {
+		addToAddressTx(&seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
 	}
-
-	return addresses
-}
-
-// addressTxFromMsg converts the address list from a single message into AddressTx rows.
-func addressTxFromMsg(
-	txAddresses *sqlDataTypes.TxAddresses,
-	chainName string,
-	timestamp time.Time,
-	msgType string,
-) []sqlDataTypes.AddressTx {
-	addrList := txAddresses.GetAddressList()
-	result := make([]sqlDataTypes.AddressTx, len(addrList))
-	for idx, addr := range addrList {
-		result[idx] = sqlDataTypes.AddressTx{
-			Address:   addr,
-			TxHash:    txAddresses.TxHash,
-			ChainName: chainName,
-			Timestamp: timestamp,
-			MsgTypes:  []string{msgType},
+	result := make([]sqlDataTypes.AddressTx, 0, len(seen))
+	for _, e := range seen {
+		types := make([]string, 0, len(e.msgTypes))
+		for t := range e.msgTypes {
+			types = append(types, t)
 		}
+		e.base.MsgTypes = types
+		result = append(result, e.base)
 	}
 	return result
+}
+
+func addToAddressTx(
+	seen *map[key]*entry,
+	addresses *sqlDataTypes.TxAddresses,
+	chainName string,
+	ts time.Time,
+	msgType string,
+) {
+	for _, addr := range addresses.GetAddressList() {
+		k := key{addr, string(addresses.TxHash), chainName}
+		if e, ok := (*seen)[k]; ok {
+			e.msgTypes[msgType] = struct{}{}
+		} else {
+			(*seen)[k] = &entry{
+				base:     sqlDataTypes.AddressTx{
+					Address:   addr,
+					TxHash:    addresses.TxHash,
+					ChainName: chainName,
+					Timestamp: ts,
+				},
+				msgTypes: map[string]struct{}{msgType: {}},
+			}
+		}
+	}
 }
