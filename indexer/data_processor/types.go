@@ -56,3 +56,14 @@ func (t *TransactionsData) GetTransactionErrorDetails() *string {
 	}
 	return &log
 }
+
+// Internal types for address tx mapping
+type key struct {
+	address   int32
+	txHash    string
+	chainName string
+}
+type entry struct {
+	base     sqlDataTypes.AddressTx
+	msgTypes map[string]struct{}
+}

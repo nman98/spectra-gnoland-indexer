@@ -91,12 +91,12 @@ func (vbs ValidatorBlockSigning) TableColumns() []string {
 // - Chain ID (string)
 // - Timestamp (time.Time)
 // - MsgTypes ([]string)
-// PRIMARY KEY (timestamp) because of timescaledb although it is not marked as primary it will be considered as such
+// PRIMARY KEY (address, tx_hash, timestamp)
 type AddressTx struct {
-	Address   int32     `db:"address" dbtype:"INTEGER" nullable:"false" primary:"false"`
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
+	Address   int32     `db:"address" dbtype:"INTEGER" nullable:"false" primary:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	MsgTypes  []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
 }
 
