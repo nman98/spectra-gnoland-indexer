@@ -58,7 +58,7 @@ jobs:
 
       - name: Initialize database schema
         run: |
-          go run indexer/indexer.go setup create-db --db-user postgres --db-name postgres
+          go run indexer/cmd/indexer.go setup create-db --db-user postgres --db-name postgres
         env:
           DB_HOST: localhost
           DB_PORT: 5432
@@ -136,7 +136,7 @@ jobs:
 
       - name: Initialize database schema
         run: |
-          go run indexer/indexer.go setup create-db --db-user postgres --db-name postgres
+          go run indexer/cmd/indexer.go setup create-db --db-user postgres --db-name postgres
         env:
           DB_HOST: localhost
           DB_PORT: 5432
@@ -214,7 +214,7 @@ jobs:
 
       - name: Initialize database schema
         run: |
-          go run indexer/indexer.go setup create-db
+          go run indexer/cmd/indexer.go setup create-db
         env:
           DB_HOST: localhost
           DB_PORT: 5432
