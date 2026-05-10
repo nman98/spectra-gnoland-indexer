@@ -118,8 +118,8 @@ type Transaction struct {
 	GasWanted   uint64    `json:"gas_wanted" doc:"Gas wanted"`
 	Fee         Amount    `json:"fee" doc:"Fee"`
 	MsgTypes    []string  `json:"msg_types" doc:"Message types"`
-	Success     bool      `json:"success" doc:"Success"`
-	ErrorLog    *string   `json:"error_log,omitempty" doc:"Error log"`
+	Success     bool      `json:"success" doc:"Weather a tx was a success of a fail."`
+	ErrorLog    *string   `json:"error_log,omitempty" doc:"Error log if the tx was a failure."`
 }
 
 type FullTxData struct {
@@ -179,6 +179,7 @@ type AddressTx struct {
 	MsgTypes    []string  `json:"msg_types" doc:"Message types"`
 	BlockHeight uint64    `json:"block_height" doc:"Block height"`
 	Success     bool      `json:"success" doc:"Weather a tx was a success of a fail."`
+	ErrorLog    *string   `json:"error_log,omitempty" doc:"Error log if the tx was a failure."`
 }
 
 type BlockCountByDate struct {

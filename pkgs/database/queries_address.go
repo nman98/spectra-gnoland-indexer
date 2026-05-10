@@ -115,7 +115,8 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 		tx.timestamp,
 		tx.msg_types,
 		tg.block_height AS block_height,
-		tg.success AS success
+		tg.success AS success,
+		tg.error_log AS error_log
 		FROM address_tx tx
 		JOIN transaction_general tg ON tx.tx_hash = tg.tx_hash AND tx.chain_name = tg.chain_name
 	`
@@ -223,7 +224,8 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 		tx.timestamp,
 		tx.msg_types,
 		tg.block_height AS block_height,
-		tg.success AS success
+		tg.success AS success,
+		tg.error_log AS error_log
 		FROM address_tx tx
 		JOIN transaction_general tg ON tx.tx_hash = tg.tx_hash AND tx.chain_name = tg.chain_name
 	`
@@ -332,7 +334,7 @@ func (t *TimescaleDb) execAccQuery(
 	defer rows.Close()
 	for rows.Next() {
 		var addressTx AddressTx
-		err := rows.Scan(&addressTx.Hash, &addressTx.Timestamp, &addressTx.MsgTypes, &addressTx.BlockHeight, &addressTx.Success)
+		err := rows.Scan(&addressTx.Hash, &addressTx.Timestamp, &addressTx.MsgTypes, &addressTx.BlockHeight, &addressTx.Success, &addressTx.ErrorLog)
 		if err != nil {
 			return nil, err
 		}
