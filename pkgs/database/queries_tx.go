@@ -125,7 +125,9 @@ func (t *TimescaleDb) GetLastXTransactions(
 	tx.gas_used,
 	tx.gas_wanted,
 	tx.fee,
-	tx.msg_types
+	tx.msg_types,
+	tx.success,
+	tx.error_log
 	FROM transaction_general tx
 	WHERE tx.chain_name = $1
 	ORDER BY tx.timestamp %s
@@ -149,7 +151,9 @@ func (t *TimescaleDb) GetLastXTransactions(
 			&transaction.GasUsed,
 			&transaction.GasWanted,
 			&transaction.Fee,
-			&transaction.MsgTypes)
+			&transaction.MsgTypes,
+			&transaction.Success,
+			&transaction.ErrorLog)
 		if err != nil {
 			return nil, err
 		}
@@ -198,7 +202,9 @@ func (t *TimescaleDb) GetTransactionsByOffset(
 	tx.gas_used,
 	tx.gas_wanted,
 	tx.fee,
-	tx.msg_types
+	tx.msg_types,
+	tx.success,
+	tx.error_log
 	FROM transaction_general tx
 	WHERE tx.chain_name = $1
 	ORDER BY tx.timestamp DESC
@@ -212,7 +218,7 @@ func (t *TimescaleDb) GetTransactionsByOffset(
 	transactions := make([]*Transaction, 0)
 	for rows.Next() {
 		transaction := &FullTxData{}
-		err := rows.Scan(&transaction.TxHash, &transaction.Timestamp, &transaction.BlockHeight, &transaction.TxEvents, &transaction.GasUsed, &transaction.GasWanted, &transaction.Fee, &transaction.MsgTypes)
+		err := rows.Scan(&transaction.TxHash, &transaction.Timestamp, &transaction.BlockHeight, &transaction.TxEvents, &transaction.GasUsed, &transaction.GasWanted, &transaction.Fee, &transaction.MsgTypes, &transaction.Success, &transaction.ErrorLog)
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +280,9 @@ func (t *TimescaleDb) GetTransactionsByRange(
 	tx.gas_used,
 	tx.gas_wanted,
 	tx.fee,
-	tx.msg_types
+	tx.msg_types,
+	tx.success,
+	tx.error_log
 	FROM transaction_general tx
 	`
 
@@ -356,6 +364,8 @@ func (t *TimescaleDb) GetTransactionsByRange(
 			&transaction.GasWanted,
 			&transaction.Fee,
 			&transaction.MsgTypes,
+			&transaction.Success,
+			&transaction.ErrorLog,
 		)
 		if err != nil {
 			return nil, false, err
