@@ -17,15 +17,15 @@ api_flags := -X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION) -w -s
 
 build-indexer:
 	mkdir -p build
-	go build -ldflags "$(indexer_flags) -w -s" -o build/indexer indexer/cmd/indexer.go
+	GOTOOLCHAIN=auto go build -ldflags "$(indexer_flags) -w -s" -o build/indexer indexer/cmd/indexer.go
 
 build-api:
 	mkdir -p build
-	go build -ldflags="$(api_flags)" -o build/api ./api
+	GOTOOLCHAIN=auto go build -ldflags="$(api_flags)" -o build/api ./api
 
 build-dev:
 	mkdir -p build
-	go build -gcflags="-m=2" -tags=devmode -ldflags "$(indexer_flags)" -o build/dev indexer/cmd/indexer.go
+	GOTOOLCHAIN=auto go build -gcflags="-m=2" -tags=devmode -ldflags "$(indexer_flags)" -o build/dev indexer/cmd/indexer.go
 
 clean:
 	rm -rf build
@@ -44,9 +44,6 @@ integration-test:
 # Vulnerability scanning
 ########################################################
 
-vulnerability-scan:
-	govulncheck ./...
-
 snyk:
 	snyk test
 
@@ -61,7 +58,7 @@ lint:
 	golangci-lint run
 
 vulncheck:
-	govulncheck ./...
+	GOTOOLCHAIN=auto govulncheck ./...
 
 ########################################################
 # Train the zstd dictionary
