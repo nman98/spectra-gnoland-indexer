@@ -19,9 +19,8 @@ var defaultLimit = uint64(10)
 // There are two query modes:
 //
 //  1. Timestamp range: both fromTimestamp and toTimestamp are non-nil. The result
-//     is ordered by (timestamp, tx_hash) according to sortOrder. hasMore is
-//     always false in this mode; the caller is expected to narrow the window if
-//     it needs fewer rows.
+//     is ordered by (timestamp, tx_hash) according to sortOrder. It also allows addition
+//	   cursor to be used to thraverse from that timestamp to the previous or next timestamp.
 //  2. Cursor: fromTimestamp and toTimestamp are both nil. Pagination follows the
 //     same keyset scheme as the transactions range API, using (block_height, tx_hash)
 //     as the seek key. The response is always ordered newest-first and the caller
@@ -29,13 +28,12 @@ var defaultLimit = uint64(10)
 //     A cursor is required for direction=prev. sortOrder is ignored in this mode.
 //
 // Parameters:
-//   - address: the bech32-style gno address to look up
-//   - chainName: the chain to query
-//   - fromTimestamp, toTimestamp: inclusive bounds for timestamp mode, both nil for cursor mode
-//   - limit: max rows to return (defaults to 10 when nil)
-//   - cursor: encoded "<block_height>|<tx_hash_base64url>"; nil in cursor mode means "start at the head"
-//   - direction: Next (older) or Prev (newer); only used in cursor mode
-//   - sortOrder: order for timestamp mode; ignored in cursor mode
+//   - address: the bech32-style gno address to look up.
+//   - chainName: the chain to query.
+//   - fromTimestamp, toTimestamp: inclusive bounds for timestamp mode, both nil for cursor mode.
+//   - limit: max rows to return (defaults to 10 when nil).
+//   - cursor: encoded "<block_height>|<tx_hash_base64url>"; nil in cursor mode means "start at the head".
+//   - direction: Next (older) or Prev (newer);
 //
 // Returns:
 //   - *[]AddressTx: the page of transactions
@@ -50,7 +48,6 @@ func (t *TimescaleDb) GetAddressTxs(
 	limit *uint64,
 	cursor *string,
 	direction Direction,
-	sortOrder SortOrder,
 ) (*[]AddressTx, bool, error) {
 	hasTsRange := fromTimestamp != nil && toTimestamp != nil
 	noTsRange := fromTimestamp == nil && toTimestamp == nil
@@ -68,13 +65,13 @@ func (t *TimescaleDb) GetAddressTxs(
 	}
 
 	if hasTsRange {
-		addressTxs, err := t.getAddressTxsTimestampQuery(
-			ctx, accountId, chainName, *fromTimestamp, *toTimestamp, limit, sortOrder,
+		addressTxs, hasMore, err := t.getAddressTxsTimestampQuery(
+			ctx, accountId, chainName, *fromTimestamp, *toTimestamp, limit, cursor, direction,
 		)
 		if err != nil {
 			return nil, false, err
 		}
-		return addressTxs, false, nil
+		return addressTxs, hasMore, nil
 	}
 
 	return t.getAddressTxsCursorQuery(ctx, accountId, chainName, cursor, limit, direction)
@@ -103,35 +100,108 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 	fromTimestamp time.Time,
 	toTimestamp time.Time,
 	limit *uint64,
-	sortOrder SortOrder,
-) (*[]AddressTx, error) {
+	cursor *string,
+	direction Direction,
+) (*[]AddressTx, bool, error) {
 	if limit == nil {
 		limit = &defaultLimit
 	}
 
-	order := sortOrder.SQL()
-	query := fmt.Sprintf(`
+	fetchLimit := *limit + 1
+
+	const selectCols = `
 		SELECT
 		encode(tx.tx_hash, 'base64') AS tx_hash,
-		tx.timestamp AS timestamp,
-		tx.msg_types AS msg_types,
-		tg.block_height AS block_height
+		tx.timestamp,
+		tx.msg_types,
+		tg.block_height AS block_height,
+		tg.success AS success
 		FROM address_tx tx
 		JOIN transaction_general tg ON tx.tx_hash = tg.tx_hash AND tx.chain_name = tg.chain_name
+	`
+
+	hasCursor := cursor != nil && *cursor != ""
+	var (
+		query         string
+		args          []any
+		reverse       bool
+		blockHeight   uint64
+		decodedTxHash []byte
+	)
+	if hasCursor {
+		bh, txHash, err := unmarshalCursorParam(*cursor)
+		if err != nil {
+			return nil, false, err
+		}
+		decoded, err := base64.URLEncoding.Strict().DecodeString(txHash)
+		if err != nil {
+			return nil, false, fmt.Errorf("error decoding cursor tx hash: %w", err)
+		}
+		blockHeight = bh
+		decodedTxHash = decoded
+	}
+
+	switch direction {
+	case Next:
+		if hasCursor {
+			query = selectCols + `
+			WHERE tx.address = $1
+			AND tx.chain_name = $2
+			AND (tg.block_height, tx.tx_hash) < ($3, $4)
+			AND tx.timestamp BETWEEN $5 AND $6
+			ORDER BY tg.block_height DESC, tx.tx_hash DESC
+			LIMIT $7
+			`
+			args = []any{accountId, chainName, blockHeight, decodedTxHash, fromTimestamp, toTimestamp, fetchLimit}
+		} else {
+			query = selectCols + `
+			WHERE tx.address = $1
+			AND tx.chain_name = $2
+			AND tx.timestamp BETWEEN $3 AND $4
+			ORDER BY tg.block_height DESC, tx.tx_hash DESC
+			LIMIT $5
+			`
+			args = []any{accountId, chainName, fromTimestamp, toTimestamp, fetchLimit}
+		}
+	case Prev:
+		if !hasCursor {
+			return nil, false, fmt.Errorf("prev direction requires a cursor")
+		}
+		query = selectCols + `
 		WHERE tx.address = $1
 		AND tx.chain_name = $2
-		AND tx.timestamp >= $3
-		AND tx.timestamp <= $4
-		ORDER BY tx.timestamp %s, tx.tx_hash %s
-		LIMIT $5
-	`, order, order)
+		AND (tg.block_height, tx.tx_hash) > ($3, $4)
+		AND tx.timestamp BETWEEN $5 AND $6
+		ORDER BY tg.block_height ASC, tx.tx_hash ASC
+		LIMIT $7
+		`
+		args = []any{accountId, chainName, blockHeight, decodedTxHash, fromTimestamp, toTimestamp, fetchLimit}
+		reverse = true
+	default:
+		return nil, false, fmt.Errorf("invalid direction: %q", direction)
+	}
 
-	args := []any{accountId, chainName, fromTimestamp, toTimestamp, *limit}
-	return t.execAccQuery(ctx, query, args)
+	addressTxs, err := t.execAccQuery(ctx, query, args)
+	if err != nil {
+		return nil, false, err
+	}
+
+	hasMore := uint64(len(*addressTxs)) > *limit 
+	if hasMore {
+		trimmed := (*addressTxs)[:*limit]
+		addressTxs = &trimmed
+	}
+	if reverse {
+		rows := *addressTxs
+		for i, j := 0, len(rows)-1; i < j; i, j = i+1, j-1 {
+			rows[i], rows[j] = rows[j], rows[i]
+		}
+	}
+	return addressTxs, hasMore, nil
 }
 
 // getAddressTxsCursorQuery runs the cursor/direction mode. The output is always
-// newest-first; direction=next walks toward older rows (DESC scan), direction=prev
+// newest-first and direction=next walks toward older rows (DESC scan), direction=prev
 // walks toward newer rows (ASC scan, then reverse). limit+1 rows are fetched so
 // we can report hasMore without issuing a second COUNT query.
 func (t *TimescaleDb) getAddressTxsCursorQuery(

@@ -18,7 +18,6 @@ type AddressDbHandler interface {
 		limit *uint64,
 		cursor *string,
 		direction database.Direction,
-		sortOrder database.SortOrder,
 	) (*[]database.AddressTx, bool, error)
 	GetDailyActiveAccount(
 		ctx context.Context,
