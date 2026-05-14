@@ -5,16 +5,52 @@ import (
 	"time"
 
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+// TxHashId represents a transaction hash and its associated metadata
+//
+// Stores:
+//   - TxId (bigserial)
+//   - TxHash (bytea)
+//   - Timestamp (timestamptz)
+//   - ChainName (chain_name)
+//
+// PRIMARY KEY (tx_id, timestamp. chain_name)
+type TxHashId struct {
+	TxId      int64     `db:"tx_id" dbtype:"bigserial" nullable:"false" primary:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+}
+
+func (t TxHashId) TableName() string {
+	return "tx_hash_id"
+}
+
+func (t TxHashId) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(t, t.TableName())
+}
+
+func (t TxHashId) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(t)
+	numFields := fields.NumField()
+	for i := 0; i < numFields; i++ {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
+}
 
 // Blocks represents a blockchain block with database mapping information
 //
 // Stores:
 //   - Hash (bytea)
-//   - Height (uint64)
-//   - Timestamp (time.Time)
-//   - Chain ID (string)
-//   - Chain Name (string)
+//   - Height (bigint)
+//   - Timestamp (timestamptz)
+//   - Chain ID (text)
+//   - Chain Name (chain_name)
 //
 // PRIMARY KEY (height, timestamp, chain_name)
 type Blocks struct {
@@ -47,11 +83,11 @@ func (b Blocks) TableColumns() []string {
 
 // ValidatorBlockSigning represents a validator block signing with database mapping information
 // Stores:
-//   - Block height (uint64)
-//   - Timestamp (time.Time)
-//   - Proposer (int32)
-//   - Signed validators (int32 all of the validators that signed the block)
-//   - Chain Name (string)
+//   - Block height (bigint)
+//   - Timestamp (timestamptz)
+//   - Proposer (integer)
+//   - Signed validators (integer all of the validators that signed the block)
+//   - Chain Name (chain_name)
 //
 // PRIMARY KEY (block_height, timestamp, chain_name)
 type ValidatorBlockSigning struct {
@@ -86,18 +122,16 @@ func (vbs ValidatorBlockSigning) TableColumns() []string {
 // AddressTx represents a transaction with database mapping information
 //
 // Stores:
-// - Address (int32)
-// - TxHash (bytea)
-// - Chain ID (string)
-// - Timestamp (time.Time)
-// - MsgTypes ([]string)
-// PRIMARY KEY (address, tx_hash, timestamp)
+// - Address (integer)
+// - TxId (bigint)
+// - Chain ID (text)
+// - Timestamp (timestamptz)
+// PRIMARY KEY (address, tx_id, chain_name, timestamp)
 type AddressTx struct {
 	Address   int32     `db:"address" dbtype:"INTEGER" nullable:"false" primary:"true"`
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
-	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	MsgTypes  []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the AddressTx struct
@@ -123,34 +157,35 @@ func (at AddressTx) TableColumns() []string {
 // TransactionGeneral represents a transaction general data with database mapping information
 //
 // Stores:
-// - TxHash (bytea)
-// - ChainName (string)
-// - Timestamp (time.Time)
-// - MsgTypes (string[])
-// - TxEvents (Event[])
+// - TxId (bigint)
+// - ChainName (chain_name)
+// - Timestamp (timestamptz)
+// - MsgTypes (text[])
+// - TxEvents (event[])
 // - TxEventsCompressed (bytea)
-// - GasUsed (uint64)
-// - GasWanted (uint64)
-// - Fee (Fee)
-// - Success (bool)
+// - GasUsed (bigint)
+// - GasWanted (bigint)
+// - Fee (fee)
+// - Success (boolean)
 //
-// PRIMARY KEY (tx_hash, chain_name, timestamp)
+// PRIMARY KEY (tx_id, chain_name, timestamp)
 type TransactionGeneral struct {
-	TxHash      []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	TxId        int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Timestamp   time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	BlockHeight uint64    `db:"block_height" dbtype:"bigint" nullable:"false" primary:"false"`
 	MsgTypes    []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
-	// tx events in the future there should be an option to have this compressed
+	// Tx events in the future there should be an option to have this compressed
 	// for now only store the native format but keep the option to have it compressed
-	TxEvents           []Event `db:"tx_events" dbtype:"event[]" nullable:"true" primary:"false"`
-	TxEventsCompressed []byte  `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"`
-	CompressionOn      bool    `db:"compression_on" dbtype:"boolean" nullable:"false" primary:"false"`
-	GasUsed            uint64  `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
-	GasWanted          uint64  `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
-	Fee                Amount  `db:"fee" dbtype:"amount" nullable:"false" primary:"false"`
-	Success            bool    `db:"success" dbtype:"boolean" nullable:"false" primary:"false" default:"false"`
-	// stored only if there is error
+	TxEvents           []Event        `db:"tx_events" dbtype:"event[]" nullable:"true" primary:"false"`
+	TxEventsCompressed []byte         `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"`
+	CompressionOn      bool           `db:"compression_on" dbtype:"boolean" nullable:"false" primary:"false"`
+	GasUsed            uint64         `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
+	GasWanted          uint64         `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
+	FeeAmount          pgtype.Numeric `db:"fee_amount" dbtype:"numeric" nullable:"false" primary:"false"`
+	FeeDenom           string         `db:"fee_denom" dbtype:"string" nullable:"false" primary:"false"`
+	Success            bool           `db:"success" dbtype:"boolean" nullable:"false" primary:"false" default:"false"`
+	// Stored only if there is error
 	ErrorLog *string `db:"error_log" dbtype:"TEXT" nullable:"true" primary:"false"`
 }
 
@@ -175,14 +210,6 @@ func (tg TransactionGeneral) TableColumns() []string {
 	return columns
 }
 
-// GetTxHash returns the tx hash of the transaction general
-//
-// Returns:
-//   - []byte: the tx hash of the transaction general
-func (tg *TransactionGeneral) GetTxHash() []byte {
-	return tg.TxHash
-}
-
 func (tg *TransactionGeneral) GetMessageTypes() []string {
 	return tg.MsgTypes
 }
@@ -190,18 +217,18 @@ func (tg *TransactionGeneral) GetMessageTypes() []string {
 // MsgSend represents a bank send message
 //
 // Stores:
-// - TxHash (bytea)
-// - Timestamp (time.Time)
-// - ChainName (string)
-// - FromAddress (int32)
-// - ToAddress (int32)
-// - Amount (Amount[])
-// - Signers (int32[])
-// - MessageCounter (int16)
+// - TxId (bigint)
+// - Timestamp (timestamptz)
+// - ChainName (chain_name)
+// - FromAddress (integer)
+// - ToAddress (integer)
+// - Amount (amount[])
+// - Signers (integer[])
+// - MessageCounter (smallint)
 //
-// PRIMARY KEY (tx_hash, chain_name, timestamp)
+// PRIMARY KEY (tx_id, chain_name, timestamp, message_counter)
 type MsgSend struct {
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// gno address, pull from the gno_addresses table
@@ -236,13 +263,13 @@ func (ms MsgSend) TableColumns() []string {
 }
 
 // GetAllAddresses returns all the addresses that are involved in the message
-// it will return the from address, to address, and signers in a single TxAddresses struct
-// This prevents duplicates by grouping all addresses for the same transaction
+// it will return the from address, to address, and signers in a single TxAddresses struct.
+// This prevents duplicates by grouping all addresses for the same transaction.
 //
 // Returns:
 //   - *TxAddresses: grouped addresses for this transaction
 func (ms *MsgSend) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(ms.TxHash)
+	txAddresses := NewTxAddresses(ms.TxId)
 	txAddresses.AddAddress(ms.FromAddress)
 	if ms.ToAddress != 0 {
 		txAddresses.AddAddress(ms.ToAddress)
@@ -256,21 +283,21 @@ func (ms *MsgSend) GetAllAddresses() *TxAddresses {
 // MsgCall represents a VM function call message
 //
 // Stores:
-//   - TxHash (bytea)
-//   - Timestamp (time.Time)
-//   - ChainName (string)
-//   - Caller (int32)
-//   - PkgPath (string)
-//   - FuncName (string)
-//   - Args (string)
-//   - Send (Amount[])
-//   - MaxDeposit (Amount[])
-//   - Signers (int32[])
-//   - MessageCounter (int16)
+//   - TxId (bigint)
+//   - Timestamp (timestamptz)
+//   - ChainName (chain_name)
+//   - Caller (integer)
+//   - PkgPath (text)
+//   - FuncName (text)
+//   - Args (text)
+//   - Send (amount[])
+//   - MaxDeposit (amount[])
+//   - Signers (integer[])
+//   - MessageCounter (smallint)
 //
-// PRIMARY KEY (tx_hash, chain_name, timestamp)
+// PRIMARY KEY (tx_id, chain_name, timestamp, message_counter)
 type MsgCall struct {
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// gno address, pull from the gno_addresses table
@@ -312,7 +339,7 @@ func (mc MsgCall) TableColumns() []string {
 // Returns:
 //   - *TxAddresses: grouped addresses for this transaction
 func (mc *MsgCall) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(mc.TxHash)
+	txAddresses := NewTxAddresses(mc.TxId)
 	txAddresses.AddAddress(mc.Caller)
 	for _, addr := range mc.Signers {
 		txAddresses.AddAddress(addr)
@@ -323,21 +350,21 @@ func (mc *MsgCall) GetAllAddresses() *TxAddresses {
 // MsgAddPackage represents a VM package addition message
 //
 // Stores:
-// - TxHash (bytea)
-// - ChainName (string)
-// - Creator (string)
-// - PkgPath (string)
-// - PkgName (string)
-// - PkgFileNames (string[])
-// - Send (Amount[])
-// - MaxDeposit (Amount[])
-// - Signers (int32[])
-// - Timestamp (time.Time)
-// - MessageCounter (int16)
+// - TxId (bigint)
+// - ChainName (chain_name)
+// - Creator (text)
+// - PkgPath (text)
+// - PkgName (text)
+// - PkgFileNames (text[])
+// - Send (amount[])
+// - MaxDeposit (amount[])
+// - Signers (integer[])
+// - Timestamp (timestamptz)
+// - MessageCounter (smallint)
 //
-// PRIMARY KEY (tx_hash, chain_name, timestamp)
+// PRIMARY KEY (tx_id, chain_name, timestamp)
 type MsgAddPackage struct {
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// gno address, pull from the gno_addresses table
@@ -380,7 +407,7 @@ func (ma MsgAddPackage) TableColumns() []string {
 // Returns:
 //   - *TxAddresses: grouped addresses for this transaction
 func (ma *MsgAddPackage) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(ma.TxHash)
+	txAddresses := NewTxAddresses(ma.TxId)
 	txAddresses.AddAddress(ma.Creator)
 	for _, addr := range ma.Signers {
 		txAddresses.AddAddress(addr)
@@ -391,21 +418,21 @@ func (ma *MsgAddPackage) GetAllAddresses() *TxAddresses {
 // MsgRun represents a VM package run message
 //
 // Stores:
-// - TxHash (bytea)
-// - Timestamp (time.Time)
-// - ChainName (string)
-// - Caller (int32)
-// - PkgPath (string)
-// - PkgName (string)
-// - PkgFileNames (string[])
-// - Send (Amount[])
-// - MaxDeposit (Amount[])
-// - Signers (int32[])
-// - MessageCounter (int16)
+// - TxId (bigint)
+// - Timestamp (timestamptz)
+// - ChainName (text)
+// - Caller (integer)
+// - PkgPath (text)
+// - PkgName (text)
+// - PkgFileNames (text[])
+// - Send (amount[])
+// - MaxDeposit (amount[])
+// - Signers (integer[])
+// - MessageCounter (smallint)
 //
-// PRIMARY KEY (tx_hash, chain_name, timestamp)
+// PRIMARY KEY (tx_id, chain_name, timestamp)
 type MsgRun struct {
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// gno address, pull from the gno_addresses table
@@ -449,7 +476,7 @@ func (mr MsgRun) GetTableInfo() (*dbinit.TableInfo, error) {
 // Returns:
 //   - *TxAddresses: grouped addresses for this transaction
 func (mr *MsgRun) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(mr.TxHash)
+	txAddresses := NewTxAddresses(mr.TxId)
 	txAddresses.AddAddress(mr.Caller)
 	for _, addr := range mr.Signers {
 		txAddresses.AddAddress(addr)
