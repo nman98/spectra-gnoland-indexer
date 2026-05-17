@@ -108,7 +108,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 	var messages = make([]map[string]any, msgCount)
 
 	// Process each message in the transaction
-	err = processMsgs(tx, &messages)
+	err = processMsgs(tx, messages)
 	if err != nil {
 		return BasicTxData{}, nil, err
 	}
@@ -117,7 +117,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 
 func processMsgs(
 	tx *std.Tx,
-	messages *[]map[string]any,
+	messages []map[string]any,
 ) error {
 	for i, msg := range tx.GetMsgs() {
 		if i > 32767 {
@@ -131,13 +131,30 @@ func processMsgs(
 			if err != nil {
 				amount = []Coin{}
 			}
-			(*messages)[i] = map[string]any{
+			messages[i] = map[string]any{
 				"msg_type":        "bank_msg_send",
 				"from_address":    m.FromAddress.String(),
 				"to_address":      m.ToAddress.String(),
 				"amount":          amount,
 				"message_counter": messageCounter,
 			}
+		case bank.MsgMultiSend:
+			distinctAddresses := make(map[string]struct{})
+			for _, input := range m.Inputs {
+				distinctAddresses[input.Address.String()] = struct{}{}
+			}
+			for _, output := range m.Outputs {
+				distinctAddresses[output.Address.String()] = struct{}{}
+			}
+			messages[i] = map[string]any{
+				"msg_type":           "bank_msg_multi_send",
+				"input":              m.Inputs,
+				"output":             m.Outputs,
+				"message_counter":    messageCounter,
+				"distinct_addresses": distinctAddresses,
+			}
+
+		// VM messages
 		case vm.MsgCall:
 			caller := m.Caller.String()
 			send, err := extractCoins(m.Send)
@@ -154,7 +171,7 @@ func processMsgs(
 			funcName := m.Func
 			// combine the args into a string
 			args := strings.Join(m.Args, ",")
-			(*messages)[i] = map[string]any{
+			messages[i] = map[string]any{
 				"msg_type":        "vm_msg_call",
 				"caller":          caller,
 				"pkg_path":        pkgPath,
@@ -177,7 +194,7 @@ func processMsgs(
 			if err != nil {
 				maxDeposit = []Coin{}
 			}
-			(*messages)[i] = map[string]any{
+			messages[i] = map[string]any{
 				"msg_type":        "vm_msg_add_package",
 				"pkg_path":        pkgPath,
 				"pkg_name":        pkgName,
@@ -203,7 +220,7 @@ func processMsgs(
 			if err != nil {
 				maxDeposit = []Coin{}
 			}
-			(*messages)[i] = map[string]any{
+			messages[i] = map[string]any{
 				"msg_type":        "vm_msg_run",
 				"caller":          caller,
 				"pkg_path":        pkgPath,
@@ -213,7 +230,8 @@ func processMsgs(
 				"max_deposit":     maxDeposit,
 				"message_counter": messageCounter,
 			}
-		// case for AnyNewMessage add here:
+
+		// TO-DO: when available add auth messages
 		default:
 			return fmt.Errorf("unknown or unsupported message type: %T", m)
 		}

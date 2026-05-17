@@ -483,3 +483,46 @@ func (mr *MsgRun) GetAllAddresses() *TxAddresses {
 	}
 	return txAddresses
 }
+
+// MsgMultiSend represents a multi-send bank module message.
+// It has a direction field to indicate if this is an output or input entry.
+// This table will only store one half of the response because the message can have multiple entries per
+// input/output for every address.
+//
+// Stores:
+//   - TxId: transaction ID
+//   - Timestamp: timestamp of the transaction
+//   - Direction: true for output, false for input
+//   - AddressId: address ID
+//   - Coins: amount of coins
+//
+// PRIMARY KEY (tx_id, timestamp, direction, address_id)
+type MsgMultiSend struct {
+	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	// By direction it refers to if this part is output entry or input entry.
+	// True means output, false means input. It has primary to true
+	Direction      bool     `db:"direction" dbtype:"boolean" nullable:"false" primary:"true"`
+	AddressId      int32    `db:"address_id" dbtype:"integer" nullable:"false" primary:"true"`
+	Coins          []Amount `db:"coins" dbtype:"amount" nullable:"false" primary:"false"`
+	MessageCounter int16    `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
+}
+
+func (m MsgMultiSend) TableName() string {
+	return "bank_msg_multi_send"
+}
+
+func (m MsgMultiSend) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(m, m.TableName())
+}
+
+// GetAllAddresses returns all the addresses that are involved in the message
+// Groups the caller and signers for this transaction
+//
+// Returns:
+//   - *TxAddresses: grouped addresses for this transaction
+func (m *MsgMultiSend) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(m.TxId)
+	txAddresses.AddAddress(m.AddressId)
+	return txAddresses
+}
