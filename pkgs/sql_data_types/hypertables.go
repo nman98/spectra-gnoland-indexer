@@ -496,15 +496,17 @@ func (mr *MsgRun) GetAllAddresses() *TxAddresses {
 //   - AddressId: address ID
 //   - Coins: amount of coins
 //
-// PRIMARY KEY (tx_id, timestamp, direction, address_id)
+// PRIMARY KEY (tx_id, timestamp, chain_name, direction, address_id, message_counter)
 type MsgMultiSend struct {
 	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
 	// By direction it refers to if this part is output entry or input entry.
 	// True means output, false means input. It has primary to true
 	Direction      bool     `db:"direction" dbtype:"boolean" nullable:"false" primary:"true"`
 	AddressId      int32    `db:"address_id" dbtype:"integer" nullable:"false" primary:"true"`
 	Coins          []Amount `db:"coins" dbtype:"amount" nullable:"false" primary:"false"`
+	Signers        []int32  `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
 	MessageCounter int16    `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
 }
 

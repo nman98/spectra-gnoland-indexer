@@ -332,10 +332,12 @@ func (dm *DecodedMsg) convertToDbMsgMultiSend(
 		multiSend := dataTypes.MsgMultiSend{
 			TxId:           txId,
 			Timestamp:      timestamp,
+			ChainName:      chainName,
 			Direction:      false,
 			AddressId:      addressResolver.GetAddress(in.Address.String()),
 			Coins:          coins,
 			MessageCounter: messageCounter,
+			Signers:        signerIds,
 		}
 		msgMultiSend = append(msgMultiSend, multiSend)
 	}
@@ -350,10 +352,12 @@ func (dm *DecodedMsg) convertToDbMsgMultiSend(
 		multiSend := dataTypes.MsgMultiSend{
 			TxId:           txId,
 			Timestamp:      timestamp,
+			ChainName:      chainName,
 			Direction:      true,
 			AddressId:      addressResolver.GetAddress(ou.Address.String()),
 			Coins:          coins,
 			MessageCounter: messageCounter,
+			Signers:        signerIds,
 		}
 		msgMultiSend = append(msgMultiSend, multiSend)
 	}
