@@ -10,14 +10,14 @@ import (
 // It stores in a set like data structure to avoid duplicates
 // all addresses for the same transaction hash together
 type TxAddresses struct {
-	TxHash    []byte
+	TxId      int64
 	Addresses map[int32]struct{}
 }
 
 // NewTxAddresses creates a new TxAddresses with the given transaction hash
-func NewTxAddresses(txHash []byte) *TxAddresses {
+func NewTxAddresses(txId int64) *TxAddresses {
 	return &TxAddresses{
-		TxHash:    txHash,
+		TxId:      txId,
 		Addresses: make(map[int32]struct{}),
 	}
 }
@@ -47,7 +47,7 @@ func (ta *TxAddresses) GetAddressList() []int32 {
 type GnoAddress struct {
 	// any of the values can't be a null value and there shouldn't be any duplicates
 	Address string `db:"address" dbtype:"TEXT" nullable:"false" primary:"true" unique:"true"`
-	ID      int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"false" unique:"true"`
+	ID      int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
 	// use type enum chain_name from postgres
 	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
 }
@@ -71,7 +71,7 @@ func (g GnoAddress) GetTableInfo() (*dbinit.TableInfo, error) {
 // PRIMARY KEY (id), UNIQUE (address, chain_name)
 type GnoValidatorAddress struct {
 	Address   string `db:"address" dbtype:"TEXT" nullable:"false" primary:"true" unique:"true"`
-	ID        int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"false" unique:"true"`
+	ID        int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
 	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
 }
 
@@ -135,6 +135,7 @@ func AllTableNames() []string {
 		AddressTx{},
 		TransactionGeneral{},
 		MsgSend{},
+		MsgMultiSend{},
 		MsgCall{},
 		MsgAddPackage{},
 		MsgRun{},

@@ -6,10 +6,11 @@ import (
 	"time"
 
 	dataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// NewDecodedMsg creates a new DecodedMsg struct
+// NewDecodedMsg creates a new DecodedMsg struct.
 //
 // Parameters:
 //   - encodedTx: the encoded transaction
@@ -18,7 +19,7 @@ import (
 //   - *DecodedMsg: the decoded message
 //   - error: an error if the decoding fails
 //
-// The method will not throw an error if the decoded message is not found, it will just return nil
+// The method will not throw an error if the decoded message is not found, it will just return nil.
 func NewDecodedMsg(encodedTx string) *DecodedMsg {
 	decoder := NewDecoder(encodedTx)
 	basicData, messages, err := decoder.GetMessageFromStdTx()
@@ -41,22 +42,22 @@ func (dm *DecodedMsg) GetBasicData() BasicTxData {
 	return dm.BasicData
 }
 
-// GetMessages returns the messages of the decoded message
+// GetMessages returns the messages of the decoded message.
 //
 // Returns:
 //   - []map[string]any: the messages of the decoded message
 //
-// The method will not throw an error if the messages are not found, it will just return nil
+// The method will not throw an error if the messages are not found, it will just return nil.
 func (dm *DecodedMsg) GetMessages() []map[string]any {
 	return dm.Messages
 }
 
-// GetMsgTypes returns the message types of the decoded message
+// GetMsgTypes returns the message types of the decoded message.
 //
 // Returns:
 //   - []string: the message types of the decoded message
 //
-// The method will not throw an error if the message types are not found, it will just return nil
+// The method will not throw an error if the message types are not found, it will just return nil.
 func (dm *DecodedMsg) GetMsgTypes() []string {
 	msgTypes := make([]string, 0, len(dm.Messages))
 	for _, message := range dm.Messages {
@@ -65,42 +66,42 @@ func (dm *DecodedMsg) GetMsgTypes() []string {
 	return msgTypes
 }
 
-// GetSigners returns the signers of the decoded message
+// GetSigners returns the signers of the decoded message.
 //
 // Returns:
 //   - []string: the signers of the decoded message
 //
-// The method will not throw an error if the signers are not found, it will just return nil
+// The method will not throw an error if the signers are not found, it will just return nil.
 func (dm *DecodedMsg) GetSigners() []string {
 	return dm.BasicData.Signers
 }
 
-// GetMemo returns the memo of the decoded message
+// GetMemo returns the memo of the decoded message.
 //
 // Returns:
 //   - string: the memo of the decoded message
 //
-// The method will not throw an error if the memo is not found, it will just return nil
+// The method will not throw an error if the memo is not found, it will just return nil.
 func (dm *DecodedMsg) GetMemo() string {
 	return dm.BasicData.Memo
 }
 
-// GetFee returns the fee of the decoded message
+// GetFee returns the fee of the decoded message.
 //
 // Returns:
 //   - dataTypes.Amount: the fee of the decoded message
 //
-// The method will not throw an error if the fee is not found, it will just return nil
+// The method will not throw an error if the fee is not found, it will just return nil.
 func (dm *DecodedMsg) GetFee() dataTypes.Amount {
 	return dm.BasicData.Fee
 }
 
-// GetTotalMsgCount returns the total message count of the decoded message
+// GetTotalMsgCount returns the total message count of the decoded message.
 //
 // Returns:
 //   - int: the total message count of the decoded message
 //
-// The method will not throw an error if the total message count is not found, it will just return 0
+// The method will not throw an error if the total message count is not found, it will just return 0.
 func (dm *DecodedMsg) GetTotalMsgCount() int {
 	return dm.BasicData.TotalMsgCount
 }
@@ -108,11 +109,11 @@ func (dm *DecodedMsg) GetTotalMsgCount() int {
 // CollectAllAddresses extracts all unique addresses from the decoded message
 // This includes signers and all addresses from individual messages
 func (dm *DecodedMsg) CollectAllAddresses() []string {
-	addressSet := make(map[string]bool)
+	addressSet := make(map[string]struct{})
 
 	// Add signers from transaction
 	for _, signer := range dm.BasicData.Signers {
-		addressSet[signer] = true
+		addressSet[signer] = struct{}{}
 	}
 
 	// Add addresses from each message
@@ -125,25 +126,32 @@ func (dm *DecodedMsg) CollectAllAddresses() []string {
 		switch msgType {
 		case "bank_msg_send":
 			if fromAddr, ok := msgMap["from_address"].(string); ok {
-				addressSet[fromAddr] = true
+				addressSet[fromAddr] = struct{}{}
 			}
 			if toAddr, ok := msgMap["to_address"].(string); ok {
-				addressSet[toAddr] = true
+				addressSet[toAddr] = struct{}{}
+			}
+
+		case "bank_msg_multi_send":
+			if distinctAddresses, ok := msgMap["distinct_addresses"].(map[string]struct{}); ok {
+				for addr := range distinctAddresses {
+					addressSet[addr] = struct{}{}
+				}
 			}
 
 		case "vm_msg_call":
 			if caller, ok := msgMap["caller"].(string); ok {
-				addressSet[caller] = true
+				addressSet[caller] = struct{}{}
 			}
 
 		case "vm_msg_add_package":
 			if creator, ok := msgMap["creator"].(string); ok {
-				addressSet[creator] = true
+				addressSet[creator] = struct{}{}
 			}
 
 		case "vm_msg_run":
 			if caller, ok := msgMap["caller"].(string); ok {
-				addressSet[caller] = true
+				addressSet[caller] = struct{}{}
 			}
 		}
 	}
@@ -159,17 +167,18 @@ func (dm *DecodedMsg) CollectAllAddresses() []string {
 
 // DbMessageGroups holds database-ready message types with address IDs
 type DbMessageGroups struct {
-	MsgSend   []dataTypes.MsgSend
-	MsgCall   []dataTypes.MsgCall
-	MsgAddPkg []dataTypes.MsgAddPackage
-	MsgRun    []dataTypes.MsgRun
+	MsgSend      []dataTypes.MsgSend
+	MsgMultiSend []dataTypes.MsgMultiSend
+	MsgCall      []dataTypes.MsgCall
+	MsgAddPkg    []dataTypes.MsgAddPackage
+	MsgRun       []dataTypes.MsgRun
 }
 
 // ConvertToDbMessages directly converts the decoded message maps to database-ready message types
 // This method combines the previous two-step conversion into a single step for better performance
 func (dm *DecodedMsg) ConvertToDbMessages(
 	addressResolver AddressResolver,
-	txHash []byte,
+	txId int64,
 	chainName string,
 	timestamp time.Time,
 	signers []string,
@@ -195,28 +204,35 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 
 		switch msgType {
 		case "bank_msg_send":
-			msg, err := dm.convertToDbMsgSend(msgMap, addressResolver, txHash, chainName, timestamp, signerIds)
+			msg, err := dm.convertToDbMsgSend(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert bank_msg_send: %w", err)
 			}
 			dbGroups.MsgSend = append(dbGroups.MsgSend, *msg)
 
+		case "bank_msg_multi_send":
+			msgs, err := dm.convertToDbMsgMultiSend(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert bank_msg_multi_send: %w", err)
+			}
+			dbGroups.MsgMultiSend = append(dbGroups.MsgMultiSend, msgs...)
+
 		case "vm_msg_call":
-			msg, err := dm.convertToDbMsgCall(msgMap, addressResolver, txHash, chainName, timestamp, signerIds)
+			msg, err := dm.convertToDbMsgCall(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert vm_msg_call: %w", err)
 			}
 			dbGroups.MsgCall = append(dbGroups.MsgCall, *msg)
 
 		case "vm_msg_add_package":
-			msg, err := dm.convertToDbMsgAddPackage(msgMap, addressResolver, txHash, chainName, timestamp, signerIds)
+			msg, err := dm.convertToDbMsgAddPackage(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert vm_msg_add_package: %w", err)
 			}
 			dbGroups.MsgAddPkg = append(dbGroups.MsgAddPkg, *msg)
 
 		case "vm_msg_run":
-			msg, err := dm.convertToDbMsgRun(msgMap, addressResolver, txHash, chainName, timestamp, signerIds)
+			msg, err := dm.convertToDbMsgRun(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert vm_msg_run: %w", err)
 			}
@@ -234,7 +250,7 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 func (dm *DecodedMsg) convertToDbMsgSend(
 	msgMap map[string]any,
 	addressResolver AddressResolver,
-	txHash []byte,
+	txId int64,
 	chainName string,
 	timestamp time.Time,
 	signerIds []int32,
@@ -270,7 +286,7 @@ func (dm *DecodedMsg) convertToDbMsgSend(
 	}
 
 	return &dataTypes.MsgSend{
-		TxHash:         txHash,
+		TxId:           txId,
 		ChainName:      chainName,
 		FromAddress:    addressResolver.GetAddress(fromAddress),
 		ToAddress:      addressResolver.GetAddress(toAddress),
@@ -281,11 +297,74 @@ func (dm *DecodedMsg) convertToDbMsgSend(
 	}, nil
 }
 
+func (dm *DecodedMsg) convertToDbMsgMultiSend(
+	msgMap map[string]any,
+	addressResolver AddressResolver,
+	txId int64,
+	chainName string,
+	timestamp time.Time,
+	signerIds []int32,
+) ([]dataTypes.MsgMultiSend, error) {
+	messageCounter, ok := msgMap["message_counter"].(int16)
+	if !ok {
+		return nil, fmt.Errorf("missing message_counter")
+	}
+
+	input, ok := msgMap["input"].([]bank.Input)
+	if !ok {
+		return nil, fmt.Errorf("missing input")
+	}
+
+	output, ok := msgMap["output"].([]bank.Output)
+	if !ok {
+		return nil, fmt.Errorf("missing output")
+	}
+
+	msgMultiSend := make([]dataTypes.MsgMultiSend, 0, len(input)+len(output))
+
+	for _, in := range input {
+		coins := make([]dataTypes.Amount, len(in.Coins))
+		for i, coin := range in.Coins {
+			bigInt := big.NewInt(coin.Amount)
+			coins[i].Amount = pgtype.Numeric{Int: bigInt, Valid: true}
+			coins[i].Denom = coin.Denom
+		}
+		multiSend := dataTypes.MsgMultiSend{
+			TxId:           txId,
+			Timestamp:      timestamp,
+			Direction:      false,
+			AddressId:      addressResolver.GetAddress(in.Address.String()),
+			Coins:          coins,
+			MessageCounter: messageCounter,
+		}
+		msgMultiSend = append(msgMultiSend, multiSend)
+	}
+
+	for _, ou := range output {
+		coins := make([]dataTypes.Amount, len(ou.Coins))
+		for i, coin := range ou.Coins {
+			bigInt := big.NewInt(coin.Amount)
+			coins[i].Amount = pgtype.Numeric{Int: bigInt, Valid: true}
+			coins[i].Denom = coin.Denom
+		}
+		multiSend := dataTypes.MsgMultiSend{
+			TxId:           txId,
+			Timestamp:      timestamp,
+			Direction:      true,
+			AddressId:      addressResolver.GetAddress(ou.Address.String()),
+			Coins:          coins,
+			MessageCounter: messageCounter,
+		}
+		msgMultiSend = append(msgMultiSend, multiSend)
+	}
+	return msgMultiSend, nil
+}
+
 // convertToDbMsgCall converts a map data type directly to a database-ready MsgCall struct
 func (dm *DecodedMsg) convertToDbMsgCall(
 	msgMap map[string]any,
 	addressResolver AddressResolver,
-	txHash []byte,
+	txId int64,
 	chainName string,
 	timestamp time.Time,
 	signerIds []int32,
@@ -346,7 +425,7 @@ func (dm *DecodedMsg) convertToDbMsgCall(
 	}
 
 	return &dataTypes.MsgCall{
-		TxHash:         txHash,
+		TxId:           txId,
 		MessageCounter: messageCounter,
 		ChainName:      chainName,
 		Caller:         addressResolver.GetAddress(caller),
@@ -364,7 +443,7 @@ func (dm *DecodedMsg) convertToDbMsgCall(
 func (dm *DecodedMsg) convertToDbMsgAddPackage(
 	msgMap map[string]any,
 	addressResolver AddressResolver,
-	txHash []byte,
+	txId int64,
 	chainName string,
 	timestamp time.Time,
 	signerIds []int32,
@@ -420,7 +499,7 @@ func (dm *DecodedMsg) convertToDbMsgAddPackage(
 	}
 
 	return &dataTypes.MsgAddPackage{
-		TxHash:         txHash,
+		TxId:           txId,
 		MessageCounter: messageCounter,
 		ChainName:      chainName,
 		Creator:        addressResolver.GetAddress(creator),
@@ -437,7 +516,7 @@ func (dm *DecodedMsg) convertToDbMsgAddPackage(
 func (dm *DecodedMsg) convertToDbMsgRun(
 	msgMap map[string]any,
 	addressResolver AddressResolver,
-	txHash []byte,
+	txId int64,
 	chainName string,
 	timestamp time.Time,
 	signerIds []int32,
@@ -493,7 +572,7 @@ func (dm *DecodedMsg) convertToDbMsgRun(
 	}
 
 	return &dataTypes.MsgRun{
-		TxHash:         txHash,
+		TxId:           txId,
 		MessageCounter: messageCounter,
 		ChainName:      chainName,
 		Caller:         addressResolver.GetAddress(caller),
