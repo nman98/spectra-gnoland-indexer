@@ -49,14 +49,15 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 	wg.Wait()
 	log.Printf("Initialized address caches")
 
-	// Initialize data processor
-	dataProc := dataProcessor.NewDataProcessor(db, addrCache, validatorCache, testConfig.ChainID)
-	log.Printf("Initialized data processor")
-
 	orchConfig := &config.Config{
 		MaxBlockChunkSize:       500,
 		MaxTransactionChunkSize: 1000,
 	}
+
+	// Initialize data processor
+	dataProc := dataProcessor.NewDataProcessor(db, addrCache, validatorCache, testConfig.ChainID, int(orchConfig.MaxTransactionChunkSize))
+	log.Printf("Initialized data processor")
+
 
 	chunkSize := orchConfig.MaxBlockChunkSize
 	totalChunks := (testConfig.ToHeight - testConfig.FromHeight + chunkSize) / chunkSize

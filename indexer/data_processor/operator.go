@@ -26,6 +26,7 @@ var l = logger.Get()
 //   - addressCache: the address cache interface
 //   - validatorCache: the validator cache interface
 //   - chainName: the name of the chain string
+//   - batchSize: the batch size for the tx hash cache
 //
 // Returns:
 //   - *DataProcessor: the data processor
@@ -371,7 +372,7 @@ func (d *DataProcessor) processTransaction(
 	}
 
 	transactionsData[idx] = sqlDataTypes.TransactionGeneral{
-		TxId:           txId,
+		TxId:           	txId,
 		ChainName:          d.chainName,
 		Timestamp:          transaction.Timestamp,
 		BlockHeight:        transaction.BlockHeight,
@@ -469,12 +470,14 @@ func (d *DataProcessor) ProcessMessages(
 		return fmt.Errorf("failed to insert optimized messages: %w", err)
 	}
 
-	l.Info().Msgf("Messages processed concurrently from %d to %d: MsgSend=%d, MsgCall=%d, MsgAddPkg=%d, MsgRun=%d",
+	l.Info().Msgf("Messages processed from %d to %d: MsgSend=%d, MsgCall=%d, MsgAddPkg=%d, MsgRun=%d, MsgMultiSend=%d",
 		fromHeight, toHeight,
 		len(aggregatedDbGroups.MsgSend),
 		len(aggregatedDbGroups.MsgCall),
 		len(aggregatedDbGroups.MsgAddPkg),
-		len(aggregatedDbGroups.MsgRun))
+		len(aggregatedDbGroups.MsgRun),
+		len(aggregatedDbGroups.MsgMultiSend),
+	)
 
 	return nil
 }

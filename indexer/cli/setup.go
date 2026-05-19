@@ -7,7 +7,7 @@ import (
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	sdt "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"github.com/spf13/cobra"
 )
 
@@ -167,10 +167,10 @@ func initializeNewDatabase(db *database.TimescaleDb, dbConfig database.DatabaseP
 func createDatabaseTypes(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
-	specialTypes := []sql_data_types.DBSpecialType{
-		sql_data_types.Amount{},
-		sql_data_types.Attribute{},
-		sql_data_types.Event{},
+	specialTypes := []sdt.DBSpecialType{
+		sdt.Amount{},
+		sdt.Attribute{},
+		sdt.Event{},
 	}
 
 	l.Info().Str("chain", chainName).Msg("inserting special types")
@@ -194,10 +194,10 @@ func createDatabaseTypes(dbInit *dbinit.DBInitializer, chainName string) error {
 func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
-	regularTables := []sql_data_types.DBTable{
-		sql_data_types.GnoAddress{},
-		sql_data_types.GnoValidatorAddress{},
-		sql_data_types.ApiKey{},
+	regularTables := []sdt.DBTable{
+		sdt.GnoAddress{},
+		sdt.GnoValidatorAddress{},
+		sdt.ApiKey{},
 	}
 
 	l.Info().Str("chain", chainName).Msg("inserting regular tables")
@@ -215,56 +215,68 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
 	hypertables := []struct {
-		table  sql_data_types.DBTable
+		table  sdt.DBTable
 		params dbinit.HypertableParams
 	}{
-		{sql_data_types.Blocks{}, dbinit.HypertableParams{
+		{sdt.Blocks{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "height DESC, timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
-		{sql_data_types.ValidatorBlockSigning{}, dbinit.HypertableParams{
+		{sdt.ValidatorBlockSigning{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "block_height DESC, timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
-		{sql_data_types.AddressTx{}, dbinit.HypertableParams{
+		{sdt.AddressTx{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
-		{sql_data_types.TransactionGeneral{}, dbinit.HypertableParams{
+		{sdt.TransactionGeneral{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
-		{sql_data_types.MsgSend{}, dbinit.HypertableParams{
+		{sdt.MsgSend{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sql_data_types.MsgCall{}, dbinit.HypertableParams{
+		{sdt.MsgCall{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sql_data_types.MsgAddPackage{}, dbinit.HypertableParams{
+		{sdt.MsgAddPackage{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sql_data_types.MsgRun{}, dbinit.HypertableParams{
+		{sdt.MsgRun{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
+		}},
+		{sdt.MsgMultiSend{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name", "message_counter"},
+		}},
+		{sdt.TxHashId{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
 		}},
 	}
 
@@ -287,11 +299,11 @@ func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) 
 		segmentByCols []string
 		chunkInterval string
 	}{
-		{sql_data_types.TxCounter{}, []string{"chain_name"}, "1 month"},
-		{sql_data_types.FeeVolume{}, []string{"chain_name", "denom"}, "1 month"},
-		{sql_data_types.DailyActiveAccounts{}, []string{"chain_name"}, "1 month"},
-		{sql_data_types.ValidatorSigningCounter{}, []string{"chain_name", "validator_id"}, "1 month"},
-		{sql_data_types.BlockCounter{}, []string{"chain_name"}, "1 month"},
+		{sdt.TxCounter{}, []string{"chain_name"}, "1 month"},
+		{sdt.FeeVolume{}, []string{"chain_name", "denom"}, "1 month"},
+		{sdt.DailyActiveAccounts{}, []string{"chain_name"}, "1 month"},
+		{sdt.ValidatorSigningCounter{}, []string{"chain_name", "validator_id"}, "1 month"},
+		{sdt.BlockCounter{}, []string{"chain_name"}, "1 month"},
 	}
 
 	l.Info().Str("chain", chainName).Msg("creating continuous aggregate views")
@@ -379,11 +391,11 @@ user does not have the required privileges.`,
 		dbInit := dbinit.NewDBInitializer(db.GetPool())
 
 		views := []dbinit.ContinuousAggregateDefinition{
-			sql_data_types.TxCounter{},
-			sql_data_types.FeeVolume{},
-			sql_data_types.DailyActiveAccounts{},
-			sql_data_types.ValidatorSigningCounter{},
-			sql_data_types.BlockCounter{},
+			sdt.TxCounter{},
+			sdt.FeeVolume{},
+			sdt.DailyActiveAccounts{},
+			sdt.ValidatorSigningCounter{},
+			sdt.BlockCounter{},
 		}
 
 		l.Info().Msg("refreshing all continuous aggregate views")
@@ -452,9 +464,9 @@ var createUserCmd = &cobra.Command{
 			return err
 		}
 
-		var tableNames = sql_data_types.AllTableNames()
+		var tableNames = sdt.AllTableNames()
 		if privilege == "reader" {
-			tableNames = append(tableNames, sql_data_types.AllAggrTableNames()...)
+			tableNames = append(tableNames, sdt.AllAggrTableNames()...)
 		}
 
 		// Appoint privileges to the user

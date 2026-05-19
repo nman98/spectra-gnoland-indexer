@@ -16,6 +16,7 @@ type DataProcessor interface {
 	ProcessTransactions(transactions []dataprocessor.TransactionsData, compressEvents bool, fromHeight uint64, toHeight uint64)
 	ProcessMessages(transactions []dataprocessor.TransactionsData, fromHeight uint64, toHeight uint64) error
 	ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64)
+	ProcessTxHashIds(txData []dataprocessor.TransactionsData)
 }
 
 type QueryOperator interface {
@@ -67,4 +68,15 @@ type ProcessingState struct {
 	CurrentProcessingHeight uint64    `json:"current_processing_height"`
 	Timestamp               time.Time `json:"timestamp"`
 	Reason                  string    `json:"reason"`
+}
+
+// processingContext is data for the processing phases.
+type processingContext struct {
+	blocks         []*rpcClient.BlockResponse
+	commits        []*rpcClient.CommitResponse
+	transactions   []dataprocessor.TransactionsData
+	compressEvents bool
+	fromHeight     uint64
+	toHeight       uint64
+	hasTxs         bool
 }

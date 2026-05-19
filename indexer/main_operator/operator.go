@@ -229,7 +229,7 @@ func initializeMajorConstructors(
 	addressCache := addressCache.NewAddressCache(chainName, db, false)
 
 	// initialize the data processor
-	dataProcessor := dp.NewDataProcessor(db, addressCache, validatorCache, chainName)
+	dataProcessor := dp.NewDataProcessor(db, addressCache, validatorCache, chainName, int(conf.MaxTransactionChunkSize))
 
 	// initialize the query operator
 	queryOperator := query.NewQueryOperator(

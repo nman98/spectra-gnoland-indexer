@@ -121,11 +121,11 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(
 			validatorBlockSigning[i].ChainName}, nil
 	})
 
-	// mark the columns to be inserted
+	// Mark the columns to be inserted
 	columns := validatorBlockSigning[0].TableColumns()
 	tableName := validatorBlockSigning[0].TableName()
 
-	// insert the data to the db
+	// Insert the data to the db
 	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
 	return err
 }
@@ -152,7 +152,7 @@ func (t *TimescaleDb) InsertTransactionsGeneral(
 		return nil
 	}
 
-	// create a copy from the slice
+	// Create a copy from the slice
 	pgxSlice := pgx.CopyFromSlice(len(transactionsGeneral), func(i int) ([]any, error) {
 		return []any{
 			transactionsGeneral[i].TxId,
@@ -172,7 +172,7 @@ func (t *TimescaleDb) InsertTransactionsGeneral(
 		}, nil
 	})
 
-	// mark the columns to be inserted
+	// Mark the columns to be inserted
 	columns := transactionsGeneral[0].TableColumns()
 	tableName := transactionsGeneral[0].TableName()
 

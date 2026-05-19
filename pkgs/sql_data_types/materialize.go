@@ -77,8 +77,8 @@ func (tc TxCounter) AggregatePolicy(
 type FeeVolume struct {
 	TimeBucket time.Time `mt:"time_bucket" fn:"time_bucket('1 hour', timestamp)" gb:"0"`
 	ChainName  string    `mt:"chain_name" gb:"2"`
-	FeeDenom   string    `mt:"denom" fn:"(fee).denom" gb:"1"`
-	FeeVolume  int64     `mt:"volume" fn:"sum((fee).amount)"`
+	FeeDenom   string    `mt:"denom" fn:"fee_denom" gb:"1"`
+	FeeVolume  int64     `mt:"volume" fn:"sum(fee_amount)"`
 }
 
 func (dfv FeeVolume) TableName() string {

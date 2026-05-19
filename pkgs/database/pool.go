@@ -42,7 +42,7 @@ func NewTimescaleDbSetup(config DatabasePoolConfig) *TimescaleDb {
 	}
 }
 
-// connectToDb is a internal function that connects to the database for the indexer
+// connectToDb is a internal function that connects to the database for the indexer.
 //
 // Parameters:
 //   - config: the database config, a struct that contains the necessary data from the config file
@@ -155,10 +155,10 @@ func CreateDatabase(db *TimescaleDb, dbname string) error {
 	return nil
 }
 
-// Switch to the database with the given name
-// this is used to switch to the database after creating it
-// most of the time when the postgres server is running, it will be in the "postgres" database
-// only to be used initiating command
+// Switch to the database with the given name.
+// This is used to switch to the database after creating it
+// most of the time when the postgres server is running, it will be in the "postgres" database.
+// It is only to be used initiating command line commands.
 //
 // Parameters:
 //   - db: the database connection pool
@@ -168,7 +168,7 @@ func CreateDatabase(db *TimescaleDb, dbname string) error {
 //   - error: an error if the switching fails
 //
 // TODO: the devs could integrate the indexer within already existing timescale db
-// so remove hard coded dbname gnoland anywhere else in the project
+// so remove hard coded dbname gnoland anywhere else in the project.
 func SwitchDatabase(db *TimescaleDb, config DatabasePoolConfig, dbname string) error {
 	// Close the current connection
 	db.pool.Close()

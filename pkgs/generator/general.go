@@ -260,19 +260,17 @@ func (g *DataGenerator) GenerateTransaction() (TxEvents, std.Tx) {
 	switch {
 	case randomNum < 0.4:
 		transactionType = "bank_send"
-	case randomNum > 0.4 && randomNum < 0.9:
-		// generate another number to decide between msg call and msg run
+	case randomNum >= 0.4 && randomNum < 0.9:
 		rn := g.rand.Float32()
 		switch {
-		case rn > 0.0 && rn <= 0.5:
+		case rn <= 0.5:
 			transactionType = "vm_msg_call"
-		case rn > 0.5 && rn <= 1.0:
+		default:
 			transactionType = "vm_msg_run"
 		}
-	case randomNum > 0.9 && randomNum <= 1.0:
+	case randomNum >= 0.9 && randomNum < 1.0:
 		transactionType = "vm_msg_add_package"
 	default:
-		// fallback to bank send
 		transactionType = "bank_send"
 	}
 
@@ -385,7 +383,7 @@ func (g *DataGenerator) genMsgData(transactionType string) std.Msg {
 		}
 		fileNames := g.GeneratePackageFileName()
 		files := make([]*std.MemFile, len(fileNames))
-		for i := 0; i < len(fileNames); i++ {
+		for i := range fileNames {
 			files[i] = &std.MemFile{
 				Name: fileNames[i],
 				Body: "content",

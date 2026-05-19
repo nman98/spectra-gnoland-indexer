@@ -69,4 +69,4 @@ The integration tests exercise:
 - **Address Cache** - Validator and address caching
 - **RPC Client** - Response parsing (using synthetic data)
 
-This provides **almost** entire **end-to-end validation** of the  indexer pipeline. The only thing that is not tested is the RPC client.
+This provides **almost** entire **data ingestion pipeline** of the indexer. The only thing that is not tested is the RPC client.

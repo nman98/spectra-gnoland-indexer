@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -353,7 +352,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 	return txData
 }
 
-// This function processes all data using optimized concurrent execution
+// This function processes all data using optimized concurrent execution.
 //
 // Parameters:
 //   - blocks: a slice of blocks
@@ -365,7 +364,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 // Returns:
 //   - error: if processing fails
 //
-// The method will not throw an error if the data is not found, it will just return nil
+// The method will not throw an error if the data is not found, it will just return nil.
 func (or *Orchestrator) processAll(
 	blocks []*rpcClient.BlockResponse,
 	commits []*rpcClient.CommitResponse,
@@ -374,90 +373,92 @@ func (or *Orchestrator) processAll(
 	fromHeight uint64,
 	toHeight uint64) error {
 
-	// Phase 1: Independent concurrent operations
-	var wg1 sync.WaitGroup
-	var errors []error
-	var errorsMutex sync.Mutex
+	phase1Done := make(chan struct{})
+	phase2Done := make(chan struct{})
+	hasTxs := len(transactions) > 0
 
-	// Channel to signal when validator addresses are ready
-	validatorAddressesDone := make(chan struct{})
-
-	wg1.Add(3)
-
-	// 1. Process validator addresses (populates validator cache)
-	go func() {
-		defer wg1.Done()
-		defer close(validatorAddressesDone) // Signal completion
-		l.Info().Msg("Phase 1: Starting ProcessValidatorAddresses")
-		or.dataProcessor.ProcessValidatorAddresses(blocks, fromHeight, toHeight)
-		l.Info().Msg("Phase 1: ProcessValidatorAddresses completed")
-	}()
-
-	// 2. Process transactions (no dependencies)
-	go func() {
-		defer wg1.Done()
-		l.Info().Msg("Phase 1: Starting ProcessTransactions")
-		or.dataProcessor.ProcessTransactions(transactions, compressEvents, fromHeight, toHeight)
-		l.Info().Msg("Phase 1: ProcessTransactions completed")
-	}()
-
-	// 3. Process messages (uses separate address cache)
-	go func() {
-		defer wg1.Done()
-		l.Info().Msg("Phase 1: Starting ProcessMessages")
-		if err := or.dataProcessor.ProcessMessages(transactions, fromHeight, toHeight); err != nil {
-			errorsMutex.Lock()
-			errors = append(errors, fmt.Errorf("ProcessMessages failed: %w", err))
-			errorsMutex.Unlock()
-		}
-		l.Info().Msg("Phase 1: ProcessMessages completed")
-	}()
-
-	// Wait for Phase 1 to complete
-	wg1.Wait()
-
-	// Check for errors from Phase 1
-	if len(errors) > 0 {
-		var errorMessages []string
-		for _, err := range errors {
-			errorMessages = append(errorMessages, err.Error())
-		}
-		return fmt.Errorf("phase 1 errors: %s", strings.Join(errorMessages, "; "))
+	ctx := &processingContext{
+		blocks:         blocks,
+		commits:        commits,
+		transactions:   transactions,
+		compressEvents: compressEvents,
+		fromHeight:     fromHeight,
+		toHeight:       toHeight,
+		hasTxs:         hasTxs,
 	}
 
-	// Phase 2: Operations that depend on validator addresses
-	var wg2 sync.WaitGroup
-	wg2.Add(2)
-
-	// Wait for validator addresses to be ready (should already be done)
-	<-validatorAddressesDone
-	l.Info().Msg("Phase 2: Validator addresses ready, starting dependent operations")
-
-	// 4. Process blocks (needs validator address cache for proposer addresses)
-	go func() {
-		defer wg2.Done()
-		l.Info().Msg("Phase 2: Starting ProcessBlocks")
-		or.dataProcessor.ProcessBlocks(blocks, fromHeight, toHeight)
-		l.Info().Msg("Phase 2: ProcessBlocks completed")
-	}()
-
-	// 5. Process validator signings (needs validator address cache)
-	go func() {
-		defer wg2.Done()
-		l.Info().Msg("Phase 2: Starting ProcessValidatorSignings")
-		or.dataProcessor.ProcessValidatorSignings(commits, fromHeight, toHeight)
-		l.Info().Msg("Phase 2: ProcessValidatorSignings completed")
-	}()
-
-	// Wait for Phase 2 to complete
-	wg2.Wait()
+	go or.processPhase1(phase1Done, ctx)
+	go or.processPhase2(phase1Done, phase2Done, ctx)
+	<-phase2Done
 
 	l.Info().Msgf("All processing completed successfully from %d to %d", fromHeight, toHeight)
 	return nil
 }
 
+func (or *Orchestrator) processPhase1(
+	phase1Done chan struct{},
+	ctx *processingContext,
+) {
+	defer close(phase1Done)
+	var wg1 sync.WaitGroup
+	wg1.Go(func() {
+		l.Info().Msg("Phase 1: Starting ProcessValidatorAddresses")
+		or.dataProcessor.ProcessValidatorAddresses(ctx.blocks, ctx.fromHeight, ctx.toHeight)
+		l.Info().Msg("Phase 1: ProcessValidatorAddresses completed")
+	})
+
+	if ctx.hasTxs {
+		wg1.Go(func() {
+			l.Info().Msg("Phase 1: Starting ProcessTxHashIds")
+			or.dataProcessor.ProcessTxHashIds(ctx.transactions)
+			l.Info().Msg("Phase 1: ProcessTxHashIds completed")
+		})
+	}
+
+	wg1.Wait()
+	l.Info().Msg("Phase 1: chunk processing completed")
+}
+
+
+func (or *Orchestrator) processPhase2(
+	phase1Done chan struct{},
+	phase2Done chan struct{},
+	ctx *processingContext,
+) {
+	<-phase1Done
+	defer close(phase2Done)
+	var wg2 sync.WaitGroup
+	wg2.Go(func() {
+		l.Info().Msg("Phase 2: Starting ProcessBlocks")
+		or.dataProcessor.ProcessBlocks(ctx.blocks, ctx.fromHeight, ctx.toHeight)
+		l.Info().Msg("Phase 2: ProcessBlocks completed")
+	})
+
+	wg2.Go(func() {
+		l.Info().Msg("Phase 2: Starting ProcessValidatorSignings")
+		or.dataProcessor.ProcessValidatorSignings(ctx.commits, ctx.fromHeight, ctx.toHeight)
+		l.Info().Msg("Phase 2: ProcessValidatorSignings completed")
+	})
+
+	if ctx.hasTxs {
+		wg2.Go(func() {
+			l.Info().Msg("Phase 2: Starting ProcessMessages")
+			or.dataProcessor.ProcessMessages(ctx.transactions, ctx.fromHeight, ctx.toHeight)
+			l.Info().Msg("Phase 2: ProcessMessages completed")
+		})
+		wg2.Go(func() {
+			l.Info().Msg("Phase 2: Starting ProcessTransactions")
+			or.dataProcessor.ProcessTransactions(ctx.transactions, ctx.compressEvents, ctx.fromHeight, ctx.toHeight)
+			l.Info().Msg("Phase 2: ProcessTransactions completed")
+		})
+	}
+
+	wg2.Wait()
+	l.Info().Msg("Phase 2: chunk processing completed")
+}
+
 // saveProcessingState is a private method that saves
-// the current processing state to a file
+// the current processing state to a file.
 //
 // Parameters:
 //   - height: the height of the processing state
@@ -466,7 +467,7 @@ func (or *Orchestrator) processAll(
 // Returns:
 //   - none
 //
-// The method will not throw an error if the processing state is not found, it will just return nil
+// The method will not throw an error if the processing state is not found, it will just return nil.
 func (or *Orchestrator) saveProcessingState(height uint64, reason string) {
 	state := ProcessingState{
 		ChainName:               or.chainName,

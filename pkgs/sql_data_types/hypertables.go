@@ -183,7 +183,7 @@ type TransactionGeneral struct {
 	GasUsed            uint64         `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
 	GasWanted          uint64         `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
 	FeeAmount          pgtype.Numeric `db:"fee_amount" dbtype:"numeric" nullable:"false" primary:"false"`
-	FeeDenom           string         `db:"fee_denom" dbtype:"string" nullable:"false" primary:"false"`
+	FeeDenom           string         `db:"fee_denom" dbtype:"text" nullable:"false" primary:"false"`
 	Success            bool           `db:"success" dbtype:"boolean" nullable:"false" primary:"false" default:"false"`
 	// Stored only if there is error
 	ErrorLog *string `db:"error_log" dbtype:"TEXT" nullable:"true" primary:"false"`
