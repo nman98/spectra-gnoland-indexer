@@ -17,7 +17,9 @@ type Database interface {
 	InsertMsgCall(ctx context.Context, messages []sqlDataTypes.MsgCall) error
 	InsertMsgAddPackage(ctx context.Context, messages []sqlDataTypes.MsgAddPackage) error
 	InsertMsgRun(ctx context.Context, messages []sqlDataTypes.MsgRun) error
+	InsertMsgMultiSend(ctx context.Context, messages []sqlDataTypes.MsgMultiSend) error
 	InsertAddressTx(ctx context.Context, addresses []sqlDataTypes.AddressTx) error
+	InsertTxHashIds(ctx context.Context, txHashes []string, timestamps []time.Time, chainName string) (map[string]int64, error)
 }
 
 // Define interface for what DataProcessor needs from AddressCache
@@ -31,6 +33,7 @@ type DataProcessor struct {
 	addressCache   AddressCache
 	validatorCache AddressCache
 	chainName      string
+	txHashCache map[string]int64
 }
 
 type TransactionsData struct {
@@ -60,10 +63,93 @@ func (t *TransactionsData) GetTransactionErrorDetails() *string {
 // Internal types for address tx mapping
 type key struct {
 	address   int32
-	txHash    string
+	txId      int64
 	chainName string
 }
-type entry struct {
-	base     sqlDataTypes.AddressTx
-	msgTypes map[string]struct{}
+
+type msgSendInserter []sqlDataTypes.MsgSend
+func (m msgSendInserter) count() int {
+    return len(m)
+}
+func (m msgSendInserter) insert(ctx context.Context, db Database) error {
+    return db.InsertMsgSend(ctx, []sqlDataTypes.MsgSend(m))
+}
+
+func (m msgSendInserter) getTxIds() []int64 {
+    txIds := make([]int64, len(m))
+    for i, msg := range m {
+        txIds[i] = msg.TxId
+    }
+    return txIds
+}
+
+type msgCallInserter []sqlDataTypes.MsgCall
+func (m msgCallInserter) count() int {
+    return len(m)
+}
+func (m msgCallInserter) insert(ctx context.Context, db Database) error {
+    return db.InsertMsgCall(ctx, []sqlDataTypes.MsgCall(m))
+}
+
+func (m msgCallInserter) getTxIds() []int64 {
+    txIds := make([]int64, len(m))
+    for i, msg := range m {
+        txIds[i] = msg.TxId
+    }
+    return txIds
+}
+
+type msgAddPackageInserter []sqlDataTypes.MsgAddPackage
+
+func (m msgAddPackageInserter) count() int {
+    return len(m)
+}
+func (m msgAddPackageInserter) insert(ctx context.Context, db Database) error {
+    return db.InsertMsgAddPackage(ctx, []sqlDataTypes.MsgAddPackage(m))
+}
+func (m msgAddPackageInserter) getTxIds() []int64 {
+    txIds := make([]int64, len(m))
+    for i, msg := range m {
+        txIds[i] = msg.TxId
+    }
+    return txIds
+}
+type msgRunInserter []sqlDataTypes.MsgRun
+
+func (m msgRunInserter) count() int {
+    return len(m)
+}
+func (m msgRunInserter) insert(ctx context.Context, db Database) error {
+    return db.InsertMsgRun(ctx, []sqlDataTypes.MsgRun(m))
+}
+
+func (m msgRunInserter) getTxIds() []int64 {
+    txIds := make([]int64, len(m))
+    for i, msg := range m {
+        txIds[i] = msg.TxId
+    }
+    return txIds
+}
+
+type msgMultiSendInserter []sqlDataTypes.MsgMultiSend
+func (m msgMultiSendInserter) count() int {
+    return len(m)
+}
+func (m msgMultiSendInserter) insert(ctx context.Context, db Database) error {
+    return db.InsertMsgMultiSend(ctx, []sqlDataTypes.MsgMultiSend(m))
+}
+
+func (m msgMultiSendInserter) getTxIds() []int64 {
+    txIds := make([]int64, len(m))
+    for i, msg := range m {
+        txIds[i] = msg.TxId
+    }
+    return txIds
+}
+
+// Interface for message inserter
+type messageInserter interface {
+	insert(ctx context.Context, db Database) error
+	count() int
+	getTxIds() []int64
 }

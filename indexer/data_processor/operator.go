@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,7 +19,7 @@ import (
 
 var l = logger.Get()
 
-// Constructor function for the DataProcessor struct
+// Constructor function for the DataProcessor struct.
 //
 // Parameters:
 //   - db: the database connection interface
@@ -28,23 +30,26 @@ var l = logger.Get()
 // Returns:
 //   - *DataProcessor: the data processor
 //
-// The method will not throw an error if the data processor is not found, it will just return nil
+// The method will not throw an error if the data processor is not found, it will just return nil.
 func NewDataProcessor(
 	db Database,
 	addressCache AddressCache,
 	validatorCache AddressCache,
-	chainName string) *DataProcessor {
+	chainName string,
+	batchSize int,
+) *DataProcessor {
 	return &DataProcessor{
 		dbPool:         db,
 		addressCache:   addressCache,
 		validatorCache: validatorCache,
 		chainName:      chainName,
+		txHashCache:    make(map[string]int64, batchSize),
 	}
 }
 
-// ProcessValidatorAddresses is a method to process the validator addresses from a slice of blocks
-// it will process the validator addresses from the blocks and store them in a map[string]struct{}
-// it will then extract the addresses from the map[string]struct{} and insert them into the address cache
+// ProcessValidatorAddresses is a method to process the validator addresses from a slice of blocks.
+// It will process the validator addresses from the blocks and store them in a map[string]struct{}.
+// Then extract the addresses from the map[string]struct{} and insert them into the address cache.
 //
 // Parameters:
 //   - blocks: a slice of blocks
@@ -54,7 +59,7 @@ func NewDataProcessor(
 // Returns:
 //   - nil
 //
-// The method will not throw an error if the validator addresses are not found, it will just return nil
+// The method will not throw an error if the validator addresses are not found, it will just return nil.
 func (d *DataProcessor) ProcessValidatorAddresses(
 	blocks []*rpcClient.BlockResponse,
 	fromHeight uint64,
@@ -75,7 +80,7 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 	// Extract unique addresses from map[string]struct{}
 	addresses := extractAddresses(addressesMap)
 
-	// retry 3 times just for the sake of it
+	// Retry 3 times just for the sake of it
 	d.validatorCache.AddressSolver(addresses, d.chainName, true, 3, nil)
 	l.Info().
 		Msgf(
@@ -84,8 +89,8 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 }
 
 // extractAddresses is a helper function to extract the addresses from a map[string]struct{}
-// it will extract the addresses from the map[string]struct{} and return a slice of strings
-// it will not throw an error if the addresses are not found, it will just return an empty slice
+// it will extract the addresses from the map[string]struct{} and return a slice of strings.
+// If the addresses are not found, it will just return an empty slice.
 //
 // Parameters:
 //   - addressesMap: a map[string]struct{}
@@ -210,6 +215,37 @@ func (d *DataProcessor) processBlock(
 	}
 }
 
+// ProcessTxHashIds is a function to process the tx hash ids and store them in the tx hash cache.
+// It is used to store transaction ids that will be used later when inserting.
+//
+// Parameters:
+//	- txData - transactions data from RPC client
+func (d *DataProcessor) ProcessTxHashIds(
+	txData []TransactionsData,
+) {
+	lenData := len(txData)
+	txHashes := make([]string, lenData)
+	timestamps := make([]time.Time, lenData)
+	for idx, tx := range txData {
+		txHashes[idx] = tx.Response.GetHash()
+		timestamps[idx] = tx.Timestamp
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	txHashIds, err := d.dbPool.InsertTxHashIds(ctx, txHashes, timestamps, d.chainName)
+	if err != nil {
+		l.Error().
+			Caller().
+			Stack().
+			Msgf(
+				"Failed to insert tx hash ids: %v", err,
+			)
+		return
+	}
+	clear(d.txHashCache)
+	maps.Copy(d.txHashCache, txHashIds)
+}
+
 // ProcessTransactions is a swarm method to process the transactions from a map of transactions and timestamps.
 // It will process the transactions using async workers and collect them in a pre allocated slice
 // it will then insert the transactions into the database.
@@ -249,7 +285,7 @@ func (d *DataProcessor) ProcessTransactions(
 		}
 	}
 
-	// add multiplier for the timeout depending on the transaction amount
+	// Add multiplier for the timeout depending on the transaction amount
 	timeout := 10*time.Second + (time.Duration(len(result)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -287,14 +323,11 @@ func (d *DataProcessor) processTransaction(
 	fee := decodedMsg.GetFee()
 	msgTypes := decodedMsg.GetMsgTypes()
 
-	txHash, err := base64.StdEncoding.DecodeString(transaction.Response.GetHash())
-	if err != nil {
+	txId, ok := d.txHashCache[transaction.Response.GetHash()]
+	if !ok {
 		l.Error().
 			Caller().
-			Stack().
-			Msgf(
-				"Failed to decode tx hash %s: %v", transaction.Response.GetHash(), err,
-			)
+			Stack().Msgf("Transaction hash not found in cache: %s", transaction.Response.GetHash())
 		return
 	}
 
@@ -338,7 +371,7 @@ func (d *DataProcessor) processTransaction(
 	}
 
 	transactionsData[idx] = sqlDataTypes.TransactionGeneral{
-		TxHash:             txHash,
+		TxId:           txId,
 		ChainName:          d.chainName,
 		Timestamp:          transaction.Timestamp,
 		BlockHeight:        transaction.BlockHeight,
@@ -348,7 +381,8 @@ func (d *DataProcessor) processTransaction(
 		CompressionOn:      events.IsCompressed(),
 		GasUsed:            gasUsed,
 		GasWanted:          gasWanted,
-		Fee:                fee,
+		FeeAmount:          fee.Amount,
+		FeeDenom:           fee.Denom,
 		Success:            success,
 		ErrorLog:           errLog,
 	}
@@ -407,6 +441,7 @@ func (d *DataProcessor) ProcessMessages(
 
 	aggregatedDbGroups := &decoder.DbMessageGroups{
 		MsgSend:   make([]sqlDataTypes.MsgSend, 0),
+		MsgMultiSend: make([]sqlDataTypes.MsgMultiSend, 0),
 		MsgCall:   make([]sqlDataTypes.MsgCall, 0),
 		MsgAddPkg: make([]sqlDataTypes.MsgAddPackage, 0),
 		MsgRun:    make([]sqlDataTypes.MsgRun, 0),
@@ -414,6 +449,7 @@ func (d *DataProcessor) ProcessMessages(
 	for _, result := range msgResults {
 		if result != nil {
 			aggregatedDbGroups.MsgSend = append(aggregatedDbGroups.MsgSend, result.MsgSend...)
+			aggregatedDbGroups.MsgMultiSend = append(aggregatedDbGroups.MsgMultiSend, result.MsgMultiSend...)
 			aggregatedDbGroups.MsgCall = append(aggregatedDbGroups.MsgCall, result.MsgCall...)
 			aggregatedDbGroups.MsgAddPkg = append(aggregatedDbGroups.MsgAddPkg, result.MsgAddPkg...)
 			aggregatedDbGroups.MsgRun = append(aggregatedDbGroups.MsgRun, result.MsgRun...)
@@ -517,21 +553,19 @@ func (d *DataProcessor) processMessageGroup(
 		return
 	}
 
-	txHash, err := base64.StdEncoding.DecodeString(transaction.Response.GetHash())
-	if err != nil {
+	txId, ok := d.txHashCache[transaction.Response.GetHash()]
+	if !ok {
 		l.Error().
 			Caller().
 			Stack().
 			Msgf(
-				"Failed to decode tx hash %s: %v",
-				transaction.Response.GetHash(),
-				err,
+				"Transaction hash not found in cache: %s", transaction.Response.GetHash(),
 			)
 		return
 	}
 
 	dbMessageGroups, err := decodedMsg.ConvertToDbMessages(
-		d.addressCache, txHash, d.chainName, transaction.Timestamp, decodedMsg.GetSigners(),
+		d.addressCache, txId, d.chainName, transaction.Timestamp, decodedMsg.GetSigners(),
 	)
 	if err != nil {
 		l.Error().
@@ -550,71 +584,37 @@ func (d *DataProcessor) processMessageGroup(
 
 // insertDbMessageGroups performs optimized batch insertions using address IDs
 func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) error {
-	var insertErrors []error
+	var insertErrors = make([]error, 0)
 
 	msgSendCount := len(groups.MsgSend)
 	msgCallCount := len(groups.MsgCall)
 	msgAddPkgCount := len(groups.MsgAddPkg)
 	msgRunCount := len(groups.MsgRun)
+	msgMultiSendCount := len(groups.MsgMultiSend)
 
 	// Insert DbMsgSend messages with address IDs
 	if msgSendCount > 0 {
-		timeout := 10*time.Second + (time.Duration(msgSendCount) * time.Second / 5)
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		err := d.dbPool.InsertMsgSend(ctx, groups.MsgSend)
-		cancel()
-		if err != nil {
-			hashes := make([]string, 0, len(groups.MsgSend))
-			for _, msg := range groups.MsgSend {
-				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
-			}
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgSend: %w, hashes: %v", err, hashes))
-		}
+		d.insertMessage(msgSendInserter(groups.MsgSend), msgSendCount, insertErrors)
 	}
 
 	// Insert DbMsgCall messages with address IDs
 	if msgCallCount > 0 {
-		timeout := 10*time.Second + (time.Duration(msgCallCount) * time.Second / 5)
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		err := d.dbPool.InsertMsgCall(ctx, groups.MsgCall)
-		cancel()
-		if err != nil {
-			hashes := make([]string, 0, len(groups.MsgCall))
-			for _, msg := range groups.MsgCall {
-				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
-			}
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgCall: %w, hashes: %v", err, hashes))
-		}
+		d.insertMessage(msgCallInserter(groups.MsgCall), msgCallCount, insertErrors)
 	}
 
 	// Insert DbMsgAddPackage messages with address IDs
 	if msgAddPkgCount > 0 {
-		timeout := 10*time.Second + (time.Duration(msgAddPkgCount) * time.Second / 5)
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		err := d.dbPool.InsertMsgAddPackage(ctx, groups.MsgAddPkg)
-		cancel()
-		if err != nil {
-			hashes := make([]string, 0, len(groups.MsgAddPkg))
-			for _, msg := range groups.MsgAddPkg {
-				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
-			}
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgAddPackage: %w, hashes: %v", err, hashes))
-		}
+		d.insertMessage(msgAddPackageInserter(groups.MsgAddPkg), msgAddPkgCount, insertErrors)
 	}
 
 	// Insert DbMsgRun messages with address IDs
 	if msgRunCount > 0 {
-		timeout := 10*time.Second + (time.Duration(msgRunCount) * time.Second / 5)
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		err := d.dbPool.InsertMsgRun(ctx, groups.MsgRun)
-		cancel()
-		if err != nil {
-			hashes := make([]string, 0, len(groups.MsgRun))
-			for _, msg := range groups.MsgRun {
-				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
-			}
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgRun: %w, hashes: %v", err, hashes))
-		}
+		d.insertMessage(msgRunInserter(groups.MsgRun), msgRunCount, insertErrors)
+	}
+
+	// Insert DbMsgMultiSend messages with address IDs
+	if msgMultiSendCount > 0 {
+		d.insertMessage(msgMultiSendInserter(groups.MsgMultiSend), msgMultiSendCount, insertErrors)
 	}
 
 	// Combine all errors if any occurred
@@ -627,6 +627,22 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 	}
 
 	return nil
+}
+
+func (d *DataProcessor)insertMessage(
+	msgGroups messageInserter,
+	msgCount int,
+	errors []error,
+) {
+	timeout := 10*time.Second + (time.Duration(msgCount) * time.Second / 5)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := msgGroups.insert(ctx, d.dbPool)
+	if err != nil {
+		txIds := msgGroups.getTxIds()
+		hashes := d.finxHashes(txIds)
+		errors = append(errors, fmt.Errorf("failed to insert messages: %w, hashes: %v", err, hashes))
+	}
 }
 
 func (d *DataProcessor) ProcessValidatorSignings(
@@ -710,53 +726,58 @@ func (d *DataProcessor) processValidatorSigning(
 	*valid = true
 }
 
+
+func (d *DataProcessor) finxHashes(txIds []int64) []string {
+	hashes := make([]string, 0, len(txIds))
+	for hash, id := range d.txHashCache {
+		if slices.Contains(txIds, id) {
+			hashes = append(hashes, hash)
+		}
+	}
+
+	return hashes
+}
+
 // createAddressTx builds a flat slice of AddressTx rows from all message groups.
 func createAddressTx(msgGroups *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
-	seen := make(map[key]*entry)
+	seen := make(map[key]sqlDataTypes.AddressTx)
 	for _, m := range msgGroups.MsgSend {
-		addToAddressTx(&seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
+		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
 	}
 	for _, m := range msgGroups.MsgCall {
-		addToAddressTx(&seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
+		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
 	}
 	for _, m := range msgGroups.MsgAddPkg {
-		addToAddressTx(&seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
+		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
 	}
 	for _, m := range msgGroups.MsgRun {
-		addToAddressTx(&seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
+		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
+	}
+	for _, m := range msgGroups.MsgMultiSend {
+		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
 	}
 	result := make([]sqlDataTypes.AddressTx, 0, len(seen))
 	for _, e := range seen {
-		types := make([]string, 0, len(e.msgTypes))
-		for t := range e.msgTypes {
-			types = append(types, t)
-		}
-		e.base.MsgTypes = types
-		result = append(result, e.base)
+		result = append(result, e)
 	}
 	return result
 }
 
 func addToAddressTx(
-	seen *map[key]*entry,
+	seen map[key]sqlDataTypes.AddressTx,
 	addresses *sqlDataTypes.TxAddresses,
 	chainName string,
 	ts time.Time,
 	msgType string,
 ) {
 	for _, addr := range addresses.GetAddressList() {
-		k := key{addr, string(addresses.TxHash), chainName}
-		if e, ok := (*seen)[k]; ok {
-			e.msgTypes[msgType] = struct{}{}
-		} else {
-			(*seen)[k] = &entry{
-				base:     sqlDataTypes.AddressTx{
-					Address:   addr,
-					TxHash:    addresses.TxHash,
-					ChainName: chainName,
-					Timestamp: ts,
-				},
-				msgTypes: map[string]struct{}{msgType: {}},
+		k := key{addr, addresses.TxId, chainName}
+		if _, ok := seen[k]; !ok {
+			seen[k] = sqlDataTypes.AddressTx{
+				Address:   addr,
+				TxId:      addresses.TxId,
+				ChainName: chainName,
+				Timestamp: ts,
 			}
 		}
 	}

@@ -33,12 +33,12 @@ func (t TxHashId) GetTableInfo() (*dbinit.TableInfo, error) {
 }
 
 func (t TxHashId) TableColumns() []string {
-	columns := make([]string, 0)
 	fields := reflect.TypeOf(t)
 	numFields := fields.NumField()
-	for i := 0; i < numFields; i++ {
+	columns := make([]string, numFields)
+	for i := range numFields {
 		field := fields.Field(i)
-		columns = append(columns, field.Tag.Get("db"))
+		columns[i] = field.Tag.Get("db")
 	}
 	return columns
 }
@@ -71,12 +71,12 @@ func (b Blocks) GetTableInfo() (*dbinit.TableInfo, error) {
 }
 
 func (b Blocks) TableColumns() []string {
-	columns := make([]string, 0)
 	fields := reflect.TypeOf(b)
 	numFields := fields.NumField()
-	for i := 0; i < numFields; i++ {
+	columns := make([]string, numFields)
+	for i := range numFields {
 		field := fields.Field(i)
-		columns = append(columns, field.Tag.Get("db"))
+		columns[i] = field.Tag.Get("db")
 	}
 	return columns
 }
@@ -109,12 +109,12 @@ func (vbs ValidatorBlockSigning) GetTableInfo() (*dbinit.TableInfo, error) {
 }
 
 func (vbs ValidatorBlockSigning) TableColumns() []string {
-	columns := make([]string, 0)
 	fields := reflect.TypeOf(vbs)
 	numFields := fields.NumField()
+	columns := make([]string, numFields)
 	for i := range numFields {
 		field := fields.Field(i)
-		columns = append(columns, field.Tag.Get("db"))
+		columns[i] = field.Tag.Get("db")
 	}
 	return columns
 }
@@ -144,12 +144,12 @@ func (at AddressTx) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(at, at.TableName())
 }
 func (at AddressTx) TableColumns() []string {
-	columns := make([]string, 0)
 	fields := reflect.TypeOf(at)
 	numFields := fields.NumField()
+	columns := make([]string, numFields)
 	for i := range numFields {
 		field := fields.Field(i)
-		columns = append(columns, field.Tag.Get("db"))
+		columns[i] = field.Tag.Get("db")
 	}
 	return columns
 }
@@ -200,12 +200,12 @@ func (tg TransactionGeneral) GetTableInfo() (*dbinit.TableInfo, error) {
 }
 
 func (tg TransactionGeneral) TableColumns() []string {
-	columns := make([]string, 0)
 	fields := reflect.TypeOf(tg)
 	numFields := fields.NumField()
+	columns := make([]string, numFields)
 	for i := range numFields {
 		field := fields.Field(i)
-		columns = append(columns, field.Tag.Get("db"))
+		columns[i] = field.Tag.Get("db")
 	}
 	return columns
 }
@@ -253,11 +253,12 @@ func (ms MsgSend) GetTableInfo() (*dbinit.TableInfo, error) {
 // A method to get the columns of the struct
 // Useful in GnoMessage interface
 func (ms MsgSend) TableColumns() []string {
-	columns := make([]string, 0)
 	fields := reflect.TypeOf(ms)
-	for i := 0; i < fields.NumField(); i++ {
+	numFields := fields.NumField()
+	columns := make([]string, numFields)
+	for i := range numFields {
 		field := fields.Field(i)
-		columns = append(columns, field.Tag.Get("db"))
+		columns[i] = field.Tag.Get("db")
 	}
 	return columns
 }
@@ -391,12 +392,12 @@ func (ma MsgAddPackage) GetTableInfo() (*dbinit.TableInfo, error) {
 // A method to get the columns of the struct
 // Useful in GnoMessage interface
 func (ma MsgAddPackage) TableColumns() []string {
-	columns := make([]string, 0)
 	fields := reflect.TypeOf(ma)
 	numFields := fields.NumField()
+	columns := make([]string, numFields)
 	for i := range numFields {
 		field := fields.Field(i)
-		columns = append(columns, field.Tag.Get("db"))
+		columns[i] = field.Tag.Get("db")
 	}
 	return columns
 }
@@ -527,4 +528,17 @@ func (m *MsgMultiSend) GetAllAddresses() *TxAddresses {
 	txAddresses := NewTxAddresses(m.TxId)
 	txAddresses.AddAddress(m.AddressId)
 	return txAddresses
+}
+
+// A method to get the columns of the struct
+// Useful in GnoMessage interface
+func (m MsgMultiSend) TableColumns() []string {
+	fields := reflect.TypeOf(m)
+	numFields := fields.NumField()
+	columns := make([]string, numFields)
+	for i := range numFields {
+		field := fields.Field(i)
+		columns[i] = field.Tag.Get("db")
+	}
+	return columns
 }

@@ -3,6 +3,7 @@ package dataprocessor_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	dataProcessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	sqlDataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
@@ -49,6 +50,14 @@ func (m *MockDatabase) InsertAddressTx(ctx context.Context, addresses []sqlDataT
 	return m.LastInsertError
 }
 
+func (m *MockDatabase) InsertMsgMultiSend(ctx context.Context, messages []sqlDataTypes.MsgMultiSend) error {
+	return m.LastInsertError
+}
+
+func (m *MockDatabase) InsertTxHashIds(ctx context.Context, txHashes []string, timestamps []time.Time, chainName string) (map[string]int64, error) {
+	return nil, m.LastInsertError
+}
+
 // Simple Mock AddressCache
 type MockAddressCache struct {
 	ReturnID int32
@@ -72,7 +81,7 @@ func TestNewDataProcessor(t *testing.T) {
 	mockValidatorCache := &MockAddressCache{ReturnID: 2}
 
 	// Test constructor
-	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain")
+	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain", 100)
 
 	// Verify constructor returns non-nil
 	if dp == nil {
@@ -88,7 +97,7 @@ func TestDataProcessor_WithEmptyData(t *testing.T) {
 	mockAddressCache := &MockAddressCache{ReturnID: 123}
 	mockValidatorCache := &MockAddressCache{ReturnID: 456}
 
-	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain")
+	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain", 100)
 
 	// Test that we can create the processor successfully
 	if dp == nil {
@@ -150,7 +159,7 @@ func TestDataProcessor_WithDatabaseError(t *testing.T) {
 	mockAddressCache := &MockAddressCache{}
 	mockValidatorCache := &MockAddressCache{}
 
-	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain")
+	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain", 100)
 
 	// Verify constructor still works even with error-prone database
 	if dp == nil {

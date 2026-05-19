@@ -2,6 +2,9 @@ package database
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
+	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"github.com/jackc/pgx/v5"
@@ -10,13 +13,13 @@ import (
 
 // InsertAddresses inserts a slice of addresses into the database
 //
-// This is a method to insert a slice of addresses into the database
+// This is a method to insert a slice of addresses into the database.
 // It should preform better than using INSERT INTO... for a large number of addresses
-// because it uses the COPY FROM command
+// because it uses the COPY FROM command.
 //
 // Usage:
 //
-// # Used inside of the address cache package to insert the addresses to the database
+// # Used inside of the address cache package to insert the addresses to the database.
 //
 // Parameters:
 //   - ctx: the context to use for the insert
@@ -49,11 +52,11 @@ func (t *TimescaleDb) InsertAddresses(
 }
 
 // InsertBlocks inserts a slice of blocks into the database using pgx copy function
-// it will create the copy from slice to the db and then insert it to the database
+// it will create the copy from slice to the db and then insert it to the database.
 //
 // Usage:
 //
-// # Used for inserting a large number of blocks to the database
+// # Used for inserting a large number of blocks to the database.
 //
 // Parameters:
 //   - ctx: the context to use for the insert
@@ -67,7 +70,7 @@ func (t *TimescaleDb) InsertBlocks(ctx context.Context, blocks []sql_data_types.
 		return nil
 	}
 
-	// create a copy from slice to the db
+	// Create a copy from slice to the db
 	pgxSlice := pgx.CopyFromSlice(len(blocks), func(i int) ([]any, error) {
 		return []any{
 			blocks[i].Hash,
@@ -79,18 +82,19 @@ func (t *TimescaleDb) InsertBlocks(ctx context.Context, blocks []sql_data_types.
 
 	// mark the columns to be inserted
 	columns := blocks[0].TableColumns()
+	tableName := blocks[0].TableName()
 
 	// insert the data to the db
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"blocks"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
 	return err
 }
 
 // InsertValidatorBlockSignings inserts a slice of validator block signings into the database using pgx copy function
-// it will create the copy from slice to the db and then insert it to the database
+// it will create the copy from slice to the db and then insert it to the database.
 //
 // Usage:
 //
-// # Used for inserting a large number of validator block signings to the database
+// # Used for inserting a large number of validator block signings to the database.
 //
 // Parameters:
 //   - ctx: the context to use for the insert
@@ -107,7 +111,7 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(
 		return nil
 	}
 
-	// create a copy from slice to the db
+	// Create a copy from slice to the db
 	pgxSlice := pgx.CopyFromSlice(len(validatorBlockSigning), func(i int) ([]any, error) {
 		return []any{
 			validatorBlockSigning[i].BlockHeight,
@@ -119,18 +123,19 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(
 
 	// mark the columns to be inserted
 	columns := validatorBlockSigning[0].TableColumns()
+	tableName := validatorBlockSigning[0].TableName()
 
 	// insert the data to the db
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"validator_block_signing"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
 	return err
 }
 
 // InsertTransactionsGeneral inserts a slice of transaction general data into the database using pgx copy function
-// it will create the copy from slice to the db and then insert it to the database
+// it will create the copy from slice to the db and then insert it to the database.
 //
 // Usage:
 //
-// # Used for inserting a large number of transaction general data to the database
+// # Used for inserting a large number of transaction general data to the database.
 //
 // Parameters:
 //   - ctx: the context to use for the insert
@@ -150,7 +155,7 @@ func (t *TimescaleDb) InsertTransactionsGeneral(
 	// create a copy from the slice
 	pgxSlice := pgx.CopyFromSlice(len(transactionsGeneral), func(i int) ([]any, error) {
 		return []any{
-			transactionsGeneral[i].TxHash,
+			transactionsGeneral[i].TxId,
 			transactionsGeneral[i].ChainName,
 			transactionsGeneral[i].Timestamp,
 			transactionsGeneral[i].BlockHeight,
@@ -160,7 +165,8 @@ func (t *TimescaleDb) InsertTransactionsGeneral(
 			transactionsGeneral[i].CompressionOn,
 			transactionsGeneral[i].GasUsed,
 			transactionsGeneral[i].GasWanted,
-			transactionsGeneral[i].Fee,
+			transactionsGeneral[i].FeeAmount,
+			transactionsGeneral[i].FeeDenom,
 			transactionsGeneral[i].Success,
 			transactionsGeneral[i].ErrorLog,
 		}, nil
@@ -168,9 +174,10 @@ func (t *TimescaleDb) InsertTransactionsGeneral(
 
 	// mark the columns to be inserted
 	columns := transactionsGeneral[0].TableColumns()
+	tableName := transactionsGeneral[0].TableName()
 
-	// insert the data to the db
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"transaction_general"}, columns, pgxSlice)
+	// Insert the data to the db
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
 	return err
 }
 
@@ -191,15 +198,15 @@ func (t *TimescaleDb) InsertAddressTx(ctx context.Context, addresses []sql_data_
 	pgxSlice := pgx.CopyFromSlice(len(addresses), func(i int) ([]any, error) {
 		return []any{
 			addresses[i].Address,
-			addresses[i].TxHash,
+			addresses[i].TxId,
 			addresses[i].ChainName,
 			addresses[i].Timestamp,
-			makePgxArray(addresses[i].MsgTypes),
 		}, nil
 	})
 
 	columns := addresses[0].TableColumns()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"address_tx"}, columns, pgxSlice)
+	tableName := addresses[0].TableName()
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
 	return err
 }
 
@@ -219,7 +226,7 @@ func (t *TimescaleDb) InsertMsgSend(ctx context.Context, messages []sql_data_typ
 
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
-			messages[i].TxHash,
+			messages[i].TxId,
 			messages[i].Timestamp,
 			messages[i].ChainName,
 			messages[i].FromAddress,
@@ -231,11 +238,12 @@ func (t *TimescaleDb) InsertMsgSend(ctx context.Context, messages []sql_data_typ
 	})
 
 	columns := messages[0].TableColumns()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"bank_msg_send"}, columns, pgxSlice)
+	tableName := messages[0].TableName()
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
 	return err
 }
 
-// InsertMsgCall inserts a slice of MsgCall messages into the database
+// InsertMsgCall inserts a slice of MsgCall messages into the database.
 //
 // Parameters:
 //   - ctx: the context to use for the insert
@@ -251,7 +259,7 @@ func (t *TimescaleDb) InsertMsgCall(ctx context.Context, messages []sql_data_typ
 
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
-			messages[i].TxHash,
+			messages[i].TxId,
 			messages[i].Timestamp,
 			messages[i].ChainName,
 			messages[i].Caller,
@@ -266,11 +274,12 @@ func (t *TimescaleDb) InsertMsgCall(ctx context.Context, messages []sql_data_typ
 	})
 
 	columns := messages[0].TableColumns()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"vm_msg_call"}, columns, pgxSlice)
+	tableName := messages[0].TableName()
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
 	return err
 }
 
-// InsertMsgAddPackage inserts a slice of MsgAddPackage messages into the database
+// InsertMsgAddPackage inserts a slice of MsgAddPackage messages into the database.
 //
 // Parameters:
 //   - ctx: the context to use for the insert
@@ -289,7 +298,7 @@ func (t *TimescaleDb) InsertMsgAddPackage(
 
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
-			messages[i].TxHash,
+			messages[i].TxId,
 			messages[i].Timestamp,
 			messages[i].ChainName,
 			messages[i].Creator,
@@ -304,7 +313,8 @@ func (t *TimescaleDb) InsertMsgAddPackage(
 	})
 
 	columns := messages[0].TableColumns()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"vm_msg_add_package"}, columns, pgxSlice)
+	tableName := messages[0].TableName()
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
 	return err
 }
 
@@ -327,7 +337,7 @@ func (t *TimescaleDb) InsertMsgRun(
 
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
-			messages[i].TxHash,
+			messages[i].TxId,
 			messages[i].Timestamp,
 			messages[i].ChainName,
 			messages[i].Caller,
@@ -342,15 +352,52 @@ func (t *TimescaleDb) InsertMsgRun(
 	})
 
 	columns := messages[0].TableColumns()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"vm_msg_run"}, columns, pgxSlice)
+	tableName := messages[0].TableName()
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
 	return err
 }
 
-// makePgxArray is a helper generic function to create a pgx array from a slice
+// InsertMsgMultiSend inserts a batch of MsgMultiSend messages into the database.
 //
-// In theory it should be similar to pq.Array i think, it should be used for the some composite types and
-// bytearrays but to be sure it should be usable on any type that is supposed to be inserted into the database as
-// an array
+// Parameters:
+//   - ctx: the context to use for the insertion
+//   - messages: clice of MsgMultiSend to be inserted
+//
+// Returns:
+//   - error: any error that occurred during insertion
+func (t *TimescaleDb) InsertMsgMultiSend(
+	ctx context.Context,
+	messages []sql_data_types.MsgMultiSend,
+) error {
+	// Return early if no messages to insert
+	if len(messages) == 0 {
+		return nil
+	}
+
+	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+		return []any{
+			messages[i].TxId,
+			messages[i].Timestamp,
+			messages[i].ChainName,
+			messages[i].Direction,
+			messages[i].AddressId,
+			makePgxArray(messages[i].Coins),
+			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
+		}, nil
+	})
+
+	columns := messages[0].TableColumns()
+	tableName := messages[0].TableName()
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	return err
+}
+
+// makePgxArray is a helper generic function to create a pgx array from a slice.
+//
+// In theory it should be similar to pq.Array. It should be used for composite types and
+// bytearrays, but to be sure it should be usable on any type that is supposed to be inserted
+// into the database as an array.
 //
 // Parameters:
 //   - v: a slice of any type
@@ -367,4 +414,55 @@ func makePgxArray[T any](v []T) pgtype.Array[T] {
 		Dims:     []pgtype.ArrayDimension{{Length: int32(len(v)), LowerBound: 1}},
 		Valid:    true,
 	}
+}
+
+func (t *TimescaleDb) InsertTxHashIds(
+	ctx context.Context,
+	txHashes []string,
+	timestamps []time.Time,
+	chainName string,
+) (map[string]int64, error) {
+	txLength := len(txHashes)
+	timestampLength := len(timestamps)
+
+	if txLength <= 0 || timestampLength <= 0 {
+		return nil, fmt.Errorf("no tx hashes to insert")
+	}
+	if txLength != timestampLength {
+		return nil, fmt.Errorf("tx hashes and timestamps must have the same length")
+	}
+
+	txHashBytes := make([][]byte, txLength)
+	for i, hash := range txHashes {
+		decoded, err := base64.StdEncoding.DecodeString(hash)
+		if err != nil {
+			return nil, err
+		}
+		txHashBytes[i] = decoded
+	}
+
+	rows, err := t.pool.Query(
+		ctx,
+		`INSERT INTO tx_hash_id (tx_hash, timestamp, chain_name)
+		 SELECT unnest($1::bytea[]), unnest($2::timestamptz[]), $3
+		 RETURNING tx_hash, tx_id`,
+		txHashBytes,
+		timestamps,
+		chainName,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	txHashIdMap := make(map[string]int64, txLength)
+	for rows.Next() {
+		var txHash []byte
+		var txId int64
+		if err := rows.Scan(&txHash, &txId); err != nil {
+			return nil, fmt.Errorf("failed to scan tx hash id: %w", err)
+		}
+		txHashIdMap[base64.StdEncoding.EncodeToString(txHash)] = txId
+	}
+	return txHashIdMap, rows.Err()
 }
