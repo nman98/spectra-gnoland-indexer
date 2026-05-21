@@ -8,11 +8,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// GetBlock gets a block from the database for a given height and chain name
+// GetBlock gets a block from the database for a given height and chain name.
 //
 // Usage:
 //
-// # Used to get a block from the database for a given height and chain name
+// # Used to get a block from the database for a given height and chain name.
 //
 // Parameters:
 //   - height: the height of the block
@@ -33,11 +33,12 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 	`
 	query2 := `
 	SELECT
-	encode(tx_hash, 'base64'),
-	block_height
-	FROM transaction_general
-	WHERE chain_name = $1
-	AND block_height = $2
+	encode(id.tx_hash, 'base64'),
+	tg.block_height
+	FROM transaction_general tg
+	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
+	WHERE tg.chain_name = $1
+	AND tg.block_height = $2
 	`
 	var blocks []*BlockData
 	var txs map[uint64][]string
@@ -86,11 +87,12 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 	`
 	query2 := `
 	SELECT
-	encode(tx_hash, 'base64'),
-	block_height
-	FROM transaction_general
-	WHERE chain_name = $1
-	AND block_height = (SELECT MAX(height) FROM blocks WHERE chain_name = $1)  
+	encode(id.tx_hash, 'base64'),
+	tg.block_height
+	FROM transaction_general tg
+	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
+	WHERE tg.chain_name = $1
+	AND tg.block_height = (SELECT MAX(height) FROM blocks WHERE chain_name = $1)
 	`
 	var blocks []*BlockData
 	var txs map[uint64][]string
@@ -151,14 +153,15 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 	LIMIT $2
 	`
 	query2 := `
-	SELECT 
-	encode(tx_hash, 'base64'),
-	block_height
-	FROM transaction_general
-	WHERE chain_name = $1
-	AND block_height <= (SELECT MAX(height) FROM blocks WHERE chain_name = $1) 
-	AND block_height >= (SELECT MAX(height) FROM blocks WHERE chain_name = $1) - $2
-	ORDER BY block_height DESC
+	SELECT
+	encode(id.tx_hash, 'base64'),
+	tg.block_height
+	FROM transaction_general tg
+	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
+	WHERE tg.chain_name = $1
+	AND tg.block_height <= (SELECT MAX(height) FROM blocks WHERE chain_name = $1)
+	AND tg.block_height >= (SELECT MAX(height) FROM blocks WHERE chain_name = $1) - $2
+	ORDER BY tg.block_height DESC
 	`
 
 	var blocks []*BlockData
@@ -224,11 +227,12 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 
 	query2 := `
 	SELECT
-	encode(tx_hash, 'base64'),
-	block_height
-	FROM transaction_general
-	WHERE chain_name = $1
-	AND block_height >= $2 AND block_height <= $3
+	encode(id.tx_hash, 'base64'),
+	tg.block_height
+	FROM transaction_general tg
+	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
+	WHERE tg.chain_name = $1
+	AND tg.block_height >= $2 AND tg.block_height <= $3
 	`
 	var blocks []*BlockData
 	var txs map[uint64][]string

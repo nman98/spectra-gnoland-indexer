@@ -111,14 +111,15 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 
 	const selectCols = `
 		SELECT
-		encode(tx.tx_hash, 'base64') AS tx_hash,
-		tx.timestamp,
-		tx.msg_types,
+		encode(id.tx_hash, 'base64') AS tx_hash,
+		at.timestamp,
+		tg.msg_types,
 		tg.block_height AS block_height,
 		tg.success AS success,
 		tg.error_log AS error_log
-		FROM address_tx tx
-		JOIN transaction_general tg ON tx.tx_hash = tg.tx_hash AND tx.chain_name = tg.chain_name
+		FROM address_tx at
+		JOIN tx_hash_id id ON at.tx_id = id.tx_id AND at.chain_name = id.chain_name
+		JOIN transaction_general tg ON at.tx_id = tg.tx_id AND at.chain_name = tg.chain_name
 	`
 
 	hasCursor := cursor != nil && *cursor != ""
@@ -146,20 +147,20 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 	case Next:
 		if hasCursor {
 			query = selectCols + `
-			WHERE tx.address = $1
-			AND tx.chain_name = $2
-			AND (tg.block_height, tx.tx_hash) < ($3, $4)
-			AND tx.timestamp BETWEEN $5 AND $6
-			ORDER BY tg.block_height DESC, tx.tx_hash DESC
+			WHERE at.address = $1
+			AND at.chain_name = $2
+			AND (tg.block_height, id.tx_hash) < ($3, $4)
+			AND at.timestamp BETWEEN $5 AND $6
+			ORDER BY tg.block_height DESC, id.tx_hash DESC
 			LIMIT $7
 			`
 			args = []any{accountId, chainName, blockHeight, decodedTxHash, fromTimestamp, toTimestamp, fetchLimit}
 		} else {
 			query = selectCols + `
-			WHERE tx.address = $1
-			AND tx.chain_name = $2
-			AND tx.timestamp BETWEEN $3 AND $4
-			ORDER BY tg.block_height DESC, tx.tx_hash DESC
+			WHERE at.address = $1
+			AND at.chain_name = $2
+			AND at.timestamp BETWEEN $3 AND $4
+			ORDER BY tg.block_height DESC, id.tx_hash DESC
 			LIMIT $5
 			`
 			args = []any{accountId, chainName, fromTimestamp, toTimestamp, fetchLimit}
@@ -169,11 +170,11 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 			return nil, false, fmt.Errorf("prev direction requires a cursor")
 		}
 		query = selectCols + `
-		WHERE tx.address = $1
-		AND tx.chain_name = $2
-		AND (tg.block_height, tx.tx_hash) > ($3, $4)
-		AND tx.timestamp BETWEEN $5 AND $6
-		ORDER BY tg.block_height ASC, tx.tx_hash ASC
+		WHERE at.address = $1
+		AND at.chain_name = $2
+		AND (tg.block_height, id.tx_hash) > ($3, $4)
+		AND at.timestamp BETWEEN $5 AND $6
+		ORDER BY tg.block_height ASC, id.tx_hash ASC
 		LIMIT $7
 		`
 		args = []any{accountId, chainName, blockHeight, decodedTxHash, fromTimestamp, toTimestamp, fetchLimit}
@@ -220,14 +221,15 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 
 	const selectCols = `
 		SELECT
-		encode(tx.tx_hash, 'base64') AS tx_hash,
-		tx.timestamp,
-		tx.msg_types,
+		encode(id.tx_hash, 'base64') AS tx_hash,
+		at.timestamp,
+		tg.msg_types,
 		tg.block_height AS block_height,
 		tg.success AS success,
 		tg.error_log AS error_log
-		FROM address_tx tx
-		JOIN transaction_general tg ON tx.tx_hash = tg.tx_hash AND tx.chain_name = tg.chain_name
+		FROM address_tx at
+		JOIN tx_hash_id id ON at.tx_id = id.tx_id AND at.chain_name = id.chain_name
+		JOIN transaction_general tg ON at.tx_id = tg.tx_id AND at.chain_name = tg.chain_name
 	`
 
 	hasCursor := cursor != nil && *cursor != ""
@@ -255,18 +257,18 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 	case Next:
 		if hasCursor {
 			query = selectCols + `
-			WHERE tx.address = $1
-			AND tx.chain_name = $2
-			AND (tg.block_height, tx.tx_hash) < ($3, $4)
-			ORDER BY tg.block_height DESC, tx.tx_hash DESC
+			WHERE at.address = $1
+			AND at.chain_name = $2
+			AND (tg.block_height, id.tx_hash) < ($3, $4)
+			ORDER BY tg.block_height DESC, id.tx_hash DESC
 			LIMIT $5
 			`
 			args = []any{accountId, chainName, blockHeight, decodedTxHash, fetchLimit}
 		} else {
 			query = selectCols + `
-			WHERE tx.address = $1
-			AND tx.chain_name = $2
-			ORDER BY tg.block_height DESC, tx.tx_hash DESC
+			WHERE at.address = $1
+			AND at.chain_name = $2
+			ORDER BY tg.block_height DESC, id.tx_hash DESC
 			LIMIT $3
 			`
 			args = []any{accountId, chainName, fetchLimit}
@@ -276,10 +278,10 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 			return nil, false, fmt.Errorf("prev direction requires a cursor")
 		}
 		query = selectCols + `
-			WHERE tx.address = $1
-			AND tx.chain_name = $2
-			AND (tg.block_height, tx.tx_hash) > ($3, $4)
-			ORDER BY tg.block_height ASC, tx.tx_hash ASC
+			WHERE at.address = $1
+			AND at.chain_name = $2
+			AND (tg.block_height, id.tx_hash) > ($3, $4)
+			ORDER BY tg.block_height ASC, id.tx_hash ASC
 			LIMIT $5
 			`
 		args = []any{accountId, chainName, blockHeight, decodedTxHash, fetchLimit}

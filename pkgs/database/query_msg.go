@@ -52,11 +52,11 @@ func (t *TimescaleDb) GetAllBlockSigners(
 	return &blockSigners, nil
 }
 
-// GetBankSend gets the bank send message for a given transaction hash
+// GetBankSend gets the bank send message for a given transaction hash.
 //
 // Usage:
 //
-// # Used to get the bank send message for a given transaction hash
+// # Used to get the bank send message for a given transaction hash.
 //
 // Parameters:
 //   - txHash: the hash of the transaction
@@ -71,21 +71,22 @@ func (t *TimescaleDb) GetBankSend(
 	chainName string,
 ) ([]*BankSend, error) {
 	query := `
-	SELECT 
-    encode(bms.tx_hash, 'base64') AS tx_hash,
-    bms.timestamp,
-    gn_from.address AS from_address,
-    gn_to.address AS to_address,
-    bms.amount,
-    array(
-        SELECT gn.address 
-        FROM unnest(bms.signers) AS signer_id
-        JOIN gno_addresses gn ON gn.id = signer_id
-    ) AS signers
+	SELECT
+	encode(id.tx_hash, 'base64') AS tx_hash,
+	bms.timestamp,
+	gn_from.address AS from_address,
+	gn_to.address AS to_address,
+	bms.amount,
+	array(
+		SELECT gn.address
+		FROM unnest(bms.signers) AS signer_id
+		JOIN gno_addresses gn ON gn.id = signer_id
+	) AS signers
 	FROM bank_msg_send bms
+	JOIN tx_hash_id id ON bms.tx_id = id.tx_id AND bms.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn_from ON bms.from_address = gn_from.id
 	LEFT JOIN gno_addresses gn_to ON bms.to_address = gn_to.id
-	WHERE bms.tx_hash = decode($1, 'base64')
+	WHERE id.tx_hash = decode($1, 'base64')
 	AND bms.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -134,8 +135,8 @@ func (t *TimescaleDb) GetMsgCall(
 	chainName string,
 ) ([]*MsgCall, error) {
 	query := `
-	SELECT 
-	encode(vmc.tx_hash, 'base64') AS tx_hash,
+	SELECT
+	encode(id.tx_hash, 'base64') AS tx_hash,
 	vmc.message_counter,
 	vmc.timestamp,
 	gn.address AS caller,
@@ -145,13 +146,14 @@ func (t *TimescaleDb) GetMsgCall(
 	vmc.send,
 	vmc.max_deposit,
 	array(
-		SELECT gn.address 
+		SELECT gn.address
 		FROM unnest(vmc.signers) AS signer_id
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM vm_msg_call vmc
+	JOIN tx_hash_id id ON vmc.tx_id = id.tx_id AND vmc.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn ON vmc.caller = gn.id
-	WHERE vmc.tx_hash = decode($1, 'base64')
+	WHERE id.tx_hash = decode($1, 'base64')
 	AND vmc.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -204,8 +206,8 @@ func (t *TimescaleDb) GetMsgAddPackage(
 	chainName string,
 ) ([]*MsgAddPackage, error) {
 	query := `
-	SELECT 
-	encode(vmap.tx_hash, 'base64') AS tx_hash,
+	SELECT
+	encode(id.tx_hash, 'base64') AS tx_hash,
 	vmap.message_counter,
 	vmap.timestamp,
 	gn.address AS creator,
@@ -215,13 +217,14 @@ func (t *TimescaleDb) GetMsgAddPackage(
 	vmap.send,
 	vmap.max_deposit,
 	array(
-		SELECT gn.address 
+		SELECT gn.address
 		FROM unnest(vmap.signers) AS signer_id
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM vm_msg_add_package vmap
+	JOIN tx_hash_id id ON vmap.tx_id = id.tx_id AND vmap.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn ON vmap.creator = gn.id
-	WHERE vmap.tx_hash = decode($1, 'base64')
+	WHERE id.tx_hash = decode($1, 'base64')
 	AND vmap.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -274,8 +277,8 @@ func (t *TimescaleDb) GetMsgRun(
 	chainName string,
 ) ([]*MsgRun, error) {
 	query := `
-	SELECT 
-	encode(vmr.tx_hash, 'base64') AS tx_hash,
+	SELECT
+	encode(id.tx_hash, 'base64') AS tx_hash,
 	vmr.message_counter,
 	vmr.timestamp,
 	gn.address AS caller,
@@ -285,13 +288,14 @@ func (t *TimescaleDb) GetMsgRun(
 	vmr.send,
 	vmr.max_deposit,
 	array(
-		SELECT gn.address 
+		SELECT gn.address
 		FROM unnest(vmr.signers) AS signer_id
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM vm_msg_run vmr
+	JOIN tx_hash_id id ON vmr.tx_id = id.tx_id AND vmr.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn ON vmr.caller = gn.id
-	WHERE vmr.tx_hash = decode($1, 'base64')
+	WHERE id.tx_hash = decode($1, 'base64')
 	AND vmr.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -340,10 +344,11 @@ func (t *TimescaleDb) GetMsgRun(
 //   - error: if the query fails
 func (t *TimescaleDb) GetMsgTypes(ctx context.Context, txHash string, chainName string) ([]string, error) {
 	query := `
-	SELECT msg_types
-	FROM transaction_general
-	WHERE tx_hash = decode($1, 'base64')
-	AND chain_name = $2
+	SELECT tg.msg_types
+	FROM transaction_general tg
+	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
+	WHERE id.tx_hash = decode($1, 'base64')
+	AND tg.chain_name = $2
 	`
 	row := t.pool.QueryRow(ctx, query, txHash, chainName)
 	var msgTypes []string

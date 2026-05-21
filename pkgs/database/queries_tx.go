@@ -45,8 +45,8 @@ func init() {
 //   - error: if the query fails
 func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainName string) (*Transaction, error) {
 	query := `
-	SELECT 
-	encode(tx.tx_hash, 'base64') AS tx_hash,
+	SELECT
+	encode(id.tx_hash, 'base64') AS tx_hash,
 	tx.timestamp,
 	tx.block_height,
 	tx.tx_events,
@@ -59,7 +59,8 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 	tx.success,
 	tx.error_log
 	FROM transaction_general tx
-	WHERE tx.tx_hash = decode($1, 'base64')
+	JOIN tx_hash_id id ON tx.tx_id = id.tx_id AND tx.chain_name = id.chain_name
+	WHERE id.tx_hash = decode($1, 'base64')
 	AND tx.chain_name = $2
 	`
 	row := t.pool.QueryRow(ctx, query, txHash, chainName)
@@ -92,11 +93,11 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 	return tx, nil
 }
 
-// GetLastXTransactions gets the last x transactions from the database for a given chain name
+// GetLastXTransactions gets the last x transactions from the database for a given chain name.
 //
 // Usage:
 //
-// # Used to get the last x transactions from the database for a given chain name
+// # Used to get the last x transactions from the database for a given chain name.
 //
 // Parameters:
 //   - chainName: the name of the chain
@@ -116,7 +117,7 @@ func (t *TimescaleDb) GetLastXTransactions(
 	order := sortOrder.SQL()
 	query := fmt.Sprintf(`
 	SELECT
-	encode(tx.tx_hash, 'base64') AS tx_hash,
+	encode(id.tx_hash, 'base64') AS tx_hash,
 	tx.timestamp,
 	tx.block_height,
 	tx.tx_events,
@@ -129,6 +130,7 @@ func (t *TimescaleDb) GetLastXTransactions(
 	tx.success,
 	tx.error_log
 	FROM transaction_general tx
+	JOIN tx_hash_id id ON tx.tx_id = id.tx_id AND tx.chain_name = id.chain_name
 	WHERE tx.chain_name = $1
 	ORDER BY tx.timestamp %s
 	LIMIT $2
@@ -172,7 +174,7 @@ func (t *TimescaleDb) GetLastXTransactions(
 	return transactions, nil
 }
 
-// GetTransactionsByOffset gets the transactions by offset for a given chain name
+// GetTransactionsByOffset gets the transactions by offset for a given chain name.
 //
 // Usage:
 //
@@ -195,7 +197,7 @@ func (t *TimescaleDb) GetTransactionsByOffset(
 ) ([]*Transaction, error) {
 	query := `
 	SELECT
-	encode(tx.tx_hash, 'base64') AS tx_hash,
+	encode(id.tx_hash, 'base64') AS tx_hash,
 	tx.timestamp,
 	tx.block_height,
 	tx.tx_events,
@@ -206,6 +208,7 @@ func (t *TimescaleDb) GetTransactionsByOffset(
 	tx.success,
 	tx.error_log
 	FROM transaction_general tx
+	JOIN tx_hash_id id ON tx.tx_id = id.tx_id AND tx.chain_name = id.chain_name
 	WHERE tx.chain_name = $1
 	ORDER BY tx.timestamp DESC
 	LIMIT $2 OFFSET $3
@@ -271,7 +274,7 @@ func (t *TimescaleDb) GetTransactionsByRange(
 
 	const selectCols = `
 	SELECT
-	encode(tx.tx_hash, 'base64') AS tx_hash,
+	encode(id.tx_hash, 'base64') AS tx_hash,
 	tx.timestamp,
 	tx.block_height,
 	tx.tx_events,
@@ -284,6 +287,7 @@ func (t *TimescaleDb) GetTransactionsByRange(
 	tx.success,
 	tx.error_log
 	FROM transaction_general tx
+	JOIN tx_hash_id id ON tx.tx_id = id.tx_id AND tx.chain_name = id.chain_name
 	`
 
 	hasCursor := cursor != ""
@@ -315,15 +319,15 @@ func (t *TimescaleDb) GetTransactionsByRange(
 		if hasCursor {
 			query = selectCols + `
 			WHERE tx.chain_name = $1
-			AND (tx.block_height, tx.tx_hash) < ($2, $3)
-			ORDER BY tx.block_height DESC, tx.tx_hash DESC
+			AND (tx.block_height, id.tx_hash) < ($2, $3)
+			ORDER BY tx.block_height DESC, id.tx_hash DESC
 			LIMIT $4
 			`
 			args = []any{chainName, blockHeight, decodedTxHash, fetchLimit}
 		} else {
 			query = selectCols + `
 			WHERE tx.chain_name = $1
-			ORDER BY tx.block_height DESC, tx.tx_hash DESC
+			ORDER BY tx.block_height DESC, id.tx_hash DESC
 			LIMIT $2
 			`
 			args = []any{chainName, fetchLimit}
@@ -334,8 +338,8 @@ func (t *TimescaleDb) GetTransactionsByRange(
 		}
 		query = selectCols + `
 		WHERE tx.chain_name = $1
-		AND (tx.block_height, tx.tx_hash) > ($2, $3)
-		ORDER BY tx.block_height ASC, tx.tx_hash ASC
+		AND (tx.block_height, id.tx_hash) > ($2, $3)
+		ORDER BY tx.block_height ASC, id.tx_hash ASC
 		LIMIT $4
 		`
 		args = []any{chainName, blockHeight, decodedTxHash, fetchLimit}
