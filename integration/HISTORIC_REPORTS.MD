@@ -165,3 +165,26 @@ storage of the data.
 
 The new Bank Message Multi Send in the current main version of gnoland is not supported yet. So the generator is not
 able to generate any sort of test for it.
+
+## Test Run on 2026-05-21
+
+### Test Configuration
+
+- **Chain ID**: gnoland
+- **From height**: 1
+- **To height**: 400000
+- **Block production rate**: 1 block per 5 seconds
+- **Regular addresses**: 500
+- **Validators**: 50
+- **Number of transactions**: 1059371
+
+### Process Information
+
+- **Data insertion duration**: 10-15 minutes
+- **Database size**: around 1600MB
+
+### Summary
+
+The indexer had a bug. The `indexer setup create-db` command ignored any sort of unique key. This has been fixed
+now. In comparison to previous test run it does store a bit more data but, and sort of unique key should be properly
+indexed now.

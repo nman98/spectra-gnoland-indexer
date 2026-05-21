@@ -23,15 +23,15 @@ var l = logger.Get()
 // - Cloud edition (Tiger Data)
 //
 
-// ConvertToHypertables is a method that converts the given table names to hypertables
+// ConvertToHypertables is a method that converts the given table names to hypertables.
 //
-// This function will only start this process however the whole process will run through the 3 steps
-// This is first step in the process
+// This function will only start this process however the whole process will run through the 3 steps.
+// This is first step in the process.
 // Parameters:
 // - tableNames: a slice of table names to convert to hypertables
 //
 // Returns:
-// - nil: if the program has a problem it will call log.Fatalf which will exit the program
+// - nil: if the program has a problem it will call log.Fatalf which will exit the program.
 //
 // The function will only set the hypertable chunk to 1 week, this is pretty much the default
 // however this interval should be defined mostly by developer and system specs.

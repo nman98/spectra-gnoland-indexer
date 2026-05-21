@@ -100,9 +100,9 @@ func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) 
 			return nil, fmt.Errorf("missing dbtype tag for field %s", field.Name)
 		}
 
-		nullable := field.Tag.Get("nullable") != "false" // default to nullable unless explicitly false
-		primary := field.Tag.Get("primary") == "true"    // default to not primary unless explicitly true
-		unique := field.Tag.Get("unique") == "false"     // default to not unique unless explicitly true
+		nullable := field.Tag.Get("nullable") != "false" // Default to nullable unless explicitly false
+		primary := field.Tag.Get("primary") == "true"    // Default to not primary unless explicitly true
+		unique := field.Tag.Get("unique") == "true"     // Default to not unique unless explicitly true
 
 		columnInfo := ColumnInfo{
 			Name:     dbTag,

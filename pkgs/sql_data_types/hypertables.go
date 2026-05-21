@@ -18,10 +18,10 @@ import (
 //
 // PRIMARY KEY (tx_id, timestamp. chain_name)
 type TxHashId struct {
-	TxId      int64     `db:"tx_id" dbtype:"bigserial" nullable:"false" primary:"true"`
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	TxId      int64     `db:"tx_id" dbtype:"bigint generated always as identity" nullable:"false" primary:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"primary" unique:"true"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true" unique:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
 }
 
 func (t TxHashId) TableName() string {
@@ -33,7 +33,7 @@ func (t TxHashId) GetTableInfo() (*dbinit.TableInfo, error) {
 }
 
 func (t TxHashId) TableColumns() []string {
-	fields := reflect.TypeOf(t)
+	fields := reflect.TypeFor[TxHashId]()
 	numFields := fields.NumField()
 	columns := make([]string, numFields)
 	for i := range numFields {
@@ -71,7 +71,7 @@ func (b Blocks) GetTableInfo() (*dbinit.TableInfo, error) {
 }
 
 func (b Blocks) TableColumns() []string {
-	fields := reflect.TypeOf(b)
+	fields := reflect.TypeFor[Blocks]()
 	numFields := fields.NumField()
 	columns := make([]string, numFields)
 	for i := range numFields {
@@ -109,7 +109,7 @@ func (vbs ValidatorBlockSigning) GetTableInfo() (*dbinit.TableInfo, error) {
 }
 
 func (vbs ValidatorBlockSigning) TableColumns() []string {
-	fields := reflect.TypeOf(vbs)
+	fields := reflect.TypeFor[ValidatorBlockSigning]()
 	numFields := fields.NumField()
 	columns := make([]string, numFields)
 	for i := range numFields {
@@ -144,7 +144,7 @@ func (at AddressTx) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(at, at.TableName())
 }
 func (at AddressTx) TableColumns() []string {
-	fields := reflect.TypeOf(at)
+	fields := reflect.TypeFor[AddressTx]()
 	numFields := fields.NumField()
 	columns := make([]string, numFields)
 	for i := range numFields {
@@ -200,7 +200,7 @@ func (tg TransactionGeneral) GetTableInfo() (*dbinit.TableInfo, error) {
 }
 
 func (tg TransactionGeneral) TableColumns() []string {
-	fields := reflect.TypeOf(tg)
+	fields := reflect.TypeFor[TransactionGeneral]()
 	numFields := fields.NumField()
 	columns := make([]string, numFields)
 	for i := range numFields {
@@ -253,7 +253,7 @@ func (ms MsgSend) GetTableInfo() (*dbinit.TableInfo, error) {
 // A method to get the columns of the struct
 // Useful in GnoMessage interface
 func (ms MsgSend) TableColumns() []string {
-	fields := reflect.TypeOf(ms)
+	fields := reflect.TypeFor[MsgSend]()
 	numFields := fields.NumField()
 	columns := make([]string, numFields)
 	for i := range numFields {
@@ -324,12 +324,12 @@ func (mc MsgCall) GetTableInfo() (*dbinit.TableInfo, error) {
 // A method to get the columns of the struct
 // Useful in GnoMessage interface
 func (mc MsgCall) TableColumns() []string {
-	columns := make([]string, 0)
-	fields := reflect.TypeOf(mc)
+	fields := reflect.TypeFor[MsgCall]()
 	numFields := fields.NumField()
+	columns := make([]string, numFields)
 	for i := range numFields {
 		field := fields.Field(i)
-		columns = append(columns, field.Tag.Get("db"))
+		columns[i] = field.Tag.Get("db")
 	}
 	return columns
 }
@@ -392,7 +392,7 @@ func (ma MsgAddPackage) GetTableInfo() (*dbinit.TableInfo, error) {
 // A method to get the columns of the struct
 // Useful in GnoMessage interface
 func (ma MsgAddPackage) TableColumns() []string {
-	fields := reflect.TypeOf(ma)
+	fields := reflect.TypeFor[MsgAddPackage]()
 	numFields := fields.NumField()
 	columns := make([]string, numFields)
 	for i := range numFields {
@@ -451,13 +451,13 @@ type MsgRun struct {
 // A method to get the columns of the struct
 // Useful in GnoMessage interface
 func (mr MsgRun) TableColumns() []string {
-	columns := make([]string, 0)
 	// get the fields of the struct
-	fields := reflect.TypeOf(mr)
+	fields := reflect.TypeFor[MsgRun]()
 	numFields := fields.NumField()
+	columns := make([]string, numFields)
 	for i := range numFields {
 		field := fields.Field(i)
-		columns = append(columns, field.Tag.Get("db"))
+		columns[i] = field.Tag.Get("db")
 	}
 	return columns
 }
@@ -533,7 +533,7 @@ func (m *MsgMultiSend) GetAllAddresses() *TxAddresses {
 // A method to get the columns of the struct
 // Useful in GnoMessage interface
 func (m MsgMultiSend) TableColumns() []string {
-	fields := reflect.TypeOf(m)
+	fields := reflect.TypeFor[MsgMultiSend]()
 	numFields := fields.NumField()
 	columns := make([]string, numFields)
 	for i := range numFields {

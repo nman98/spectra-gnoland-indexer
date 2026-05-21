@@ -46,9 +46,8 @@ func (ta *TxAddresses) GetAddressList() []int32 {
 // PRIMARY KEY (id), UNIQUE (address, chain_id)
 type GnoAddress struct {
 	// any of the values can't be a null value and there shouldn't be any duplicates
-	Address string `db:"address" dbtype:"TEXT" nullable:"false" primary:"true" unique:"true"`
+	Address string `db:"address" dbtype:"TEXT" nullable:"false" primary:"false" unique:"true"`
 	ID      int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
-	// use type enum chain_name from postgres
 	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
 }
 
@@ -70,7 +69,7 @@ func (g GnoAddress) GetTableInfo() (*dbinit.TableInfo, error) {
 // - Chain Name (string)
 // PRIMARY KEY (id), UNIQUE (address, chain_name)
 type GnoValidatorAddress struct {
-	Address   string `db:"address" dbtype:"TEXT" nullable:"false" primary:"true" unique:"true"`
+	Address   string `db:"address" dbtype:"TEXT" nullable:"false" primary:"false" unique:"true"`
 	ID        int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
 	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
 }
