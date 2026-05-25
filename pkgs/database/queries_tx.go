@@ -54,7 +54,8 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 	tx.compression_on,
 	tx.gas_used,
 	tx.gas_wanted,
-	tx.fee,
+	tx.fee_amount,
+	tx.fee_denom,
 	tx.msg_types,
 	tx.success,
 	tx.error_log
@@ -74,7 +75,8 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 		&transaction.CompressionOn,
 		&transaction.GasUsed,
 		&transaction.GasWanted,
-		&transaction.Fee,
+		&transaction.Fee.Amount,
+		&transaction.Fee.Denom,
 		&transaction.MsgTypes,
 		&transaction.Success,
 		&transaction.ErrorLog,
@@ -125,7 +127,8 @@ func (t *TimescaleDb) GetLastXTransactions(
 	tx.compression_on,
 	tx.gas_used,
 	tx.gas_wanted,
-	tx.fee,
+	tx.fee_amount,
+	tx.fee_denom,
 	tx.msg_types,
 	tx.success,
 	tx.error_log
@@ -152,7 +155,8 @@ func (t *TimescaleDb) GetLastXTransactions(
 			&transaction.CompressionOn,
 			&transaction.GasUsed,
 			&transaction.GasWanted,
-			&transaction.Fee,
+			&transaction.Fee.Amount,
+			&transaction.Fee.Denom,
 			&transaction.MsgTypes,
 			&transaction.Success,
 			&transaction.ErrorLog)
@@ -203,7 +207,8 @@ func (t *TimescaleDb) GetTransactionsByOffset(
 	tx.tx_events,
 	tx.gas_used,
 	tx.gas_wanted,
-	tx.fee,
+	tx.fee_amount,
+	tx.fee_denom,
 	tx.msg_types,
 	tx.success,
 	tx.error_log
@@ -221,7 +226,19 @@ func (t *TimescaleDb) GetTransactionsByOffset(
 	transactions := make([]*Transaction, 0)
 	for rows.Next() {
 		transaction := &FullTxData{}
-		err := rows.Scan(&transaction.TxHash, &transaction.Timestamp, &transaction.BlockHeight, &transaction.TxEvents, &transaction.GasUsed, &transaction.GasWanted, &transaction.Fee, &transaction.MsgTypes, &transaction.Success, &transaction.ErrorLog)
+		err := rows.Scan(
+			&transaction.TxHash,
+			&transaction.Timestamp,
+			&transaction.BlockHeight,
+			&transaction.TxEvents,
+			&transaction.GasUsed,
+			&transaction.GasWanted,
+			&transaction.Fee.Amount,
+			&transaction.Fee.Denom,
+			&transaction.MsgTypes,
+			&transaction.Success,
+			&transaction.ErrorLog,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -282,7 +299,8 @@ func (t *TimescaleDb) GetTransactionsByRange(
 	tx.compression_on,
 	tx.gas_used,
 	tx.gas_wanted,
-	tx.fee,
+	tx.fee_amount,
+	tx.fee_denom,
 	tx.msg_types,
 	tx.success,
 	tx.error_log
@@ -366,7 +384,8 @@ func (t *TimescaleDb) GetTransactionsByRange(
 			&transaction.CompressionOn,
 			&transaction.GasUsed,
 			&transaction.GasWanted,
-			&transaction.Fee,
+			&transaction.Fee.Amount,
+			&transaction.Fee.Denom,
 			&transaction.MsgTypes,
 			&transaction.Success,
 			&transaction.ErrorLog,

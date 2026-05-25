@@ -58,7 +58,7 @@ func (t *TimescaleDb) GetBlockCount24h(
 ) (int64, error) {
 	query := `
 	SELECT
-	SUM(block_count) as block_count
+	coalesce(SUM(block_count), 0) as block_count
 	FROM block_counter
 	WHERE chain_name = $1
 	AND time_bucket >= NOW() - INTERVAL '24 hours'
@@ -140,7 +140,7 @@ func (t *TimescaleDb) GetTotalTxCount24h(
 ) (int64, error) {
 	query := `
 	SELECT
-	SUM(transaction_count) as tx_count_24h
+	coalesce(SUM(transaction_count), 0) as tx_count_24h
 	FROM tx_counter
 	WHERE
 	chain_name = $1
