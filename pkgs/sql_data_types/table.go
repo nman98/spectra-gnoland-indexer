@@ -2,6 +2,7 @@ package sql_data_types
 
 import (
 	"reflect"
+	"time"
 
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 )
@@ -46,8 +47,8 @@ func (ta *TxAddresses) GetAddressList() []int32 {
 // PRIMARY KEY (id), UNIQUE (address, chain_id)
 type GnoAddress struct {
 	// any of the values can't be a null value and there shouldn't be any duplicates
-	Address string `db:"address" dbtype:"TEXT" nullable:"false" primary:"false" unique:"true"`
-	ID      int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
+	Address   string `db:"address" dbtype:"TEXT" nullable:"false" primary:"false" unique:"true"`
+	ID        int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
 	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
 }
 
@@ -125,6 +126,29 @@ func (ak ApiKey) TableColumns() []string {
 	return columns
 }
 
+// SchemaMigration records which schema migrations have been applied to this database.
+// It is a global table (no chain_name) because schema changes apply to all chains at once.
+//
+// Stores:
+//   - Version (integer) — sequential migration number, PRIMARY KEY
+//   - Description (text) — human-readable summary of what the migration does
+//   - AppliedAt (timestamptz) — when the migration was applied, defaults to now()
+//   - Success (boolean) — whether the migration completed without error
+type SchemaMigration struct {
+	Version     int32     `db:"version" dbtype:"INTEGER" nullable:"false" primary:"true"`
+	Description string    `db:"description" dbtype:"TEXT" nullable:"false" primary:"false"`
+	AppliedAt   time.Time `db:"applied_at" dbtype:"TIMESTAMPTZ DEFAULT NOW()" nullable:"false" primary:"false"`
+	Success     bool      `db:"success" dbtype:"BOOLEAN" nullable:"false" primary:"true"`
+}
+
+func (sm SchemaMigration) TableName() string {
+	return "schema_migrations"
+}
+
+func (sm SchemaMigration) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(sm, sm.TableName())
+}
+
 func AllTableNames() []string {
 	tables := []DBTable{
 		GnoAddress{},
@@ -139,6 +163,7 @@ func AllTableNames() []string {
 		MsgAddPackage{},
 		MsgRun{},
 		ApiKey{},
+		SchemaMigration{},
 	}
 	names := make([]string, len(tables))
 	for i, t := range tables {

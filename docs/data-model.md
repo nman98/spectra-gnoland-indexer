@@ -1,8 +1,8 @@
-# Database data model and schema
+# Database Data Model and Schema
 
 This file will outline how the data is gathered, stored and processed by the indexer.
 
-## Data flow from the RPC node
+## Data Flow from the RPC Node
 
 The indexer will connect to the RPC node and will start to gather the data from the node.
 It collects and processes data by using batch processing. For live mode the indexer will collect the data up to the
@@ -49,11 +49,11 @@ flowchart TD
 
 First the indexer gathers block data and validator signing for those blocks. If there are transactions the
 tx hashes are gathered from the block height data and are queried from the RPC. At that moment the transaction
-data is gathered and processes and all of the transaction general data and messages contained in the transaction
+data is gathered and processes and all the transaction general data and messages contained in the transaction
 are stored in the database. The regular and validator addresses are processed in that way that the addresses are
 stored as unique int32 ids and then referenced by the integer value in the transaction tables.
 
-## Core schema
+## Core Schema
 
 ```mermaid
 erDiagram
@@ -118,7 +118,7 @@ erDiagram
     gno_addresses ||--o{ address_tx : "participates"
 ```
 
-## Message types
+## Message Types
 
 ```mermaid
 erDiagram
@@ -210,7 +210,7 @@ erDiagram
     gno_addresses ||--o{ bank_msg_multi_send : "address"
 ```
 
-## Custom types
+## Custom Types
 
 ```mermaid
 erDiagram
@@ -260,6 +260,26 @@ erDiagram
     amount ||--o{ vm_msg_add_package : "send/max_deposit"
     amount ||--o{ vm_msg_run : "send/max_deposit"
 ```
+
+## Schema versioning
+
+`schema_migrations` is a global table (no `chain_name`) that records which migrations have been applied to
+the database. Because schema changes affect all chains at once, versioning is per-database, not per-chain.
+
+```mermaid
+erDiagram
+    schema_migrations {
+      INTEGER version
+      TEXT description
+      TIMESTAMPTZ applied_at
+      BOOLEAN success
+    }
+```
+
+The `version` column is the primary key and should be incremented sequentially for each migration. 
+`applied_at` defaults to `NOW()` so it is set automatically on insert. `success` lets you record a failed 
+migration attempt without deleting the row. Since the project is still in development it won't probably be
+used until a stable version of indexer is published.
 
 ## Aggregates
 

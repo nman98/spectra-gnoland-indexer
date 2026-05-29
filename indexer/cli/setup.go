@@ -198,6 +198,7 @@ func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
 		sdt.GnoAddress{},
 		sdt.GnoValidatorAddress{},
 		sdt.ApiKey{},
+		sdt.SchemaMigration{},
 	}
 
 	l.Info().Str("chain", chainName).Msg("inserting regular tables")
