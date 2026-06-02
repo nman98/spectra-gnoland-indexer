@@ -23,13 +23,16 @@ import (
 //   - error: if the query fails
 func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName string) (*BlockData, error) {
 	query1 := `
-	SELECT encode(hash, 'base64'), 
-	height, 
-	timestamp, 
-	chain_id
-	FROM blocks
-	WHERE height = $1
-	AND chain_name = $2
+	SELECT encode(hash, 'base64'),
+	b.height as height,
+	b.timestamp as timestamp,
+	b.chain_id as chain_id,
+	gv.address as proposer
+	FROM blocks b
+	JOIN validator_block_signing vb ON b.height = vb.block_height AND b.chain_name = vb.chain_name
+	JOIN gno_validators gv ON vb.proposer = gv.id
+	WHERE b.height = $1
+	AND b.chain_name = $2
 	`
 	query2 := `
 	SELECT
@@ -73,9 +76,9 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 
 func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*BlockData, error) {
 	query1 := `
-	SELECT encode(hash, 'base64'), 
-	b.height as height, 
-	b.timestamp as timestamp, 
+	SELECT encode(hash, 'base64'),
+	b.height as height,
+	b.timestamp as timestamp,
 	b.chain_id as chain_id,
 	gv.address as proposer
 	FROM blocks b
@@ -140,9 +143,9 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 //   - error: if the query fails
 func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x uint64) ([]*BlockData, error) {
 	query1 := `
-	SELECT encode(hash, 'base64'), 
-	b.height as height, 
-	b.timestamp as timestamp, 
+	SELECT encode(hash, 'base64'),
+	b.height as height,
+	b.timestamp as timestamp,
 	b.chain_id as chain_id,
 	gv.address as proposer
 	FROM blocks b
@@ -213,9 +216,9 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 //   - error: if the query fails
 func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, toHeight uint64, chainName string) ([]*BlockData, error) {
 	query1 := `
-	SELECT encode(hash, 'base64'), 
-	b.height as height, 
-	b.timestamp as timestamp, 
+	SELECT encode(hash, 'base64'),
+	b.height as height,
+	b.timestamp as timestamp,
 	b.chain_id as chain_id,
 	gv.address as proposer
 	FROM blocks b
