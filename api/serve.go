@@ -58,6 +58,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	mux := chi.NewMux()
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
+	mux.Use(txHashNormalizer) // must precede CleanPath so leading '/' in hash is encoded first
 	mux.Use(middleware.CleanPath)
 	mux.Use(middleware.Compress(5, "application/json", "application/problem+json"))
 	mux.Use(middleware.Heartbeat("/"))

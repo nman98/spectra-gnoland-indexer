@@ -161,5 +161,5 @@ func TestTransactionsHandler_GetTransactionBasic_BadHash(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
-	assert.Contains(t, err.Error(), "transaction hash is not valid base64url encoded")
+	assert.Contains(t, err.Error(), "transaction hash is not valid base64 encoded")
 }

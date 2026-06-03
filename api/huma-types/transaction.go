@@ -9,7 +9,7 @@ import (
 
 type TransactionGetInput struct {
 	// tx hash needs to be exactly 44 characters long
-	TxHash string `path:"tx_hash" minLength:"44" maxLength:"44" doc:"Transaction hash (base64url encoded)" required:"true"`
+	TxHash string `path:"tx_hash" minLength:"44" maxLength:"44" doc:"Transaction hash (base64 encoded; base64url is also accepted)" required:"true"`
 }
 
 // TransactionBasicGetOutput represents the response for basic transaction details

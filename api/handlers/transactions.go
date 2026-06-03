@@ -27,11 +27,10 @@ func (h *TransactionsHandler) GetTransactionBasic(
 	input *humatypes.TransactionGetInput,
 ) (*humatypes.TransactionBasicGetOutput, error) {
 	input.TxHash = strings.Trim(input.TxHash, " ")
-	txHash, err := base64.URLEncoding.DecodeString(input.TxHash)
+	txHashBase64, err := parseTxHash(input.TxHash)
 	if err != nil {
-		return nil, badRequest("transaction hash is not valid base64url encoded")
+		return nil, badRequest("transaction hash is not valid base64 encoded")
 	}
-	txHashBase64 := base64.StdEncoding.EncodeToString(txHash)
 	transaction, err := h.db.GetTransaction(ctx, txHashBase64, h.chainName)
 	if err != nil {
 		return nil, mapDbError(
@@ -51,11 +50,10 @@ func (h *TransactionsHandler) GetTransactionMessage(
 	input *humatypes.TransactionGetInput,
 ) (*humatypes.TransactionMessageGetOutput, error) {
 	input.TxHash = strings.Trim(input.TxHash, " ")
-	txHash, err := base64.URLEncoding.DecodeString(input.TxHash)
+	txHashBase64, err := parseTxHash(input.TxHash)
 	if err != nil {
-		return nil, badRequest("transaction hash is not valid base64url encoded")
+		return nil, badRequest("transaction hash is not valid base64 encoded")
 	}
-	txHashBase64 := base64.StdEncoding.EncodeToString(txHash)
 	response := make(map[int16]humatypes.TransactionMessage)
 	msgTypes, err := h.db.GetMsgTypes(ctx, txHashBase64, h.chainName)
 	if err != nil {
@@ -180,6 +178,18 @@ func (h *TransactionsHandler) GetTransactionsByCursor(
 	return &humatypes.TransactionGeneralListByCursorGetOutput{
 		Body: body,
 	}, nil
+}
+
+// parseTxHash decodes a 44-character transaction hash that is either standard base64
+// ("+" and "/" characters) or base64url ("-" and "_" characters). It always returns
+// the hash re-encoded as standard base64, which is what the database expects.
+func parseTxHash(s string) (string, error) {
+	normalized := strings.NewReplacer("-", "+", "_", "/").Replace(s)
+	raw, err := base64.StdEncoding.DecodeString(normalized)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(raw), nil
 }
 
 // makeTxCursor encodes a (block_height, tx_hash) pair into the "<height>|<hash>" form
