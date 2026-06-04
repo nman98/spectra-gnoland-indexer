@@ -113,7 +113,7 @@ func (tr *TxResponse) WithEvents(events []Event) *TxResponse {
 }
 
 // WithError adds an error to a test TxResponse
-func (tr *TxResponse) WithError(err interface{}) *TxResponse {
+func (tr *TxResponse) WithError(err any) *TxResponse {
 	tr.Result.TxResult.ResponseBase.Error = err
 	return tr
 }

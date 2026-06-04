@@ -30,7 +30,7 @@ func InitMainOperator(
 	envPath string,
 	rpcFlags mainTypes.RpcFlags,
 	runningFlags mainTypes.RunningFlags,
- ) {
+) {
 	// load config
 	conf, err := config.LoadConfig(configPath)
 	if err != nil {
@@ -277,9 +277,9 @@ func (mc *MajorConstructors) dumpState() error {
 	l.Info().Msg("Creating major constructors state dump...")
 
 	// Create basic state information
-	state := map[string]interface{}{
+	state := map[string]any{
 		"timestamp": time.Now(),
-		"components": map[string]interface{}{
+		"components": map[string]any{
 			"database":        mc.db != nil,
 			"gno_rpc_client":  mc.gnoRpcClient != nil,
 			"validator_cache": mc.validatorCache != nil,
@@ -292,7 +292,7 @@ func (mc *MajorConstructors) dumpState() error {
 	// Add more detailed state if components support it
 	if mc.gnoRpcClient != nil {
 		// Try to get RPC client state if it has a method for it
-		if stateProvider, ok := interface{}(mc.gnoRpcClient).(interface{ GetState() map[string]interface{} }); ok {
+		if stateProvider, ok := any(mc.gnoRpcClient).(interface{ GetState() map[string]any }); ok {
 			state["rpc_client_state"] = stateProvider.GetState()
 		}
 	}

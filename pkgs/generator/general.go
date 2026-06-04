@@ -9,7 +9,6 @@ import (
 	"time"
 
 	eventsProto "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -167,7 +166,7 @@ var eventTemplates = map[string]func(*DataGenerator) eventsProto.Event{
 					Value: &eventsProto.Attribute_StringValue{
 						StringValue: displayNames[g.rand.Intn(len(displayNames))] + fmt.Sprintf("%d", g.rand.Intn(1000))}},
 			},
-			PkgPath: proto.String("gno.land/r/demo/profile"),
+			PkgPath: new("gno.land/r/demo/profile"),
 		}
 	},
 
@@ -183,7 +182,7 @@ var eventTemplates = map[string]func(*DataGenerator) eventsProto.Event{
 					Key:   "Storage",
 					Value: &eventsProto.Attribute_StringValue{StringValue: g.GenerateBytesValue()}},
 			},
-			PkgPath: proto.String(g.GeneratePackagePath()),
+			PkgPath: new(g.GeneratePackagePath()),
 		}
 	},
 
@@ -212,7 +211,7 @@ var eventTemplates = map[string]func(*DataGenerator) eventsProto.Event{
 				{Key: "Name", Value: &eventsProto.Attribute_StringValue{StringValue: boardNames[g.rand.Intn(len(boardNames))]}},
 				{Key: "Creator", Value: &eventsProto.Attribute_StringValue{StringValue: g.GenerateAddress()}},
 			},
-			PkgPath: proto.String("gno.land/r/demo/board"),
+			PkgPath: new("gno.land/r/demo/board"),
 		}
 	},
 
@@ -226,7 +225,7 @@ var eventTemplates = map[string]func(*DataGenerator) eventsProto.Event{
 				{Key: "Author", Value: &eventsProto.Attribute_StringValue{StringValue: g.GenerateAddress()}},
 				{Key: "Title", Value: &eventsProto.Attribute_StringValue{StringValue: fmt.Sprintf("Post Title %d", g.rand.Intn(1000))}},
 			},
-			PkgPath: proto.String("gno.land/r/demo/board"),
+			PkgPath: new("gno.land/r/demo/board"),
 		}
 	},
 
@@ -241,7 +240,7 @@ var eventTemplates = map[string]func(*DataGenerator) eventsProto.Event{
 				{Key: "ToToken", Value: &eventsProto.Attribute_StringValue{StringValue: "usdt"}},
 				{Key: "FromAmount", Value: &eventsProto.Attribute_StringValue{StringValue: g.GenerateAmountString()}},
 			},
-			PkgPath: proto.String("gno.land/r/dex/swap"),
+			PkgPath: new("gno.land/r/dex/swap"),
 		}
 	},
 }
@@ -356,7 +355,7 @@ func (g *DataGenerator) genMsgData(transactionType string) std.Msg {
 		}
 		fileNames := g.GeneratePackageFileName()
 		files := make([]*std.MemFile, len(fileNames))
-		for i := 0; i < len(fileNames); i++ {
+		for i := range fileNames {
 			files[i] = &std.MemFile{
 				Name: fileNames[i],
 				Body: "content",
@@ -478,7 +477,7 @@ func (g *DataGenerator) GeneratePackageFileName() []string {
 	// so we will return a slice of file names
 	numFileNames := g.rand.Intn(3) + 1
 	fileNames := make([]string, numFileNames)
-	for i := 0; i < numFileNames; i++ {
+	for i := range numFileNames {
 		fileNames[i] = possibleFileNames[g.rand.Intn(len(possibleFileNames))]
 	}
 	return fileNames
@@ -489,7 +488,7 @@ func GenerateTrainingDataset(numTransactions int) [][]byte {
 	generator := NewDataGenerator(500)
 	dataset := make([][]byte, numTransactions)
 
-	for i := 0; i < numTransactions; i++ {
+	for i := range numTransactions {
 		tx, _ := generator.GenerateTransaction()
 		jsonData, _ := json.Marshal(tx)
 		dataset[i] = jsonData

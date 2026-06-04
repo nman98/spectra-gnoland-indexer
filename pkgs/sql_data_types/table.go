@@ -118,9 +118,9 @@ func (ak ApiKey) GetTableInfo() (*dbinit.TableInfo, error) {
 
 func (ak ApiKey) TableColumns() []string {
 	columns := make([]string, 0)
-	fields := reflect.TypeOf(ak)
-	for i := range fields.NumField() {
-		field := fields.Field(i)
+	fields := reflect.TypeFor[ApiKey]()
+	for field := range fields.Fields() {
+		field := field
 		columns = append(columns, field.Tag.Get("db"))
 	}
 	return columns

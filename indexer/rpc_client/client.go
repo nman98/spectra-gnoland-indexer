@@ -74,7 +74,7 @@ const (
 	RequestCommit = "commit"
 )
 
-func (r *RpcGnoland) performRequest(method string, params map[string]any, result interface{}) error {
+func (r *RpcGnoland) performRequest(method string, params map[string]any, result any) error {
 	requestBody, err := json.Marshal(map[string]any{
 		"jsonrpc": "2.0",
 		"id":      1,
@@ -268,7 +268,7 @@ func (r *RpcGnoland) GetTx(txHash string) (*TxResponse, *RpcStringError) {
 //   - any: the response from the rpc client, it can be a different type depending on the path and data
 //   - error: if the call fails
 func (r *RpcGnoland) GetAbciQuery(path string, data string, height *uint64, prove *bool) (any, error) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"path": path,
 		"data": data,
 	}
@@ -279,7 +279,7 @@ func (r *RpcGnoland) GetAbciQuery(path string, data string, height *uint64, prov
 		params["prove"] = *prove
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	if err := r.performRequest(AbciQuery, params, &response); err != nil {
 		return nil, err
 	}

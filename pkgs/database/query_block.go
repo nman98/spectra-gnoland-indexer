@@ -331,7 +331,7 @@ func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string)
 }
 
 // fetchBlocksData fetches block data from the database and appends to the provided slice
-func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ...interface{}) ([]*BlockData, error) {
+func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ...any) ([]*BlockData, error) {
 	rows, err := t.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -351,7 +351,7 @@ func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ..
 }
 
 // fetchTransactionData fetches transaction data and maps it by block height
-func (t *TimescaleDb) fetchTransactionData(ctx context.Context, query string, args ...interface{}) (map[uint64][]string, error) {
+func (t *TimescaleDb) fetchTransactionData(ctx context.Context, query string, args ...any) (map[uint64][]string, error) {
 	rows, err := t.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err

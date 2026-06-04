@@ -299,16 +299,16 @@ func (dbc BlockCounter) AggregatePolicy(
 func aggColumns(v any) []string {
 	t := reflect.TypeOf(v)
 	cols := make([]string, 0, t.NumField())
-	for i := range t.NumField() {
-		cols = append(cols, t.Field(i).Tag.Get("mt"))
+	for field := range t.Fields() {
+		cols = append(cols, field.Tag.Get("mt"))
 	}
 	return cols
 }
 func aggFunctions(v any) []string {
 	t := reflect.TypeOf(v)
 	fns := make([]string, 0, t.NumField())
-	for i := range t.NumField() {
-		fn := t.Field(i).Tag.Get("fn")
+	for field := range t.Fields() {
+		fn := field.Tag.Get("fn")
 		if fn == "" {
 			fn = "noop"
 		}
@@ -320,8 +320,8 @@ func aggFunctions(v any) []string {
 func aggGroupBy(v any) []string {
 	t := reflect.TypeOf(v)
 	gb := make([]string, t.NumField())
-	for i := range t.NumField() {
-		f := t.Field(i)
+	for f := range t.Fields() {
+		f := f
 		name := f.Tag.Get("mt")
 		idx := f.Tag.Get("gb")
 		if idx == "" {

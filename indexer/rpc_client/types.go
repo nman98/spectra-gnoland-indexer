@@ -14,16 +14,16 @@ type RpcGnoland struct {
 
 // JsonRpcError is part of the struct for the rpc client
 type JsonRpcError struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 type HealthResponse struct {
 	Jsonrpc string        `json:"jsonrpc"`
 	ID      int           `json:"id"`
 	Error   *JsonRpcError `json:"error,omitempty"`
-	Result  interface{}   `json:"result"`
+	Result  any           `json:"result"`
 }
 
 // Client is the interface for the rpc client

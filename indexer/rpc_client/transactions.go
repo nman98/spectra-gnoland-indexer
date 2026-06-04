@@ -19,11 +19,11 @@ type Event struct {
 }
 
 type ResponseBase struct {
-	Error  interface{} `json:"Error"`
-	Data   string      `json:"Data"`
-	Events []Event     `json:"Events"`
-	Log    string      `json:"Log"`
-	Info   string      `json:"Info"`
+	Error  any     `json:"Error"`
+	Data   string  `json:"Data"`
+	Events []Event `json:"Events"`
+	Log    string  `json:"Log"`
+	Info   string  `json:"Info"`
 }
 
 type TxResult struct {

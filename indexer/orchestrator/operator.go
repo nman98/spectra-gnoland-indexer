@@ -419,7 +419,6 @@ func (or *Orchestrator) processPhase1(
 	l.Info().Msg("Phase 1: chunk processing completed")
 }
 
-
 func (or *Orchestrator) processPhase2(
 	phase1Done chan struct{},
 	phase2Done chan struct{},
@@ -542,12 +541,12 @@ func (or *Orchestrator) DumpState() error {
 	or.saveProcessingState(or.currentProcessingHeight, "emergency_dump")
 
 	// Create additional diagnostic information
-	diagnostics := map[string]interface{}{
+	diagnostics := map[string]any{
 		"chain_name":                or.chainName,
 		"running_mode":              or.runningMode,
 		"is_processing":             or.isProcessing,
 		"current_processing_height": or.currentProcessingHeight,
-		"config": map[string]interface{}{
+		"config": map[string]any{
 			"max_block_chunk_size": or.config.MaxBlockChunkSize,
 			"live_pooling":         or.config.LivePooling,
 			"rpc_url":              or.config.RpcUrl,

@@ -3,6 +3,7 @@ package addresscache
 import (
 	"context"
 	"errors"
+	"maps"
 	"reflect"
 	"sort"
 	"testing"
@@ -101,9 +102,7 @@ func (m *mockDB) GetAllAddresses(ctx context.Context, chainName string, searchVa
 func newCacheForTest(t *testing.T, existing map[string]int32, loadValidators bool) (*AddressCache, *mockDB) {
 	t.Helper()
 	m := &mockDB{existing: map[string]int32{}}
-	for k, v := range existing {
-		m.existing[k] = v
-	}
+	maps.Copy(m.existing, existing)
 	// constructor loads all existing for the flag
 	c := NewAddressCache("chain", m, loadValidators)
 	return c, m

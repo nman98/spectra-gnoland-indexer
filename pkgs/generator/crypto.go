@@ -67,7 +67,7 @@ func (cg *CryptoGenerator) GenerateAuthenticPubKey() string {
 // This is more efficient than generating new keys for every address needed
 func (cg *CryptoGenerator) GenerateKeyPairPool(size int) []*KeyPair {
 	pool := make([]*KeyPair, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		pool[i] = cg.GenerateKeyPair()
 	}
 	return pool

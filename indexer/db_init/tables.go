@@ -55,7 +55,7 @@ type SpecialType struct {
 // Returns:
 // - TableInfo: the table info for the table
 // - error: if the function fails
-func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) {
+func GetTableInfo(structType any, tableName string) (*TableInfo, error) {
 	t := reflect.TypeOf(structType)
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
@@ -70,8 +70,8 @@ func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) 
 		Columns:   make([]ColumnInfo, 0),
 	}
 
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
+	for field := range t.Fields() {
+		field := field
 
 		// Skip unexported fields
 		if !field.IsExported() {
@@ -102,7 +102,7 @@ func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) 
 
 		nullable := field.Tag.Get("nullable") != "false" // Default to nullable unless explicitly false
 		primary := field.Tag.Get("primary") == "true"    // Default to not primary unless explicitly true
-		unique := field.Tag.Get("unique") == "true"     // Default to not unique unless explicitly true
+		unique := field.Tag.Get("unique") == "true"      // Default to not unique unless explicitly true
 
 		columnInfo := ColumnInfo{
 			Name:     dbTag,
@@ -371,7 +371,7 @@ func (db *DBInitializer) GetTimescaleDBVersion() (*TimescaleDBVersion, error) {
 // Returns:
 // - nil: if the function is successful
 // - error: if the function fails
-func (db *DBInitializer) CreateTableFromStruct(structType interface{}, tableName string) error {
+func (db *DBInitializer) CreateTableFromStruct(structType any, tableName string) error {
 	tableInfo, err := GetTableInfo(structType, tableName)
 	if err != nil {
 		return fmt.Errorf("failed to get table info: %w", err)
@@ -388,7 +388,7 @@ func (db *DBInitializer) CreateTableFromStruct(structType interface{}, tableName
 }
 
 // GetSpecialTypeInfo extracts database type information from a struct using reflection
-func GetSpecialTypeInfo(structType interface{}, typeName string) (*SpecialType, error) {
+func GetSpecialTypeInfo(structType any, typeName string) (*SpecialType, error) {
 	t := reflect.TypeOf(structType)
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
@@ -403,8 +403,8 @@ func GetSpecialTypeInfo(structType interface{}, typeName string) (*SpecialType, 
 		Columns:  make([]ColumnInfo, 0),
 	}
 
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
+	for field := range t.Fields() {
+		field := field
 
 		if !field.IsExported() {
 			continue
@@ -440,7 +440,7 @@ func GetSpecialTypeInfo(structType interface{}, typeName string) (*SpecialType, 
 // Returns:
 // - nil: if the function is successful
 // - error: if the function fails
-func (db *DBInitializer) CreateSpecialTypeFromStruct(structType interface{}, typeName string) error {
+func (db *DBInitializer) CreateSpecialTypeFromStruct(structType any, typeName string) error {
 	specialType, err := GetSpecialTypeInfo(structType, typeName)
 	if err != nil {
 		return fmt.Errorf("failed to get special type info: %w", err)
@@ -468,7 +468,7 @@ func (db *DBInitializer) CreateSpecialTypeFromStruct(structType interface{}, typ
 // - nil: if the function is successful
 // - error: if the function fails
 func (db *DBInitializer) CreateHypertableFromStruct(
-	structType interface{}, tableName string, params HypertableParams) error {
+	structType any, tableName string, params HypertableParams) error {
 	// First get the table info
 	tableInfo, err := GetTableInfo(structType, tableName)
 	if err != nil {

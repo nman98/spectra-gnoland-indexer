@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"maps"
 	"sync"
 	"testing"
 	"time"
@@ -27,9 +28,7 @@ func (f *fakeDb) GetAllApiKeysWithLimits(ctx context.Context) (map[[32]byte]int,
 	}
 	// Return a copy to ensure keystore copies into its own map as well
 	out := make(map[[32]byte]int, len(f.keys))
-	for k, v := range f.keys {
-		out[k] = v
-	}
+	maps.Copy(out, f.keys)
 	return out, nil
 }
 
@@ -129,15 +128,15 @@ func TestConcurrentGetKeyLimit_ReadLockSafety(t *testing.T) {
 	ks.keys[h] = 5
 
 	done := make(chan struct{})
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		go func() {
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				ks.GetKeyLimit(h)
 			}
 			done <- struct{}{}
 		}()
 	}
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		select {
 		case <-done:
 		case <-time.After(2 * time.Second):
