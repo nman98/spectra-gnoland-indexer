@@ -243,11 +243,11 @@ func processMsgs(
 func extractCoins(amount std.Coins) ([]Coin, error) {
 	// make a string and split it by space
 	coins := make([]Coin, len(amount))
-	for _, coin := range amount {
-		coins = append(coins, Coin{
+	for i, coin := range amount {
+		coins[i] = Coin{
 			Amount: coin.Amount,
 			Denom:  coin.Denom,
-		})
+		}
 	}
 	return coins, nil
 }
