@@ -19,11 +19,11 @@ func NewResponseMaker(generator *generator.DataGenerator) *ResponseMaker {
 }
 
 type GenBlockInput struct {
-	Height          uint64
-	ChainID         string
-	Timestamp       time.Time
-	TxsRaw          []string
-	ProposerAddress string
+	Height           uint64
+	ChainID          string
+	Timestamp        time.Time
+	TxsRaw           []string
+	ProposerAddress  string
 	SignedValidators []string
 }
 
@@ -61,15 +61,15 @@ func (rm *ResponseMaker) GenerateBlockResponse(input GenBlockInput) *rpcClient.B
 						Total: "1", Hash: partsHash},
 				},
 				Header: rpcClient.BlockHeader{
-					Version:         "1.0.0",
-					ChainID:         input.ChainID,
-					Height:          strconv.FormatUint(input.Height, 10),
-					Time:            input.Timestamp,
-					NumTxs:          "0",
-					TotalTxs:        "0",
-					AppVersion:      "1.0.0",
-					ProposerAddress: input.ProposerAddress,
-					LastBlockID:     rpcClient.BlockID{Hash: lastBlockHash, Parts: rpcClient.Parts{Total: "1", Hash: lastPartsHash}},
+					Version:            "1.0.0",
+					ChainID:            input.ChainID,
+					Height:             strconv.FormatUint(input.Height, 10),
+					Time:               input.Timestamp,
+					NumTxs:             "0",
+					TotalTxs:           "0",
+					AppVersion:         "1.0.0",
+					ProposerAddress:    input.ProposerAddress,
+					LastBlockID:        rpcClient.BlockID{Hash: lastBlockHash, Parts: rpcClient.Parts{Total: "1", Hash: lastPartsHash}},
 					LastCommitHash:     lastCommitHash,
 					DataHash:           dataHash,
 					ValidatorsHash:     validatorsHash,

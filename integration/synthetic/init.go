@@ -58,7 +58,6 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 	dataProc := dataProcessor.NewDataProcessor(db, addrCache, validatorCache, testConfig.ChainID, int(orchConfig.MaxTransactionChunkSize))
 	log.Printf("Initialized data processor")
 
-
 	chunkSize := orchConfig.MaxBlockChunkSize
 	totalChunks := (testConfig.ToHeight - testConfig.FromHeight + chunkSize) / chunkSize
 	currentChunk := uint64(0)

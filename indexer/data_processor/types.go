@@ -33,7 +33,7 @@ type DataProcessor struct {
 	addressCache   AddressCache
 	validatorCache AddressCache
 	chainName      string
-	txHashCache map[string]int64
+	txHashCache    map[string]int64
 }
 
 type TransactionsData struct {
@@ -68,83 +68,87 @@ type key struct {
 }
 
 type msgSendInserter []sqlDataTypes.MsgSend
+
 func (m msgSendInserter) count() int {
-    return len(m)
+	return len(m)
 }
 func (m msgSendInserter) insert(ctx context.Context, db Database) error {
-    return db.InsertMsgSend(ctx, []sqlDataTypes.MsgSend(m))
+	return db.InsertMsgSend(ctx, []sqlDataTypes.MsgSend(m))
 }
 
 func (m msgSendInserter) getTxIds() []int64 {
-    txIds := make([]int64, len(m))
-    for i, msg := range m {
-        txIds[i] = msg.TxId
-    }
-    return txIds
+	txIds := make([]int64, len(m))
+	for i, msg := range m {
+		txIds[i] = msg.TxId
+	}
+	return txIds
 }
 
 type msgCallInserter []sqlDataTypes.MsgCall
+
 func (m msgCallInserter) count() int {
-    return len(m)
+	return len(m)
 }
 func (m msgCallInserter) insert(ctx context.Context, db Database) error {
-    return db.InsertMsgCall(ctx, []sqlDataTypes.MsgCall(m))
+	return db.InsertMsgCall(ctx, []sqlDataTypes.MsgCall(m))
 }
 
 func (m msgCallInserter) getTxIds() []int64 {
-    txIds := make([]int64, len(m))
-    for i, msg := range m {
-        txIds[i] = msg.TxId
-    }
-    return txIds
+	txIds := make([]int64, len(m))
+	for i, msg := range m {
+		txIds[i] = msg.TxId
+	}
+	return txIds
 }
 
 type msgAddPackageInserter []sqlDataTypes.MsgAddPackage
 
 func (m msgAddPackageInserter) count() int {
-    return len(m)
+	return len(m)
 }
 func (m msgAddPackageInserter) insert(ctx context.Context, db Database) error {
-    return db.InsertMsgAddPackage(ctx, []sqlDataTypes.MsgAddPackage(m))
+	return db.InsertMsgAddPackage(ctx, []sqlDataTypes.MsgAddPackage(m))
 }
 func (m msgAddPackageInserter) getTxIds() []int64 {
-    txIds := make([]int64, len(m))
-    for i, msg := range m {
-        txIds[i] = msg.TxId
-    }
-    return txIds
+	txIds := make([]int64, len(m))
+	for i, msg := range m {
+		txIds[i] = msg.TxId
+	}
+	return txIds
 }
+
 type msgRunInserter []sqlDataTypes.MsgRun
 
 func (m msgRunInserter) count() int {
-    return len(m)
+	return len(m)
 }
 func (m msgRunInserter) insert(ctx context.Context, db Database) error {
-    return db.InsertMsgRun(ctx, []sqlDataTypes.MsgRun(m))
+	return db.InsertMsgRun(ctx, []sqlDataTypes.MsgRun(m))
 }
 
 func (m msgRunInserter) getTxIds() []int64 {
-    txIds := make([]int64, len(m))
-    for i, msg := range m {
-        txIds[i] = msg.TxId
-    }
-    return txIds
+	txIds := make([]int64, len(m))
+	for i, msg := range m {
+		txIds[i] = msg.TxId
+	}
+	return txIds
 }
 
 type msgMultiSendInserter []sqlDataTypes.MsgMultiSend
+
 func (m msgMultiSendInserter) count() int {
-    return len(m)
+	return len(m)
 }
 func (m msgMultiSendInserter) insert(ctx context.Context, db Database) error {
-    return db.InsertMsgMultiSend(ctx, []sqlDataTypes.MsgMultiSend(m))
+	return db.InsertMsgMultiSend(ctx, []sqlDataTypes.MsgMultiSend(m))
 }
 
 func (m msgMultiSendInserter) getTxIds() []int64 {
-    txIds := make([]int64, len(m))
-    for i, msg := range m {
-        txIds[i] = msg.TxId
-    }
-    return txIds
+	txIds := make([]int64, len(m))
+	for i, msg := range m {
+		txIds[i] = msg.TxId
+	}
+	return txIds
 }
 
 // Interface for message inserter

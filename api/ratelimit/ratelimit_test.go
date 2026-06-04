@@ -13,9 +13,9 @@ import (
 
 // fakeValkey implements ValkeyLike for tests.
 type fakeValkey struct {
-	counts       map[string]int64
-	errOnIncr    error
-	expireCalls  map[string]time.Duration
+	counts      map[string]int64
+	errOnIncr   error
+	expireCalls map[string]time.Duration
 }
 
 func newFakeValkey() *fakeValkey {
@@ -130,15 +130,17 @@ func TestMiddleware_ValidAPIKey_UsesKeyLimitAndHeaders(t *testing.T) {
 
 	// ensure key-based identifier used (first 8 bytes of hash)
 	short := (h[:8])
-	id := "key:" + (func() string { return (func(b []byte) string {
-		const hextable = "0123456789abcdef"
-		out := make([]byte, len(b)*2)
-		for i, v := range b {
-			out[i*2] = hextable[v>>4]
-			out[i*2+1] = hextable[v&0x0f]
-		}
-		return string(out)
-	})(short) })()
+	id := "key:" + (func() string {
+		return (func(b []byte) string {
+			const hextable = "0123456789abcdef"
+			out := make([]byte, len(b)*2)
+			for i, v := range b {
+				out[i*2] = hextable[v>>4]
+				out[i*2+1] = hextable[v&0x0f]
+			}
+			return string(out)
+		})(short)
+	})()
 	_, ok := vk.expireCalls["rl:"+id]
 	assert.True(t, ok, "expected expirer to be called for key identifier")
 }

@@ -20,7 +20,7 @@ var defaultLimit = uint64(10)
 //
 //  1. Timestamp range: both fromTimestamp and toTimestamp are non-nil. The result
 //     is ordered by (timestamp, tx_hash) according to sortOrder. It also allows addition
-//	   cursor to be used to thraverse from that timestamp to the previous or next timestamp.
+//     cursor to be used to thraverse from that timestamp to the previous or next timestamp.
 //  2. Cursor: fromTimestamp and toTimestamp are both nil. Pagination follows the
 //     same keyset scheme as the transactions range API, using (block_height, tx_hash)
 //     as the seek key. The response is always ordered newest-first and the caller
@@ -188,7 +188,7 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 		return nil, false, err
 	}
 
-	hasMore := uint64(len(*addressTxs)) > *limit 
+	hasMore := uint64(len(*addressTxs)) > *limit
 	if hasMore {
 		trimmed := (*addressTxs)[:*limit]
 		addressTxs = &trimmed
