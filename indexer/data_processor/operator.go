@@ -220,7 +220,7 @@ func (d *DataProcessor) processBlock(
 // It is used to store transaction ids that will be used later when inserting.
 //
 // Parameters:
-//	- txData - transactions data from RPC client
+//   - txData - transactions data from RPC client
 func (d *DataProcessor) ProcessTxHashIds(
 	txData []TransactionsData,
 ) {
@@ -372,7 +372,7 @@ func (d *DataProcessor) processTransaction(
 	}
 
 	transactionsData[idx] = sqlDataTypes.TransactionGeneral{
-		TxId:           	txId,
+		TxId:               txId,
 		ChainName:          d.chainName,
 		Timestamp:          transaction.Timestamp,
 		BlockHeight:        transaction.BlockHeight,
@@ -441,11 +441,11 @@ func (d *DataProcessor) ProcessMessages(
 	wg.Wait()
 
 	aggregatedDbGroups := &decoder.DbMessageGroups{
-		MsgSend:   make([]sqlDataTypes.MsgSend, 0),
+		MsgSend:      make([]sqlDataTypes.MsgSend, 0),
 		MsgMultiSend: make([]sqlDataTypes.MsgMultiSend, 0),
-		MsgCall:   make([]sqlDataTypes.MsgCall, 0),
-		MsgAddPkg: make([]sqlDataTypes.MsgAddPackage, 0),
-		MsgRun:    make([]sqlDataTypes.MsgRun, 0),
+		MsgCall:      make([]sqlDataTypes.MsgCall, 0),
+		MsgAddPkg:    make([]sqlDataTypes.MsgAddPackage, 0),
+		MsgRun:       make([]sqlDataTypes.MsgRun, 0),
 	}
 	for _, result := range msgResults {
 		if result != nil {
@@ -632,7 +632,7 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 	return nil
 }
 
-func (d *DataProcessor)insertMessage(
+func (d *DataProcessor) insertMessage(
 	msgGroups messageInserter,
 	msgCount int,
 	errors []error,
@@ -643,7 +643,7 @@ func (d *DataProcessor)insertMessage(
 	err := msgGroups.insert(ctx, d.dbPool)
 	if err != nil {
 		txIds := msgGroups.getTxIds()
-		hashes := d.finxHashes(txIds)
+		hashes := d.findHashes(txIds)
 		errors = append(errors, fmt.Errorf("failed to insert messages: %w, hashes: %v", err, hashes))
 	}
 }
@@ -729,8 +729,7 @@ func (d *DataProcessor) processValidatorSigning(
 	*valid = true
 }
 
-
-func (d *DataProcessor) finxHashes(txIds []int64) []string {
+func (d *DataProcessor) findHashes(txIds []int64) []string {
 	hashes := make([]string, 0, len(txIds))
 	for hash, id := range d.txHashCache {
 		if slices.Contains(txIds, id) {

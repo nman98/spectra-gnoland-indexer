@@ -278,7 +278,7 @@ func (t *TimescaleDb) GetVolumeByDate(
 		if err != nil {
 			return nil, err
 		}
-		feeVolumeTimeRanges[denom] = append(feeVolumeTimeRanges[denom], denomVolume)
+		feeVolumeTimeRanges[denom] = append(feeVolumeTimeRanges[denom], *denomVolume)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -295,16 +295,24 @@ func (t *TimescaleDb) GetVolumeByHour(
 ) (VolumeByDenomHourly, error) {
 
 	query := fmt.Sprintf(`
+	WITH hours AS (
+		SELECT generate_series($2::timestamptz, $3::timestamptz - '1 hour'::interval, '1 hour'::interval) AS hour
+	),
+	denoms AS (
+		SELECT DISTINCT denom FROM fee_volume WHERE chain_name = $1
+	)
 	SELECT
-	time_bucket_gapfill('1 hour', time_bucket) as time,
-	coalesce(SUM(volume), 0) as volume,
-	denom
-	FROM fee_volume
-	WHERE
-	chain_name = $1
-	AND time_bucket >= $2 AND time_bucket <= $3
-	GROUP BY 1, denom
-	ORDER BY time %s
+		h.hour AS time,
+		COALESCE(SUM(fv.volume), 0) AS volume,
+		d.denom
+	FROM hours h
+	CROSS JOIN denoms d
+	LEFT JOIN fee_volume fv ON
+		fv.time_bucket = h.hour AND
+		fv.chain_name = $1 AND
+		fv.denom = d.denom
+	GROUP BY h.hour, d.denom
+	ORDER BY h.hour %s
 	`, sortOrder.SQL())
 	rows, err := t.pool.Query(ctx, query, chainName, fromTimestamp, toTimestamp)
 	if err != nil {
@@ -319,7 +327,7 @@ func (t *TimescaleDb) GetVolumeByHour(
 		if err != nil {
 			return nil, err
 		}
-		feeVolumeTimeRanges[denom] = append(feeVolumeTimeRanges[denom], denomVolume)
+		feeVolumeTimeRanges[denom] = append(feeVolumeTimeRanges[denom], *denomVolume)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

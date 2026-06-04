@@ -202,8 +202,8 @@ type TxCountTimeRange struct {
 	Count int64     `json:"count" doc:"Transaction count"`
 }
 
-type VolumeByDenomDaily map[string][]*DenomVolumeDaily
-type VolumeByDenomHourly map[string][]*DenomVolumeHourly
+type VolumeByDenomDaily map[string][]DenomVolumeDaily
+type VolumeByDenomHourly map[string][]DenomVolumeHourly
 
 type DenomVolumeDaily struct {
 	Date   date.Date       `json:"date" doc:"Time in date format" format:"date"`

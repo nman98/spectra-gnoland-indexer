@@ -322,9 +322,6 @@ func (h *TransactionsHandler) GetVolumeByHour(ctx context.Context, input *humaty
 			err,
 		)
 	}
-	if len(volume) == 0 {
-		return nil, notFound("volume for the given time range not found")
-	}
 	return &humatypes.VolumeByHourGetOutput{Body: volume}, nil
 }
 
