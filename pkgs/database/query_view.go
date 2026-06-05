@@ -359,19 +359,34 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 	}
 
 	query2 := `
+	WITH total_blocks AS (
+        SELECT
+            coalesce(sum(bc.block_count), 0) AS count
+        FROM block_counter bc
+        WHERE bc.time_bucket >= now() - INTERVAL '24 hours'
+        AND bc.time_bucket <  now()
+        AND bc.chain_name = $1
+    )
+
 	SELECT
     coalesce(sum(vsc.blocks_signed), 0) AS blocks_signed,
-    coalesce(sum(bc.block_count), 0) - coalesce(sum(vsc.blocks_signed), 0) AS blocks_not_signed,
-    coalesce(sum(bc.block_count), 0) AS total_blocks,
-    coalesce(round(coalesce(sum(vsc.blocks_signed), 0)::numeric / nullif(sum(bc.block_count), 0) * 100, 2), 0) AS signing_rate_pct
+    tb.count - coalesce(sum(vsc.blocks_signed), 0) AS blocks_not_signed,
+    tb.count AS block_count,
+    coalesce(
+        round(
+            coalesce(
+                sum(vsc.blocks_signed), 0)::numeric / nullif(sum(bc.block_count), 0) * 100, 2), 0
+            ) AS signing_rate_pct
 	FROM validator_signing_counter vsc
+	CROSS JOIN total_blocks tb
 	LEFT JOIN block_counter bc
 		ON  bc.time_bucket = vsc.time_bucket
 		AND bc.chain_name  = vsc.chain_name
 	WHERE vsc.chain_name    = $1
 		AND vsc.validator_id  = $2
 		AND vsc.time_bucket >= now() - INTERVAL '24 hours'
-		AND vsc.time_bucket <  now();
+		AND vsc.time_bucket <  now()
+	GROUP BY tb.count;
 	`
 
 	row := t.pool.QueryRow(ctx, query2, chainName, validatorId)
