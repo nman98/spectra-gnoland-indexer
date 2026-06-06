@@ -226,3 +226,6 @@ type ValidatorSigning struct {
 type ValidatorList struct {
 	ValAddresses []string `json:"validator_addresses" doc:"List of all validator addresses"`
 }
+
+// AllValidatorSignings is a map of validator address to their signing information
+type AllValidatorSignings map[string]ValidatorSigning

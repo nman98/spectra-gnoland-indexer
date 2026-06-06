@@ -30,3 +30,8 @@ type ValidatorsListGetInput struct{}
 type ValidatorListGetOutput struct {
 	Body *database.ValidatorList
 }
+
+type AllValidatorSigningsGetInput struct{}
+type AllValidatorSigningsGetOutput struct {
+	Body database.AllValidatorSignings
+}

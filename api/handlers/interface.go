@@ -43,6 +43,7 @@ type ValidatorDbHandler interface {
 		sortOrder database.SortOrder,
 	) ([]*database.ValidatorSigning, error)
 	GetAllValidators(ctx context.Context, chainName string) (*database.ValidatorList, error)
+	GetAllValidatorSigning24h(ctx context.Context, chainName string) (database.AllValidatorSignings, error)
 }
 
 type BlockDbHandler interface {

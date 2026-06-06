@@ -465,3 +465,64 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	}
 	return validatorSignings, nil
 }
+
+// GetAllValidatorSigning24h returns all validator signings for the last 24 hours
+func (t *TimescaleDb) GetAllValidatorSigning24h(
+	ctx context.Context,
+	chainName string,
+) (AllValidatorSignings, error) {
+	query := `
+    WITH total_blocks AS (
+           SELECT
+               coalesce(sum(bc.block_count), 0) AS count
+           FROM block_counter bc
+           WHERE bc.time_bucket >= now() - INTERVAL '24 hours'
+           AND bc.time_bucket <  now()
+           AND bc.chain_name = $1
+       )
+
+	SELECT
+	   gv.address as validator_address,
+       coalesce(sum(vsc.blocks_signed), 0) AS blocks_signed,
+       tb.count - coalesce(sum(vsc.blocks_signed), 0) AS blocks_not_signed,
+       tb.count AS block_count,
+       coalesce(
+           round(
+               coalesce(
+                   sum(vsc.blocks_signed), 0)::numeric / nullif(sum(bc.block_count), 0) * 100, 2), 0
+               ) AS signing_rate
+	FROM validator_signing_counter vsc
+	CROSS JOIN total_blocks tb
+	LEFT JOIN block_counter bc
+		ON  bc.time_bucket = vsc.time_bucket
+		AND bc.chain_name  = vsc.chain_name
+	JOIN gno_validators gv
+		ON gv.id = vsc.validator_id
+		AND gv.chain_name = vsc.chain_name
+	WHERE vsc.chain_name    = $1
+		AND vsc.time_bucket >= now() - INTERVAL '24 hours'
+		AND vsc.time_bucket <  now()
+	GROUP BY tb.count, gv.address;
+	`
+	rows, err := t.pool.Query(ctx, query, chainName)
+	if err != nil {
+		return nil, err
+	}
+	var result = make(AllValidatorSignings)
+	defer rows.Close()
+	for rows.Next() {
+		var address string
+		var entry ValidatorSigning
+		if err := rows.Scan(
+			&address,
+			&entry.BlocksSigned,
+			&entry.BlocksMissed,
+			&entry.TotalBlocks,
+			&entry.SigningRate,
+		); err != nil {
+			return nil, err
+		}
+		result[address] = entry
+	}
+	return result, nil
+}
