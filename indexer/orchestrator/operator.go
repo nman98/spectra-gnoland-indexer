@@ -117,10 +117,8 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		if err != nil {
 			l.Error().
 				Caller().Stack().Err(err).Msgf("Failed to get last block height from database: %v", err)
-			l.Info().Msg("Either there are no blocks in the database or the database is not properly configured.")
-			l.Info().Msg("Use skipInitialDbCheck=true if this is expected to run from the latest chain height without previous data.")
-			l.Info().Msg("Starting from height 1")
-			lastProcessedHeight = 0
+			l.Info().Msg("Database might not work or hasn't been initialized with necessary table schemas.")
+			l.Fatal().Msg("Shutting down indexer...")
 		}
 		l.Info().Msgf("Retrieved last processed height from database: %d", lastProcessedHeight)
 	} else {

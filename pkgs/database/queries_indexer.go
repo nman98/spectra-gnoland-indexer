@@ -172,9 +172,15 @@ func (t *TimescaleDb) CheckCurrentDatabaseName(ctx context.Context) (string, err
 //   - error: if the query fails
 func (t *TimescaleDb) GetLastBlockHeight(ctx context.Context, chainName string) (uint64, error) {
 	query := `
-	SELECT MAX(height)
-	FROM blocks
-	WHERE chain_name = $1
+	SELECT
+	coalesce(
+	    (SELECT
+			height
+		FROM blocks
+		WHERE chain_name = $1
+		ORDER BY height DESC
+		LIMIT 1
+		), 0) AS height
 	`
 	row := t.pool.QueryRow(ctx, query, chainName)
 	var lastBlockHeight uint64
