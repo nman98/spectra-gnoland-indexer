@@ -325,9 +325,9 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 		return make([]dataprocessor.TransactionsData, 0)
 	}
 
-	l.Info().Msgf("Fetching %d transactions concurrently", len(allTxHashes))
+	l.Info().Msgf("Fetching %d transactions", len(allTxHashes))
 
-	// Query all transactions concurrently
+	// Query all transactions
 	transactions := or.queryOperator.GetTransactions(allTxHashes)
 
 	// Build map of transactions with their timestamps

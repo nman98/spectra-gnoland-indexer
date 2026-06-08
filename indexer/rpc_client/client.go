@@ -54,10 +54,19 @@ func NewRpcClient(rpcURL string, timeout *time.Duration) (*RpcGnoland, error) {
 		*timeout = 10 * time.Second
 	}
 
+	transport := &http.Transport{
+		MaxIdleConns:          200,
+		MaxIdleConnsPerHost:   100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ForceAttemptHTTP2:     true,
+	}
 	return &RpcGnoland{
 		rpcURL: rpcURL,
 		client: &http.Client{
-			Timeout: *timeout,
+			Timeout:   *timeout,
+			Transport: transport,
 		},
 	}, nil
 }
@@ -85,7 +94,7 @@ func (r *RpcGnoland) performRequest(method string, params map[string]any, result
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	resp, err := r.client.Post(r.rpcURL, "application/json", bytes.NewBuffer(requestBody))
+	resp, err := r.client.Post(r.rpcURL, "application/json", bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("failed to perform request: %w", err)
 	}
@@ -95,21 +104,13 @@ func (r *RpcGnoland) performRequest(method string, params map[string]any, result
 		}
 	}()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("http error %s: %s", resp.Status, string(body))
 	}
 
-	if err := json.Unmarshal(body, result); err != nil {
-		preview := string(body)
-		if len(preview) > 200 {
-			preview = preview[:200] + "..."
-		}
-		return fmt.Errorf("failed to decode response (non-JSON body): %w; body preview: %q", err, preview)
+	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	return nil
