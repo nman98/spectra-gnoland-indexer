@@ -104,12 +104,17 @@ func (r *RpcGnoland) performRequest(method string, params map[string]any, result
 		}
 	}()
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("http error %s: %s", resp.Status, string(body))
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+	if err := json.Unmarshal(body, result); err != nil {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
