@@ -216,7 +216,7 @@ func initializeMajorConstructors(
 
 	// initialize the rpc client
 	gnoRpcClient, err := rpcClient.NewRateLimitedRpcClient(
-		conf.RpcUrl, nil, rpcFlags.RequestsPerWindow, rpcFlags.TimeWindow,
+		conf.RpcUrl, nil, rpcFlags.RequestsPerWindow, rpcFlags.TimeWindow, conf.UserAgent,
 	)
 	if err != nil {
 		l.Fatal().Caller().Stack().Err(err).Msg("failed to initialize rpc client")

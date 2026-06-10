@@ -222,6 +222,9 @@ func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64, compressEvents
 
 	wg.Wait()
 
+	fetchDuration := time.Since(chunkStartTime)
+	l.Debug().Msgf("Chunk %d-%d fetched in %v", chunkStart, chunkEnd, fetchDuration)
+
 	if len(blocks) == 0 && len(commits) == 0 {
 		l.Info().Msgf("No valid blocks in live chunk %d-%d", chunkStart, chunkEnd)
 		return nil

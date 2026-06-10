@@ -58,6 +58,7 @@ func TestRateLimitedRpcClient_Constructor_WithInvalidURL(t *testing.T) {
 		nil,
 		5,
 		3*time.Second,
+		nil,
 	)
 
 	// Should get an error for invalid URL
@@ -74,6 +75,7 @@ func TestRateLimitedRpcClient_Constructor_WithEmptyURL(t *testing.T) {
 		nil,
 		5,
 		3*time.Second,
+		nil,
 	)
 
 	// Should get an error for empty URL
@@ -92,6 +94,7 @@ func TestRateLimitedRpcClient_Constructor_ValidParameters(t *testing.T) {
 		&timeout,
 		10,
 		1*time.Minute,
+		nil,
 	)
 
 	// We don't assert on error here because:

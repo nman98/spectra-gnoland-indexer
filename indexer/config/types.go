@@ -16,6 +16,7 @@ type Environment struct {
 
 type Config struct {
 	RpcUrl                    string        `yaml:"rpc"`
+	UserAgent                 *string       `yaml:"user_agent"`
 	PoolMaxConns              int           `yaml:"pool_max_conns"`
 	PoolMinConns              int           `yaml:"pool_min_conns"`
 	PoolMaxConnLifetime       time.Duration `yaml:"pool_max_conn_lifetime"`

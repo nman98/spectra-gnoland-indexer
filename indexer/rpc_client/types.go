@@ -8,8 +8,9 @@ import (
 
 // RpcGnoland is the struct for the rpc client
 type RpcGnoland struct {
-	rpcURL string
-	client *http.Client
+	rpcURL    string
+	client    *http.Client
+	userAgent *string
 }
 
 // JsonRpcError is part of the struct for the rpc client

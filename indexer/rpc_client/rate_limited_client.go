@@ -17,14 +17,15 @@ import (
 // Returns:
 //   - *RateLimitedRpcClient: the rate-limited rpc client
 //   - error: if the rpc client fails to connect
-//
-// Example:
-//
-//	// Allow 100 requests per minute
-//	client, err := NewRateLimitedRpcClient("http://localhost:26657", nil, 100, 1*time.Minute)
-func NewRateLimitedRpcClient(rpcURL string, timeout *time.Duration, requestsPerWindow int, timeWindow time.Duration) (*RateLimitedRpcClient, error) {
+func NewRateLimitedRpcClient(
+	rpcURL string,
+	timeout *time.Duration,
+	requestsPerWindow int,
+	timeWindow time.Duration,
+	userAgent *string,
+) (*RateLimitedRpcClient, error) {
 	// Create the underlying RPC client
-	client, err := NewRpcClient(rpcURL, timeout)
+	client, err := NewRpcClient(rpcURL, timeout, userAgent)
 	if err != nil {
 		return nil, err
 	}

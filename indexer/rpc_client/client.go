@@ -37,7 +37,11 @@ import (
 //
 //   - *RpcGnoland: the rpc client
 //   - error: if the rpc client fails to connect
-func NewRpcClient(rpcURL string, timeout *time.Duration) (*RpcGnoland, error) {
+func NewRpcClient(
+	rpcURL string,
+	timeout *time.Duration,
+	userAgent *string,
+) (*RpcGnoland, error) {
 	// validate the rpc url
 	if rpcURL == "" {
 		return nil, errors.New("rpcURL is required")
@@ -60,10 +64,10 @@ func NewRpcClient(rpcURL string, timeout *time.Duration) (*RpcGnoland, error) {
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
-		ForceAttemptHTTP2:     true,
 	}
 	return &RpcGnoland{
-		rpcURL: rpcURL,
+		rpcURL:    rpcURL,
+		userAgent: userAgent,
 		client: &http.Client{
 			Timeout:   *timeout,
 			Transport: transport,
@@ -72,7 +76,6 @@ func NewRpcClient(rpcURL string, timeout *time.Duration) (*RpcGnoland, error) {
 }
 
 // Only add methods that will be used by the indexer.
-// Add future methods here.
 const (
 	Validators = "validators"
 	Block      = "block"
@@ -94,7 +97,16 @@ func (r *RpcGnoland) performRequest(method string, params map[string]any, result
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	resp, err := r.client.Post(r.rpcURL, "application/json", bytes.NewReader(requestBody))
+	req, err := http.NewRequest("POST", r.rpcURL, bytes.NewReader(requestBody))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if r.userAgent != nil {
+		req.Header.Set("User-Agent", *r.userAgent)
+	}
+
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to perform request: %w", err)
 	}
@@ -110,7 +122,6 @@ func (r *RpcGnoland) performRequest(method string, params map[string]any, result
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("http error %s: %s", resp.Status, string(body))
 	}
 

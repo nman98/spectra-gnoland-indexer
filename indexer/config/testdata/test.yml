@@ -1,4 +1,5 @@
 rpc: https://gnoland-testnet-rpc.cogwheel.zone
+user_agent: gnoland-indexer
 pool_max_conns: 100
 pool_min_conns: 10
 pool_max_conn_lifetime: 60s
