@@ -1,26 +1,11 @@
-package database
+package timescaledb
 
 import (
 	"context"
 )
 
-// FindExistingAccounts finds the existing accounts in the database
-//
-// Usage:
-//
-// Used within the account cache package to get query about the existing accounts
-// and then we can know which ones to insert
-//
-// Parameters:
-//
-//   - ctx: the context to use for the query
-//   - addresses: the addresses to check
-//   - chainName: the name of the chain
-//
-// Returns:
-//
-//   - map[string]int32: the map of existing addresses and their ids
-//   - error: if the query fails
+// FindExistingAccounts finds which addresses already exist in the database.
+// Used by the account cache to determine which ones to insert.
 func (t *TimescaleDb) FindExistingAccounts(
 	ctx context.Context,
 	addresses []string,
@@ -28,8 +13,6 @@ func (t *TimescaleDb) FindExistingAccounts(
 	searchValidators bool,
 ) (map[string]int32, error) {
 	addressesMap := make(map[string]int32)
-	// we need to check if the addresses are already in the map
-	// so we make this query to the db to get the addresses that are already in the map
 	query := ""
 	if searchValidators {
 		query = `
@@ -61,27 +44,11 @@ func (t *TimescaleDb) FindExistingAccounts(
 		}
 		addressesMap[address] = id
 	}
-	// return the map of existing addresses
 	return addressesMap, nil
 }
 
-// GetAllAddresses gets all the addresses from the database for a given chain
-//
-// Usage:
-//
-// # Only used when the program is initializing to get all the accounts with their ids
-//
-// Parameters:
-//
-//   - ctx: the context to use for the query
-//   - chainName: the name of the chain
-//   - searchValidators: whether to search for validators or accounts
-//   - highestIndex: the highest index of the addresses already recorded or it could be a 0
-//
-// Returns:
-//
-//   - map[string]int32: the map of all accounts and their ids
-//   - error: if the query fails
+// GetAllAddresses returns all addresses for a chain, starting after highestIndex.
+// Used at program init to load existing accounts and their IDs.
 func (t *TimescaleDb) GetAllAddresses(
 	ctx context.Context,
 	chainName string,
@@ -93,7 +60,6 @@ func (t *TimescaleDb) GetAllAddresses(
 	if highestIndex != nil {
 		maxIndex = *highestIndex
 	}
-	// we need to check if we are searching for validators or accounts
 	query := ""
 	if searchValidators {
 		query += `
@@ -131,19 +97,7 @@ func (t *TimescaleDb) GetAllAddresses(
 	return addressesMap, maxIndex, nil
 }
 
-// CheckCurrentDatabaseName checks the current database name
-//
-// Usage:
-//
-// Used to check if the current database is "gnoland"
-//
-// Parameters:
-//   - ctx: the context to use for the query
-//
-// Returns:
-//
-//   - string: the name of the current database
-//   - error: if the query fails
+// CheckCurrentDatabaseName returns the name of the database the pool is connected to.
 func (t *TimescaleDb) CheckCurrentDatabaseName(ctx context.Context) (string, error) {
 	query := `
 	SELECT current_database()
@@ -157,19 +111,7 @@ func (t *TimescaleDb) CheckCurrentDatabaseName(ctx context.Context) (string, err
 	return currentDb, nil
 }
 
-// GetLastBlockHeight gets the last block height from the database for a given chain
-//
-// Usage:
-//
-// # Used to get the last block height from the database for a given chain
-//
-// Parameters:
-//   - ctx: the context to use for the query
-//   - chainName: the name of the chain
-//
-// Returns:
-//   - uint64: the last block height
-//   - error: if the query fails
+// GetLastBlockHeight returns the highest indexed block height for the given chain.
 func (t *TimescaleDb) GetLastBlockHeight(ctx context.Context, chainName string) (uint64, error) {
 	query := `
 	SELECT

@@ -17,7 +17,7 @@ import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/ratelimit"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/routes"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/valkey"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
@@ -83,7 +83,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	}
 	mux.Use(cors.Handler(corsOptions))
 
-	db := database.NewTimescaleDb(database.DatabasePoolConfig{
+	db := timescaledb.NewTimescaleDb(timescaledb.DatabasePoolConfig{
 		Host:                      env.ApiDbHost,
 		Port:                      env.ApiDbPort,
 		User:                      env.ApiDbUser,

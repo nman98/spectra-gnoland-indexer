@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 )
 
 // fakeDb implements the subset of TimescaleDb we need for tests.
@@ -55,9 +55,9 @@ func TestRefresh_LoadsKeysFromDB(t *testing.T) {
 	h2 := sha256.Sum256([]byte("b"))
 	f.keys[h1] = 10
 	f.keys[h2] = 20
-	ks := &KeyStore{keys: make(map[[32]byte]int), db: (*database.TimescaleDb)(nil)}
+	ks := &KeyStore{keys: make(map[[32]byte]int), db: (*timescaledb.TimescaleDb)(nil)}
 	// Replace db with our fake via type compatibility at compile-time by redefining the field type in this package.
-	ks.db = (*database.TimescaleDb)(nil) // placeholder to keep type; set via unsafe-like not needed. We directly use method on fake.
+	ks.db = (*timescaledb.TimescaleDb)(nil) // placeholder to keep type; set via unsafe-like not needed. We directly use method on fake.
 	// Temporarily assign through interface using local variable
 	// Call Refresh by temporarily swapping receiver's db through shadowing in method call via stubbing is not possible.
 	// Instead, redefine a helper that simulates Refresh logic with provided fake.

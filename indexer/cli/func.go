@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
 	"golang.org/x/term"
@@ -95,8 +95,8 @@ func promptPassword() (string, error) {
 }
 
 // createDatabaseConfig creates a DatabasePoolConfig from dbParams
-func (p *dbParams) createDatabaseConfig() database.DatabasePoolConfig {
-	return database.DatabasePoolConfig{
+func (p *dbParams) createDatabaseConfig() timescaledb.DatabasePoolConfig {
+	return timescaledb.DatabasePoolConfig{
 		Host:                      p.host,
 		Port:                      p.port,
 		User:                      p.user,

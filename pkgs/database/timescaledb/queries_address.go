@@ -1,4 +1,4 @@
-package database
+package timescaledb
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -18,27 +19,9 @@ var defaultLimit = uint64(10)
 //
 // There are two query modes:
 //
-//  1. Timestamp range: both fromTimestamp and toTimestamp are non-nil. The result
-//     is ordered by (timestamp, tx_hash) according to sortOrder. It also allows addition
-//     cursor to be used to thraverse from that timestamp to the previous or next timestamp.
-//  2. Cursor: fromTimestamp and toTimestamp are both nil. Pagination follows the
-//     same keyset scheme as the transactions range API, using (block_height, tx_hash)
-//     as the seek key. The response is always ordered newest-first and the caller
-//     walks history via direction ("next" for older rows, "prev" for newer rows).
-//     A cursor is required for direction=prev. sortOrder is ignored in this mode.
-//
-// Parameters:
-//   - address: the bech32-style gno address to look up.
-//   - chainName: the chain to query.
-//   - fromTimestamp, toTimestamp: inclusive bounds for timestamp mode, both nil for cursor mode.
-//   - limit: max rows to return (defaults to 10 when nil).
-//   - cursor: encoded "<block_height>|<tx_hash_base64url>"; nil in cursor mode means "start at the head".
-//   - direction: Next (older) or Prev (newer);
-//
-// Returns:
-//   - *[]AddressTx: the page of transactions
-//   - bool: hasMore, whether another page exists in the walked direction (cursor mode only)
-//   - error: any query error
+//  1. Timestamp range: both fromTimestamp and toTimestamp are non-nil.
+//  2. Cursor: fromTimestamp and toTimestamp are both nil. Pagination follows
+//     the keyset scheme using (block_height, tx_hash) as the seek key.
 func (t *TimescaleDb) GetAddressTxs(
 	ctx context.Context,
 	address string,
@@ -47,8 +30,8 @@ func (t *TimescaleDb) GetAddressTxs(
 	toTimestamp *time.Time,
 	limit *uint64,
 	cursor *string,
-	direction Direction,
-) (*[]AddressTx, bool, error) {
+	direction database.Direction,
+) (*[]database.AddressTx, bool, error) {
 	hasTsRange := fromTimestamp != nil && toTimestamp != nil
 	noTsRange := fromTimestamp == nil && toTimestamp == nil
 
@@ -58,7 +41,7 @@ func (t *TimescaleDb) GetAddressTxs(
 
 	accountId, err := t.getAccountId(ctx, address, chainName)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, database.ErrNotFound) {
 			return nil, false, err
 		}
 		return nil, false, fmt.Errorf("error getting account id: %w", err)
@@ -101,8 +84,8 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 	toTimestamp time.Time,
 	limit *uint64,
 	cursor *string,
-	direction Direction,
-) (*[]AddressTx, bool, error) {
+	direction database.Direction,
+) (*[]database.AddressTx, bool, error) {
 	if limit == nil {
 		limit = &defaultLimit
 	}
@@ -144,7 +127,7 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 	}
 
 	switch direction {
-	case Next:
+	case database.Next:
 		if hasCursor {
 			query = selectCols + `
 			WHERE at.address = $1
@@ -165,7 +148,7 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 			`
 			args = []any{accountId, chainName, fromTimestamp, toTimestamp, fetchLimit}
 		}
-	case Prev:
+	case database.Prev:
 		if !hasCursor {
 			return nil, false, fmt.Errorf("prev direction requires a cursor")
 		}
@@ -202,18 +185,17 @@ func (t *TimescaleDb) getAddressTxsTimestampQuery(
 	return addressTxs, hasMore, nil
 }
 
-// getAddressTxsCursorQuery runs the cursor/direction mode. The output is always
-// newest-first and direction=next walks toward older rows (DESC scan), direction=prev
-// walks toward newer rows (ASC scan, then reverse). limit+1 rows are fetched so
-// we can report hasMore without issuing a second COUNT query.
+// getAddressTxsCursorQuery runs cursor/direction mode. Output is always newest-first;
+// direction=next walks toward older rows (DESC), direction=prev walks toward newer rows
+// (ASC scan, then reversed). Fetches limit+1 to determine hasMore without a COUNT query.
 func (t *TimescaleDb) getAddressTxsCursorQuery(
 	ctx context.Context,
 	accountId int32,
 	chainName string,
 	cursor *string,
 	limit *uint64,
-	direction Direction,
-) (*[]AddressTx, bool, error) {
+	direction database.Direction,
+) (*[]database.AddressTx, bool, error) {
 	if limit == nil {
 		limit = &defaultLimit
 	}
@@ -254,7 +236,7 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 	}
 
 	switch direction {
-	case Next:
+	case database.Next:
 		if hasCursor {
 			query = selectCols + `
 			WHERE at.address = $1
@@ -273,7 +255,7 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 			`
 			args = []any{accountId, chainName, fetchLimit}
 		}
-	case Prev:
+	case database.Prev:
 		if !hasCursor {
 			return nil, false, fmt.Errorf("prev direction requires a cursor")
 		}
@@ -327,15 +309,15 @@ func (t *TimescaleDb) execAccQuery(
 	ctx context.Context,
 	query string,
 	args []any,
-) (*[]AddressTx, error) {
-	addressTxs := make([]AddressTx, 0)
+) (*[]database.AddressTx, error) {
+	addressTxs := make([]database.AddressTx, 0)
 	rows, err := t.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var addressTx AddressTx
+		var addressTx database.AddressTx
 		err := rows.Scan(&addressTx.Hash, &addressTx.Timestamp, &addressTx.MsgTypes, &addressTx.BlockHeight, &addressTx.Success, &addressTx.ErrorLog)
 		if err != nil {
 			return nil, err
@@ -361,7 +343,7 @@ func (t *TimescaleDb) getAccountId(
 	err := row.Scan(&id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, fmt.Errorf("address %q: %w", address, ErrNotFound)
+			return 0, fmt.Errorf("address %q: %w", address, database.ErrNotFound)
 		}
 		return 0, err
 	}

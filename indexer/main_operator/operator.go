@@ -16,7 +16,7 @@ import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/orchestrator"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/query"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 )
 
@@ -124,7 +124,7 @@ func InitMainOperator(
 // Returns:
 //   - the database
 //   - error if any
-func initializeDatabase(conf *config.Config, env *config.Environment) *database.TimescaleDb {
+func initializeDatabase(conf *config.Config, env *config.Environment) *timescaledb.TimescaleDb {
 	// check if the config has any null
 	// if rpc is null throw an error and exit
 	if conf.RpcUrl == "" {
@@ -157,7 +157,7 @@ func initializeDatabase(conf *config.Config, env *config.Environment) *database.
 
 	// pull config and env data to load init the database pool
 
-	dbConfig := database.DatabasePoolConfig{
+	dbConfig := timescaledb.DatabasePoolConfig{
 		Host:                      env.Host,
 		Port:                      env.Port,
 		User:                      env.User,
@@ -173,7 +173,7 @@ func initializeDatabase(conf *config.Config, env *config.Environment) *database.
 	}
 
 	// no need to return error since it will throw a fatal error and exit the program
-	db := database.NewTimescaleDb(dbConfig)
+	db := timescaledb.NewTimescaleDb(dbConfig)
 	return db
 }
 

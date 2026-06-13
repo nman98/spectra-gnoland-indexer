@@ -1,37 +1,26 @@
-package database
+package timescaledb
 
 import (
 	"context"
 	"errors"
 	"fmt"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/jackc/pgx/v5"
 )
 
-// GetAllBlockSigners gets all of the validators that signed that block + the proposer
-//
-// Usage:
-//
-// # Used to get all of the validators that signed that block + the proposer
-//
-// Parameters:
-//   - chainName: the name of the chain
-//   - blockHeight: the height of the block
-//
-// Returns:
-//   - *BlockSigners: the block signers
-//   - error: if the query fails
+// GetAllBlockSigners returns all validators that signed a block, plus the proposer.
 func (t *TimescaleDb) GetAllBlockSigners(
 	ctx context.Context,
 	chainName string,
 	blockHeight uint64,
-) (*BlockSigners, error) {
+) (*database.BlockSigners, error) {
 	query := `
 	SELECT
 	vb.block_height,
 	gv.address AS proposer,
 	array(
-		SELECT gv.address 
+		SELECT gv.address
 		FROM unnest(vb.signed_vals) AS signed_val_id
 		JOIN gno_validators gv ON gv.id = signed_val_id
 	) AS signed_vals
@@ -41,35 +30,23 @@ func (t *TimescaleDb) GetAllBlockSigners(
 	AND vb.block_height = $2
 	`
 	row := t.pool.QueryRow(ctx, query, chainName, blockHeight)
-	var blockSigners BlockSigners
+	var blockSigners database.BlockSigners
 	err := row.Scan(&blockSigners.BlockHeight, &blockSigners.Proposer, &blockSigners.SignedVals)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("block signers at height %d: %w", blockHeight, ErrNotFound)
+			return nil, fmt.Errorf("block signers at height %d: %w", blockHeight, database.ErrNotFound)
 		}
 		return nil, err
 	}
 	return &blockSigners, nil
 }
 
-// GetBankSend gets the bank send message for a given transaction hash.
-//
-// Usage:
-//
-// # Used to get the bank send message for a given transaction hash.
-//
-// Parameters:
-//   - txHash: the hash of the transaction
-//   - chainName: the name of the chain
-//
-// Returns:
-//   - []*BankSend: the bank send messages
-//   - error: if the query fails
+// GetBankSend returns the bank send messages for a given transaction hash.
 func (t *TimescaleDb) GetBankSend(
 	ctx context.Context,
 	txHash string,
 	chainName string,
-) ([]*BankSend, error) {
+) ([]*database.BankSend, error) {
 	query := `
 	SELECT
 	encode(id.tx_hash, 'base64') AS tx_hash,
@@ -94,9 +71,9 @@ func (t *TimescaleDb) GetBankSend(
 		return nil, err
 	}
 	defer rows.Close()
-	bankSends := make([]*BankSend, 0)
+	bankSends := make([]*database.BankSend, 0)
 	for rows.Next() {
-		bankSend := &BankSend{}
+		bankSend := &database.BankSend{}
 		err := rows.Scan(
 			&bankSend.TxHash,
 			&bankSend.Timestamp,
@@ -116,24 +93,12 @@ func (t *TimescaleDb) GetBankSend(
 	return bankSends, nil
 }
 
-// GetMsgCall gets the msg call message for a given transaction hash
-//
-// Usage:
-//
-// # Used to get the msg call message for a given transaction hash
-//
-// Parameters:
-//   - txHash: the hash of the transaction
-//   - chainName: the name of the chain
-//
-// Returns:
-//   - []*MsgCall: the msg call messages
-//   - error: if the query fails
+// GetMsgCall returns the vm_msg_call messages for a given transaction hash.
 func (t *TimescaleDb) GetMsgCall(
 	ctx context.Context,
 	txHash string,
 	chainName string,
-) ([]*MsgCall, error) {
+) ([]*database.MsgCall, error) {
 	query := `
 	SELECT
 	encode(id.tx_hash, 'base64') AS tx_hash,
@@ -161,9 +126,9 @@ func (t *TimescaleDb) GetMsgCall(
 		return nil, err
 	}
 	defer rows.Close()
-	msgCalls := make([]*MsgCall, 0)
+	msgCalls := make([]*database.MsgCall, 0)
 	for rows.Next() {
-		msgCall := &MsgCall{}
+		msgCall := &database.MsgCall{}
 		err := rows.Scan(
 			&msgCall.TxHash,
 			&msgCall.MessageCounter,
@@ -187,24 +152,12 @@ func (t *TimescaleDb) GetMsgCall(
 	return msgCalls, nil
 }
 
-// GetMsgAddPackage gets the msg add package message for a given transaction hash
-//
-// Usage:
-//
-// # Used to get the msg add package message for a given transaction hash
-//
-// Parameters:
-//   - txHash: the hash of the transaction
-//   - chainName: the name of the chain
-//
-// Returns:
-//   - []*MsgAddPackage: the msg add package messages
-//   - error: if the query fails
+// GetMsgAddPackage returns the vm_msg_add_package messages for a given transaction hash.
 func (t *TimescaleDb) GetMsgAddPackage(
 	ctx context.Context,
 	txHash string,
 	chainName string,
-) ([]*MsgAddPackage, error) {
+) ([]*database.MsgAddPackage, error) {
 	query := `
 	SELECT
 	encode(id.tx_hash, 'base64') AS tx_hash,
@@ -232,9 +185,9 @@ func (t *TimescaleDb) GetMsgAddPackage(
 		return nil, err
 	}
 	defer rows.Close()
-	msgAddPackages := make([]*MsgAddPackage, 0)
+	msgAddPackages := make([]*database.MsgAddPackage, 0)
 	for rows.Next() {
-		msgAddPackage := &MsgAddPackage{}
+		msgAddPackage := &database.MsgAddPackage{}
 		err := rows.Scan(
 			&msgAddPackage.TxHash,
 			&msgAddPackage.MessageCounter,
@@ -258,24 +211,12 @@ func (t *TimescaleDb) GetMsgAddPackage(
 	return msgAddPackages, nil
 }
 
-// GetMsgRun gets the msg run message for a given transaction hash
-//
-// Usage:
-//
-// # Used to get the msg run message for a given transaction hash
-//
-// Parameters:
-//   - txHash: the hash of the transaction
-//   - chainName: the name of the chain
-//
-// Returns:
-//   - []*MsgRun: the msg run messages
-//   - error: if the query fails
+// GetMsgRun returns the vm_msg_run messages for a given transaction hash.
 func (t *TimescaleDb) GetMsgRun(
 	ctx context.Context,
 	txHash string,
 	chainName string,
-) ([]*MsgRun, error) {
+) ([]*database.MsgRun, error) {
 	query := `
 	SELECT
 	encode(id.tx_hash, 'base64') AS tx_hash,
@@ -303,9 +244,9 @@ func (t *TimescaleDb) GetMsgRun(
 		return nil, err
 	}
 	defer rows.Close()
-	msgRuns := make([]*MsgRun, 0)
+	msgRuns := make([]*database.MsgRun, 0)
 	for rows.Next() {
-		msgRun := &MsgRun{}
+		msgRun := &database.MsgRun{}
 		err := rows.Scan(
 			&msgRun.TxHash,
 			&msgRun.MessageCounter,
@@ -329,19 +270,7 @@ func (t *TimescaleDb) GetMsgRun(
 	return msgRuns, nil
 }
 
-// GetMsgTypes gets the message type for a given transaction hash
-//
-// Usage:
-//
-// # Used to get the message type for a given transaction hash
-//
-// Parameters:
-//   - txHash: the hash of the transaction
-//   - chainName: the name of the chain
-//
-// Returns:
-//   - []string: the message types
-//   - error: if the query fails
+// GetMsgTypes returns the message types for a given transaction hash.
 func (t *TimescaleDb) GetMsgTypes(ctx context.Context, txHash string, chainName string) ([]string, error) {
 	query := `
 	SELECT tg.msg_types
@@ -355,7 +284,7 @@ func (t *TimescaleDb) GetMsgTypes(ctx context.Context, txHash string, chainName 
 	err := row.Scan(&msgTypes)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("msg types for tx %s: %w", txHash, ErrNotFound)
+			return nil, fmt.Errorf("msg types for tx %s: %w", txHash, database.ErrNotFound)
 		}
 		return nil, err
 	}

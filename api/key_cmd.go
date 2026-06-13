@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/key"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -28,8 +28,8 @@ type keyDbParams struct {
 	sslMode  string
 }
 
-func (p *keyDbParams) createDatabaseConfig() database.DatabasePoolConfig {
-	return database.DatabasePoolConfig{
+func (p *keyDbParams) createDatabaseConfig() timescaledb.DatabasePoolConfig {
+	return timescaledb.DatabasePoolConfig{
 		Host:                      p.host,
 		Port:                      p.port,
 		User:                      p.user,
@@ -141,7 +141,7 @@ func keyPromptPassword() (string, error) {
 	return string(pw), nil
 }
 
-func connectKeyDb(cmd *cobra.Command) (*database.TimescaleDb, error) {
+func connectKeyDb(cmd *cobra.Command) (*timescaledb.TimescaleDb, error) {
 	params, err := parseKeyDbFlags(cmd)
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func connectKeyDb(cmd *cobra.Command) (*database.TimescaleDb, error) {
 	if err != nil {
 		return nil, err
 	}
-	return database.NewTimescaleDbSetup(params.createDatabaseConfig()), nil
+	return timescaledb.NewTimescaleDbSetup(params.createDatabaseConfig()), nil
 }
 
 var keyCreateCmd = &cobra.Command{
@@ -180,7 +180,7 @@ var keyCreateCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		err = db.InsertApiKey(ctx, database.KeyParams{
+		err = db.InsertApiKey(ctx, timescaledb.KeyParams{
 			RpmLimit: rpmLimit,
 			Name:     name,
 			Prefix:   prefix,

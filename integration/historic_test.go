@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/integration/synthetic"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -74,7 +74,7 @@ func loadTestConfig(t *testing.T) synthetic.SyntheticIntegrationTestConfig {
 	}
 
 	return synthetic.SyntheticIntegrationTestConfig{
-		DatabaseConfig: database.DatabasePoolConfig{
+		DatabaseConfig: timescaledb.DatabasePoolConfig{
 			Host:                      config.Host,
 			Port:                      config.Port,
 			User:                      config.User,
@@ -98,7 +98,7 @@ func verifyDatabaseState(t *testing.T, config synthetic.SyntheticIntegrationTest
 	t.Helper()
 
 	// Initialize database connection
-	db := database.NewTimescaleDb(config.DatabaseConfig)
+	db := timescaledb.NewTimescaleDb(config.DatabaseConfig)
 	pool := db.GetPool()
 
 	ctx := context.Background()

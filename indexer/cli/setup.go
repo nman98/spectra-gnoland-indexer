@@ -5,7 +5,7 @@ import (
 	"time"
 
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	sdt "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"github.com/spf13/cobra"
@@ -97,7 +97,7 @@ func createDatabaseSetup(cmd *cobra.Command) error {
 	}
 
 	dbConfig := params.createDatabaseConfig()
-	db := database.NewTimescaleDbSetup(dbConfig)
+	db := timescaledb.NewTimescaleDbSetup(dbConfig)
 
 	currentDb, err := checkCurrentDatabase(db)
 	if err != nil {
@@ -121,23 +121,23 @@ func getFlagStringWithDefault(cmd *cobra.Command, flagName, defaultValue string)
 	return value
 }
 
-func checkCurrentDatabase(db *database.TimescaleDb) (string, error) {
+func checkCurrentDatabase(db *timescaledb.TimescaleDb) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return db.CheckCurrentDatabaseName(ctx)
 }
 
-func initializeNewDatabase(db *database.TimescaleDb, dbConfig database.DatabasePoolConfig, newDbName, chainName string) error {
+func initializeNewDatabase(db *timescaledb.TimescaleDb, dbConfig timescaledb.DatabasePoolConfig, newDbName, chainName string) error {
 	l := logger.Get()
 
 	l.Info().Str("db", newDbName).Msg("creating new database")
-	if err := database.CreateDatabase(db, newDbName); err != nil {
+	if err := timescaledb.CreateDatabase(db, newDbName); err != nil {
 		l.Error().Err(err).Msg("failed to create database")
 		return err
 	}
 
 	l.Info().Str("db", newDbName).Msg("switching to new database")
-	if err := database.SwitchDatabase(db, dbConfig, newDbName); err != nil {
+	if err := timescaledb.SwitchDatabase(db, dbConfig, newDbName); err != nil {
 		l.Error().Err(err).Msg("failed to switch database")
 		return err
 	}
@@ -388,7 +388,7 @@ user does not have the required privileges.`,
 		}
 
 		dbConfig := params.createDatabaseConfig()
-		db := database.NewTimescaleDbSetup(dbConfig)
+		db := timescaledb.NewTimescaleDbSetup(dbConfig)
 		dbInit := dbinit.NewDBInitializer(db.GetPool())
 
 		views := []dbinit.ContinuousAggregateDefinition{
@@ -455,7 +455,7 @@ var createUserCmd = &cobra.Command{
 
 		// Create database config and connection
 		dbConfig := params.createDatabaseConfig()
-		db := database.NewTimescaleDbSetup(dbConfig)
+		db := timescaledb.NewTimescaleDbSetup(dbConfig)
 		dbInit := dbinit.NewDBInitializer(db.GetPool())
 
 		// Create a new user

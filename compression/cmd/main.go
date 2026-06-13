@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/compression/train"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +49,7 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to load config: %v", err)
 		}
-		dbConfig := database.DatabasePoolConfig{
+		dbConfig := timescaledb.DatabasePoolConfig{
 			Host:                      loadedConfig.Host,
 			Port:                      loadedConfig.Port,
 			User:                      loadedConfig.User,

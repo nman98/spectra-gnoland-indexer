@@ -1,11 +1,13 @@
-package database
+package timescaledb
 
 import (
 	"context"
 	"fmt"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 )
 
-func (t *TimescaleDb) GetAllValidators(ctx context.Context, chainName string) (*ValidatorList, error) {
+func (t *TimescaleDb) GetAllValidators(ctx context.Context, chainName string) (*database.ValidatorList, error) {
 	query := `
 	SELECT
 	address
@@ -29,9 +31,9 @@ func (t *TimescaleDb) GetAllValidators(ctx context.Context, chainName string) (*
 		return nil, err
 	}
 	if len(validators) == 0 {
-		return nil, fmt.Errorf("validator list: %w", ErrNotFound)
+		return nil, fmt.Errorf("validator list: %w", database.ErrNotFound)
 	}
-	return &ValidatorList{
+	return &database.ValidatorList{
 		ValAddresses: validators,
 	}, nil
 }

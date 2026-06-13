@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"go.yaml.in/yaml/v4"
 )
 
-// It is identical to the database.DatabasePoolConfig struct.
+// It is identical to the timescaledb.DatabasePoolConfig struct.
 // However, it is used for the training process and used very rarely.
 type TrainingConfig struct {
 	User     string `yaml:"user"`
@@ -69,8 +69,8 @@ func LoadTrainingConfig(configPath *string) (TrainingConfig, error) {
 //   - config: the configuration for the database connection pool
 //
 // Returns:
-//   - *database.TimescaleDb: the database connection pool
+//   - *timescaledb.TimescaleDb: the database connection pool
 //   - error: if the database connection pool fails to initialize
-func InitDatabase(config database.DatabasePoolConfig) *database.TimescaleDb {
-	return database.NewTimescaleDb(config)
+func InitDatabase(config timescaledb.DatabasePoolConfig) *timescaledb.TimescaleDb {
+	return timescaledb.NewTimescaleDb(config)
 }

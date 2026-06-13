@@ -1,27 +1,16 @@
-package database
+package timescaledb
 
 import (
 	"context"
 	"fmt"
 	"time"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"golang.org/x/sync/errgroup"
 )
 
 // GetBlock gets a block from the database for a given height and chain name.
-//
-// Usage:
-//
-// # Used to get a block from the database for a given height and chain name.
-//
-// Parameters:
-//   - height: the height of the block
-//   - chainName: the name of the chain
-//
-// Returns:
-//   - *BlockData: the block data
-//   - error: if the query fails
-func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName string) (*BlockData, error) {
+func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName string) (*database.BlockData, error) {
 	query1 := `
 	SELECT encode(hash, 'base64'),
 	b.height as height,
@@ -43,7 +32,7 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 	WHERE tg.chain_name = $1
 	AND tg.block_height = $2
 	`
-	var blocks []*BlockData
+	var blocks []*database.BlockData
 	var txs map[uint64][]string
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -64,7 +53,7 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 		return nil, err
 	}
 	if len(blocks) == 0 {
-		return nil, fmt.Errorf("block at height %d: %w", height, ErrNotFound)
+		return nil, fmt.Errorf("block at height %d: %w", height, database.ErrNotFound)
 	}
 
 	if txs[blocks[0].Height] != nil {
@@ -74,7 +63,7 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 	return blocks[0], nil
 }
 
-func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*BlockData, error) {
+func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*database.BlockData, error) {
 	query1 := `
 	SELECT encode(hash, 'base64'),
 	b.height as height,
@@ -97,7 +86,7 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 	WHERE tg.chain_name = $1
 	AND tg.block_height = (SELECT MAX(height) FROM blocks WHERE chain_name = $1)
 	`
-	var blocks []*BlockData
+	var blocks []*database.BlockData
 	var txs map[uint64][]string
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -118,7 +107,7 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 		return nil, err
 	}
 	if len(blocks) == 0 {
-		return nil, fmt.Errorf("no blocks for chain %q: %w", chainName, ErrNotFound)
+		return nil, fmt.Errorf("no blocks for chain %q: %w", chainName, database.ErrNotFound)
 	}
 
 	if txs[blocks[0].Height] != nil {
@@ -128,20 +117,8 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 	return blocks[0], nil
 }
 
-// GetLastXBlocks gets the last x blocks from the database for a given chain name
-//
-// Usage:
-//
-// # Used to get the last x blocks from the database for a given chain name
-//
-// Parameters:
-//   - chainName: the name of the chain
-//   - x: the number of blocks to get
-//
-// Returns:
-//   - []*BlockData: the last x blocks
-//   - error: if the query fails
-func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x uint64) ([]*BlockData, error) {
+// GetLastXBlocks gets the last x blocks for a given chain name.
+func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x uint64) ([]*database.BlockData, error) {
 	query1 := `
 	SELECT encode(hash, 'base64'),
 	b.height as height,
@@ -167,7 +144,7 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 	ORDER BY tg.block_height DESC
 	`
 
-	var blocks []*BlockData
+	var blocks []*database.BlockData
 	var txs map[uint64][]string
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -189,7 +166,7 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 	}
 
 	if len(blocks) == 0 {
-		return nil, fmt.Errorf("no blocks for chain %q: %w", chainName, ErrNotFound)
+		return nil, fmt.Errorf("no blocks for chain %q: %w", chainName, database.ErrNotFound)
 	}
 	for _, block := range blocks {
 		if txs[block.Height] != nil {
@@ -200,21 +177,8 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 	return blocks, nil
 }
 
-// GetFromToBlocks gets a range of blocks from the database for a given height range and chain name
-//
-// Usage:
-//
-// # Used to get a range of blocks from the database for a given height range and chain name
-//
-// Parameters:
-//   - fromHeight: the starting height of the block
-//   - toHeight: the ending height of the block (inclusive)
-//   - chainName: the name of the chain
-//
-// Returns:
-//   - []*BlockData: the range of block data
-//   - error: if the query fails
-func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, toHeight uint64, chainName string) ([]*BlockData, error) {
+// GetFromToBlocks gets a range of blocks between fromHeight and toHeight (inclusive).
+func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, toHeight uint64, chainName string) ([]*database.BlockData, error) {
 	query1 := `
 	SELECT encode(hash, 'base64'),
 	b.height as height,
@@ -237,7 +201,7 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 	WHERE tg.chain_name = $1
 	AND tg.block_height >= $2 AND tg.block_height <= $3
 	`
-	var blocks []*BlockData
+	var blocks []*database.BlockData
 	var txs map[uint64][]string
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -261,7 +225,7 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 	if len(blocks) == 0 {
 		return nil, fmt.Errorf(
 			"no blocks between heights %d and %d for chain %q: %w",
-			fromHeight, toHeight, chainName, ErrNotFound,
+			fromHeight, toHeight, chainName, database.ErrNotFound,
 		)
 	}
 
@@ -276,13 +240,11 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 }
 
 func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string) (float64, error) {
-	// get latest block height
 	blockData, err := t.GetLatestBlock(ctx, chainName)
 	if err != nil {
 		return 0, err
 	}
 
-	// compare latest block height with the height - 10K from the latest
 	latestHeight := blockData.Height
 	var compHeight uint64
 	var diffHeight uint64 = 10000
@@ -330,17 +292,16 @@ func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string)
 	return calc, nil
 }
 
-// fetchBlocksData fetches block data from the database and appends to the provided slice
-func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ...any) ([]*BlockData, error) {
+func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ...any) ([]*database.BlockData, error) {
 	rows, err := t.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	blocks := make([]*BlockData, 0)
+	blocks := make([]*database.BlockData, 0)
 	for rows.Next() {
-		block := &BlockData{}
+		block := &database.BlockData{}
 		err := rows.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Proposer)
 		if err != nil {
 			return nil, err
@@ -350,7 +311,6 @@ func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ..
 	return blocks, rows.Err()
 }
 
-// fetchTransactionData fetches transaction data and maps it by block height
 func (t *TimescaleDb) fetchTransactionData(ctx context.Context, query string, args ...any) (map[uint64][]string, error) {
 	rows, err := t.pool.Query(ctx, query, args...)
 	if err != nil {
@@ -360,7 +320,7 @@ func (t *TimescaleDb) fetchTransactionData(ctx context.Context, query string, ar
 
 	txs := make(map[uint64][]string)
 	for rows.Next() {
-		tx := &Transaction{}
+		tx := &database.Transaction{}
 		err := rows.Scan(&tx.TxHash, &tx.BlockHeight)
 		if err != nil {
 			return nil, err

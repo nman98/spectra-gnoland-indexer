@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
 	"github.com/klauspost/compress/zstd"
 	"google.golang.org/protobuf/proto"
@@ -29,7 +30,7 @@ import (
 // Returns:
 //   - [][]byte: the transactions events in serialized protobuf format
 //   - error: if the transactions fail to collect
-func CollectEvents(db *database.TimescaleDb, chainName string, amount uint64) ([][]byte, error) {
+func CollectEvents(db *timescaledb.TimescaleDb, chainName string, amount uint64) ([][]byte, error) {
 	// define the limits and offset
 	if amount > 250000 {
 		return nil, fmt.Errorf("amount cannot be greater than 250000")
@@ -147,7 +148,7 @@ func processEvents(transactions []*database.Transaction) ([][]byte, error) {
 //   - wg: the wait group to wait for the goroutine to finish
 func fetchTransactionBatch(
 	i int,
-	db *database.TimescaleDb,
+	db *timescaledb.TimescaleDb,
 	chainName string,
 	limit uint64,
 	transactions *[]*database.Transaction,

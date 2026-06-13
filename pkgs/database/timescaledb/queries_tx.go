@@ -1,4 +1,4 @@
-package database
+package timescaledb
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	dictloader "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/dict_loader"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
@@ -31,19 +32,7 @@ func init() {
 }
 
 // GetTransaction gets the transaction for a given transaction hash.
-//
-// Usage:
-//
-// # Used to get the transaction for a given transaction hash.
-//
-// Parameters:
-//   - txHash: the hash of the transaction
-//   - chainName: the name of the chain
-//
-// Returns:
-//   - *Transaction: the transaction
-//   - error: if the query fails
-func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainName string) (*Transaction, error) {
+func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainName string) (*database.Transaction, error) {
 	query := `
 	SELECT
 	encode(id.tx_hash, 'base64') AS tx_hash,
@@ -65,7 +54,7 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 	AND tx.chain_name = $2
 	`
 	row := t.pool.QueryRow(ctx, query, txHash, chainName)
-	var transaction FullTxData
+	var transaction database.FullTxData
 	err := row.Scan(
 		&transaction.TxHash,
 		&transaction.Timestamp,
@@ -83,7 +72,7 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("transaction %s: %w", txHash, ErrNotFound)
+			return nil, fmt.Errorf("transaction %s: %w", txHash, database.ErrNotFound)
 		}
 		log.Println("error getting transaction", err)
 		return nil, err
@@ -95,26 +84,16 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 	return tx, nil
 }
 
-// GetLastXTransactions gets the last x transactions from the database for a given chain name.
-//
-// Usage:
-//
-// # Used to get the last x transactions from the database for a given chain name.
-//
-// Parameters:
-//   - chainName: the name of the chain
-//   - x: the number of transactions to get
+// GetLastXTransactions gets the last x transactions for a given chain name.
 func (t *TimescaleDb) GetLastXTransactions(
 	ctx context.Context,
 	chainName string,
 	x uint64,
-	sortOrder *SortOrder,
-) ([]*Transaction, error) {
-	// The only usage for this is for the transaction queried by cursor, it shouldn't be allowed to be
-	// queried on the endpoint for the last x transactions for now.
+	sortOrder *database.SortOrder,
+) ([]*database.Transaction, error) {
 	if sortOrder == nil {
-		sortOrder = new(SortOrder)
-		*sortOrder = SortOrderDesc
+		sortOrder = new(database.SortOrder)
+		*sortOrder = database.SortOrderDesc
 	}
 	order := sortOrder.SQL()
 	query := fmt.Sprintf(`
@@ -143,9 +122,9 @@ func (t *TimescaleDb) GetLastXTransactions(
 		return nil, err
 	}
 	defer rows.Close()
-	transactions := make([]*Transaction, 0)
+	transactions := make([]*database.Transaction, 0)
 	for rows.Next() {
-		transaction := &FullTxData{}
+		transaction := &database.FullTxData{}
 		err := rows.Scan(
 			&transaction.TxHash,
 			&transaction.Timestamp,
@@ -173,32 +152,18 @@ func (t *TimescaleDb) GetLastXTransactions(
 		return nil, err
 	}
 	if len(transactions) == 0 {
-		return nil, fmt.Errorf("no transactions for chain %q: %w", chainName, ErrNotFound)
+		return nil, fmt.Errorf("no transactions for chain %q: %w", chainName, database.ErrNotFound)
 	}
 	return transactions, nil
 }
 
-// GetTransactionsByOffset gets the transactions by offset for a given chain name.
-//
-// Usage:
-//
-// # Used to get the transactions by offset for a given chain name
-//
-// Parameters:
-//   - chainName: the name of the chain
-//   - limit: the limit of the transactions to get
-//   - offset: the offset of the transactions to get
-//
-// Additional info:
-//
-// This part of the logic won't be officially present in the API. It's current only usage
-// is with training the zstd dictionary. You are welcome to modify this function and add it to the API.
+// GetTransactionsByOffset returns transactions by offset. Used only for zstd dictionary training.
 func (t *TimescaleDb) GetTransactionsByOffset(
 	ctx context.Context,
 	chainName string,
 	limit uint64,
 	offset uint64,
-) ([]*Transaction, error) {
+) ([]*database.Transaction, error) {
 	query := `
 	SELECT
 	encode(id.tx_hash, 'base64') AS tx_hash,
@@ -223,9 +188,9 @@ func (t *TimescaleDb) GetTransactionsByOffset(
 		return nil, err
 	}
 	defer rows.Close()
-	transactions := make([]*Transaction, 0)
+	transactions := make([]*database.Transaction, 0)
 	for rows.Next() {
-		transaction := &FullTxData{}
+		transaction := &database.FullTxData{}
 		err := rows.Scan(
 			&transaction.TxHash,
 			&transaction.Timestamp,
@@ -257,34 +222,16 @@ func (t *TimescaleDb) GetTransactionsByOffset(
 // GetTransactionsByRange returns a page of transactions using keyset (cursor) pagination
 // over the composite key (block_height, tx_hash).
 //
-// The response is always ordered newest-first (DESC by block_height, tx_hash). The caller
-// distinguishes whether it wants older rows ("next") or newer rows ("prev"):
-//
-//   - direction == Next: walk toward older rows. Without a cursor it returns the latest
-//     page. With a cursor it returns rows strictly older than the cursor.
-//   - direction == Prev: walk toward newer rows. A cursor is required; the query is run
-//     ASC and the result is reversed before returning so the caller still sees newest-first.
-//
-// The function fetches limit+1 rows internally and truncates. The returned hasMore flag
-// indicates that another page exists in the direction that was walked.
-//
-// Parameters:
-//   - chainName: the name of the chain
-//   - cursor: encoded cursor "<block_height>|<tx_hash_base64url>"; empty means "start"
-//   - limit: number of transactions to return (1..100)
-//   - direction: Next or Prev
-//
-// Returns:
-//   - []*Transaction: the page, newest-first
-//   - bool: hasMore, true if another page exists in the walked direction
-//   - error: if the query fails
+// The response is always ordered newest-first. direction=Next walks toward older rows;
+// direction=Prev walks toward newer rows (ASC scan, reversed before return).
+// Fetches limit+1 internally; hasMore indicates another page exists in the walked direction.
 func (t *TimescaleDb) GetTransactionsByRange(
 	ctx context.Context,
 	chainName string,
 	cursor string,
 	limit uint64,
-	direction Direction,
-) ([]*Transaction, bool, error) {
+	direction database.Direction,
+) ([]*database.Transaction, bool, error) {
 	if limit == 0 || limit > 100 {
 		return nil, false, fmt.Errorf("limit must be between 1 and 100")
 	}
@@ -333,7 +280,7 @@ func (t *TimescaleDb) GetTransactionsByRange(
 	fetchLimit := limit + 1
 
 	switch direction {
-	case Next:
+	case database.Next:
 		if hasCursor {
 			query = selectCols + `
 			WHERE tx.chain_name = $1
@@ -350,7 +297,7 @@ func (t *TimescaleDb) GetTransactionsByRange(
 			`
 			args = []any{chainName, fetchLimit}
 		}
-	case Prev:
+	case database.Prev:
 		if !hasCursor {
 			return nil, false, fmt.Errorf("prev direction requires a cursor")
 		}
@@ -372,9 +319,9 @@ func (t *TimescaleDb) GetTransactionsByRange(
 	}
 	defer rows.Close()
 
-	transactions := make([]*Transaction, 0, fetchLimit)
+	transactions := make([]*database.Transaction, 0, fetchLimit)
 	for rows.Next() {
-		transaction := &FullTxData{}
+		transaction := &database.FullTxData{}
 		err := rows.Scan(
 			&transaction.TxHash,
 			&transaction.Timestamp,
@@ -432,9 +379,9 @@ func protoUnmarshal(rawData []byte) (*events_proto.TxEvents, error) {
 	return txEvents, nil
 }
 
-func decodeEvents(txEvents []byte) (*[]Event, error) {
+func decodeEvents(txEvents []byte) (*[]database.Event, error) {
 	if len(txEvents) == 0 {
-		return &[]Event{}, nil
+		return &[]database.Event{}, nil
 	}
 	decompressed, err := decompressEvents(txEvents)
 	if err != nil {
@@ -444,9 +391,9 @@ func decodeEvents(txEvents []byte) (*[]Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	events := make([]Event, 0, len(txEventsProto.Events))
+	events := make([]database.Event, 0, len(txEventsProto.Events))
 	for _, event := range txEventsProto.Events {
-		attributes := make([]Attribute, 0, len(event.Attributes))
+		attributes := make([]database.Attribute, 0, len(event.Attributes))
 		for _, attribute := range event.Attributes {
 			var value string
 			switch v := attribute.Value.(type) {
@@ -461,7 +408,7 @@ func decodeEvents(txEvents []byte) (*[]Event, error) {
 			default:
 				value = ""
 			}
-			attributes = append(attributes, Attribute{
+			attributes = append(attributes, database.Attribute{
 				Key:   attribute.Key,
 				Value: value,
 			})
@@ -470,7 +417,7 @@ func decodeEvents(txEvents []byte) (*[]Event, error) {
 		if event.PkgPath != nil {
 			pkgPath = *event.PkgPath
 		}
-		events = append(events, Event{
+		events = append(events, database.Event{
 			AtType:     event.AtType,
 			Type:       event.Type,
 			Attributes: attributes,

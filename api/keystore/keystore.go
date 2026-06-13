@@ -6,16 +6,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 )
 
 type KeyStore struct {
 	mu   sync.RWMutex
 	keys map[[32]byte]int
-	db   *database.TimescaleDb
+	db   *timescaledb.TimescaleDb
 }
 
-func NewKeyStore(db *database.TimescaleDb) *KeyStore {
+func NewKeyStore(db *timescaledb.TimescaleDb) *KeyStore {
 	return &KeyStore{
 		keys: make(map[[32]byte]int),
 		db:   db,

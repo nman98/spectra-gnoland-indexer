@@ -1,4 +1,4 @@
-package database
+package timescaledb
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/date"
 	"github.com/jackc/pgx/v5"
 )
@@ -15,8 +16,8 @@ func (t *TimescaleDb) GetBlockCountByDate(
 	chainName string,
 	dateFrom date.Date,
 	dateTo date.Date,
-	sortOrder SortOrder,
-) ([]*BlockCountByDate, error) {
+	sortOrder database.SortOrder,
+) ([]*database.BlockCountByDate, error) {
 
 	query := fmt.Sprintf(`
 	SELECT date::date, block_count FROM (
@@ -37,9 +38,9 @@ func (t *TimescaleDb) GetBlockCountByDate(
 		return nil, err
 	}
 	defer rows.Close()
-	var blockCountByDates []*BlockCountByDate
+	var blockCountByDates []*database.BlockCountByDate
 	for rows.Next() {
-		blockCountByDate := &BlockCountByDate{}
+		blockCountByDate := &database.BlockCountByDate{}
 		err := rows.Scan(&blockCountByDate.Date, &blockCountByDate.Count)
 		if err != nil {
 			return nil, err
@@ -78,8 +79,8 @@ func (t *TimescaleDb) GetDailyActiveAccount(
 	chainName string,
 	dateFrom date.Date,
 	dateTo date.Date,
-	sortOrder SortOrder,
-) ([]*DailyActiveAccount, error) {
+	sortOrder database.SortOrder,
+) ([]*database.DailyActiveAccount, error) {
 	query := fmt.Sprintf(`
 	SELECT date::date, count FROM (
 	SELECT
@@ -99,9 +100,9 @@ func (t *TimescaleDb) GetDailyActiveAccount(
 		return nil, err
 	}
 	defer rows.Close()
-	var dailyActiveAccounts []*DailyActiveAccount
+	var dailyActiveAccounts []*database.DailyActiveAccount
 	for rows.Next() {
-		dailyActiveAccount := &DailyActiveAccount{}
+		dailyActiveAccount := &database.DailyActiveAccount{}
 		err := rows.Scan(&dailyActiveAccount.Date, &dailyActiveAccount.Count)
 		if err != nil {
 			return nil, err
@@ -161,8 +162,8 @@ func (t *TimescaleDb) GetTotalTxCountByDate(
 	chainName string,
 	dateFrom date.Date,
 	dateTo date.Date,
-	sortOrder SortOrder,
-) ([]*TxCountDateRange, error) {
+	sortOrder database.SortOrder,
+) ([]*database.TxCountDateRange, error) {
 
 	query := fmt.Sprintf(`
 	SELECT date::date, tx_count FROM (
@@ -184,9 +185,9 @@ func (t *TimescaleDb) GetTotalTxCountByDate(
 		return nil, err
 	}
 	defer rows.Close()
-	var txCountTimeRanges []*TxCountDateRange
+	var txCountTimeRanges []*database.TxCountDateRange
 	for rows.Next() {
-		txCountTimeRange := &TxCountDateRange{}
+		txCountTimeRange := &database.TxCountDateRange{}
 		err := rows.Scan(&txCountTimeRange.Date, &txCountTimeRange.Count)
 		if err != nil {
 			return nil, err
@@ -204,8 +205,8 @@ func (t *TimescaleDb) GetTotalTxCountByHour(
 	chainName string,
 	fromTimestamp time.Time,
 	endTimestamp time.Time,
-	sortOrder SortOrder,
-) ([]*TxCountTimeRange, error) {
+	sortOrder database.SortOrder,
+) ([]*database.TxCountTimeRange, error) {
 	query := fmt.Sprintf(`
 	SELECT
 	time_bucket_gapfill('1 hour', time_bucket) as timestamp,
@@ -222,9 +223,9 @@ func (t *TimescaleDb) GetTotalTxCountByHour(
 		return nil, err
 	}
 	defer rows.Close()
-	var txCountTimeRanges []*TxCountTimeRange
+	var txCountTimeRanges []*database.TxCountTimeRange
 	for rows.Next() {
-		txCountTimeRange := &TxCountTimeRange{}
+		txCountTimeRange := &database.TxCountTimeRange{}
 		err := rows.Scan(&txCountTimeRange.Time, &txCountTimeRange.Count)
 		if err != nil {
 			return nil, err
@@ -243,8 +244,8 @@ func (t *TimescaleDb) GetVolumeByDate(
 	chainName string,
 	dateFrom date.Date,
 	dateTo date.Date,
-	sortOrder SortOrder,
-) (VolumeByDenomDaily, error) {
+	sortOrder database.SortOrder,
+) (database.VolumeByDenomDaily, error) {
 
 	query := fmt.Sprintf(`
 	SELECT date::date, volume, denom
@@ -270,9 +271,9 @@ func (t *TimescaleDb) GetVolumeByDate(
 		return nil, err
 	}
 	defer rows.Close()
-	var feeVolumeTimeRanges = make(VolumeByDenomDaily)
+	var feeVolumeTimeRanges = make(database.VolumeByDenomDaily)
 	for rows.Next() {
-		denomVolume := &DenomVolumeDaily{}
+		denomVolume := &database.DenomVolumeDaily{}
 		denom := ""
 		err := rows.Scan(&denomVolume.Date, &denomVolume.Volume, &denom)
 		if err != nil {
@@ -291,8 +292,8 @@ func (t *TimescaleDb) GetVolumeByHour(
 	chainName string,
 	fromTimestamp time.Time,
 	toTimestamp time.Time,
-	sortOrder SortOrder,
-) (VolumeByDenomHourly, error) {
+	sortOrder database.SortOrder,
+) (database.VolumeByDenomHourly, error) {
 
 	query := fmt.Sprintf(`
 	WITH hours AS (
@@ -319,9 +320,9 @@ func (t *TimescaleDb) GetVolumeByHour(
 		return nil, err
 	}
 	defer rows.Close()
-	var feeVolumeTimeRanges = make(VolumeByDenomHourly)
+	var feeVolumeTimeRanges = make(database.VolumeByDenomHourly)
 	for rows.Next() {
-		denomVolume := &DenomVolumeHourly{}
+		denomVolume := &database.DenomVolumeHourly{}
 		denom := ""
 		err := rows.Scan(&denomVolume.Time, &denomVolume.Volume, &denom)
 		if err != nil {
@@ -339,8 +340,7 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 	ctx context.Context,
 	validatorAddress string,
 	chainName string,
-) (*ValidatorSigning, error) {
-	// Check if validator address exists and get its id
+) (*database.ValidatorSigning, error) {
 	query1 := `
 	SELECT
 	id
@@ -353,7 +353,7 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 	err := row1.Scan(&validatorId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("validator %q: %w", validatorAddress, ErrNotFound)
+			return nil, fmt.Errorf("validator %q: %w", validatorAddress, database.ErrNotFound)
 		}
 		return nil, fmt.Errorf("validator lookup failed: %w", err)
 	}
@@ -390,7 +390,7 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 	`
 
 	row := t.pool.QueryRow(ctx, query2, chainName, validatorId)
-	var validatorSigning ValidatorSigning
+	var validatorSigning database.ValidatorSigning
 	err = row.Scan(
 		&validatorSigning.BlocksSigned,
 		&validatorSigning.BlocksMissed,
@@ -409,9 +409,8 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	chainName string,
 	fromTimestamp time.Time,
 	toTimestamp time.Time,
-	sortOrder SortOrder,
-) ([]*ValidatorSigning, error) {
-	// Check if validator address exists and get its id
+	sortOrder database.SortOrder,
+) ([]*database.ValidatorSigning, error) {
 	query1 := `
 	SELECT
 	id
@@ -424,7 +423,7 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	err := row1.Scan(&validatorId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("validator %q: %w", validatorAddress, ErrNotFound)
+			return nil, fmt.Errorf("validator %q: %w", validatorAddress, database.ErrNotFound)
 		}
 		return nil, fmt.Errorf("validator lookup failed: %w", err)
 	}
@@ -451,9 +450,9 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 		return nil, err
 	}
 	defer rows.Close()
-	var validatorSignings []*ValidatorSigning
+	var validatorSignings []*database.ValidatorSigning
 	for rows.Next() {
-		validatorSigning := &ValidatorSigning{}
+		validatorSigning := &database.ValidatorSigning{}
 		err := rows.Scan(&validatorSigning.Time, &validatorSigning.BlocksSigned, &validatorSigning.BlocksMissed, &validatorSigning.TotalBlocks, &validatorSigning.SigningRate)
 		if err != nil {
 			return nil, err
@@ -466,11 +465,11 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	return validatorSignings, nil
 }
 
-// GetAllValidatorSigning24h returns all validator signings for the last 24 hours
+// GetAllValidatorSigning24h returns signing stats for all validators over the last 24 hours.
 func (t *TimescaleDb) GetAllValidatorSigning24h(
 	ctx context.Context,
 	chainName string,
-) (AllValidatorSignings, error) {
+) (database.AllValidatorSignings, error) {
 	query := `
     WITH total_blocks AS (
            SELECT
@@ -508,11 +507,11 @@ func (t *TimescaleDb) GetAllValidatorSigning24h(
 	if err != nil {
 		return nil, err
 	}
-	var result = make(AllValidatorSignings)
+	var result = make(database.AllValidatorSignings)
 	defer rows.Close()
 	for rows.Next() {
 		var address string
-		var entry ValidatorSigning
+		var entry database.ValidatorSigning
 		if err := rows.Scan(
 			&address,
 			&entry.BlocksSigned,

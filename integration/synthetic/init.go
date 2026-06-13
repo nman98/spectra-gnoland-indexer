@@ -11,12 +11,12 @@ import (
 	dataProcessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/orchestrator"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 )
 
 // SyntheticIntegrationTestConfig holds configuration for synthetic integration tests
 type SyntheticIntegrationTestConfig struct {
-	DatabaseConfig database.DatabasePoolConfig
+	DatabaseConfig timescaledb.DatabasePoolConfig
 	ChainID        string
 	FromHeight     uint64
 	ToHeight       uint64
@@ -29,7 +29,7 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 	log.Printf("Starting synthetic integration test from height %d to %d", testConfig.FromHeight, testConfig.ToHeight)
 
 	// Initialize database
-	db := database.NewTimescaleDb(testConfig.DatabaseConfig)
+	db := timescaledb.NewTimescaleDb(testConfig.DatabaseConfig)
 	log.Printf("Connected to database successfully")
 
 	// Initialize address caches (required by data processor). These are shared

@@ -1,4 +1,4 @@
-package database
+package timescaledb
 
 import (
 	"context"
