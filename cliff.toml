@@ -1,0 +1,65 @@
+# git-cliff configuration for spectra-gnoland-indexer
+# Tuned to the existing CHANGELOG.md style (Keep a Changelog + Added/Changes/Fixed).
+# Generate the next section with:   git cliff --unreleased --tag v0.7.0
+# Regenerate the whole file with:   git cliff -o CHANGELOG.md
+
+[changelog]
+# Static header that matches the existing CHANGELOG.md preamble.
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+"""
+
+# How each release block is rendered.
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | upper_first }}\
+{% if commit.id %} [{{ commit.id | truncate(length=7, end="") }}](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/{{ commit.id }}){% endif %}\
+{% endfor %}
+{% endfor %}\n
+"""
+trim = true
+
+[git]
+# For now do not strictly follow Conventional Commits. After v1 this should be changed.
+conventional_commits = false
+filter_unconventional = false
+# Don't split a commit into multiple changelog entries.
+split_commits = false
+# Strip leading/trailing whitespace from messages.
+protect_breaking_commits = false
+
+# Tidy up the subject line before it lands in the changelog:
+# drop the "prefix:" token (we re-group on it below) and the trailing period.
+commit_preprocessors = [
+  { pattern = '^\s*(?i)(add|added|feat|feature|change|changed|chore|deps|dep|refactor|refac|fix|bug|test|vuln|vulncheck|audit| ?fix|fixed|lint|go fmt|go fix|perf|docs|doc|test|ci|build)\s*:\s*', replace = "" },
+  { pattern = '\.\s*$', replace = "" },
+]
+
+# Map each commit to a group by matching the ORIGINAL prefix.
+# The <!-- N --> markers control section ordering (git-cliff sorts groups by them).
+commit_parsers = [
+  { message = '^\s*(?i)(add|added|feat|feature)\s*:', group = "<!-- 0 -->Added" },
+  { message = '^\s*(?i)(fix|bug ?fix|fixed)\s*:',      group = "<!-- 2 -->Fixed" },
+  { message = '^\s*(?i)(change|changed|chore|deps|dep|refactor|refac|lint|go fmt|go fix|perf|build|ci)\s*:', group = "<!-- 1 -->Changes" },
+  { message = '^\s*(?i)(test|audit|vulncheck|vuln)\s*:', group = "<!-- 3 -->Tests and Code Check" },
+  # Anything without a recognised prefix lands here so nothing silently vanishes.
+  # Triage these into the right section (or, better, start prefixing your commits).
+  { message = '.*', group = "<!-- 3 -->Uncategorized (please triage)" },
+]
+
+# Process commits newest-first within each group.
+sort_commits = "newest"
+# Only include tags that look like releases.
+tag_pattern = "v[0-9]*"

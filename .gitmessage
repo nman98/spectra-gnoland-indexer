@@ -1,0 +1,22 @@
+# <type>: <short imperative summary, no period, aim for <=72 chars>
+#
+# < - why is this change needed? what does it do? — wrap at ~72 chars >
+# <reference issues if any, e.g. "Closes #42">
+#
+# ── Allowed types (these drive the changelog grouping) ───────────
+#   feat      a new feature                         -> Added
+#   fix       a bug fix                             -> Fixed
+#   refactor  code change, no behaviour change      -> Changes
+#   perf      a performance improvement             -> Changes
+#   deps      dependency add/update/remove          -> Changes
+#   docs      documentation only                    -> Changes
+#   chore     tooling, config, housekeeping         -> Changes
+#   ci        CI / workflow changes                 -> Changes
+#   test      a test for old or new behaviour       -> Changes
+#
+#   optional scope:  feat(api): ...   fix(db): ...
+# ─────────────────────────────────────────────────────────────────
+# Tips:
+#   - Subject in the imperative: "Add X", not "Added X" / "Adds X".
+#   - Keep the subject one line; put the detail in the body.
+#   - The body's "why" is what makes the changelog write itself.
