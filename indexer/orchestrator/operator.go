@@ -443,7 +443,11 @@ func (or *Orchestrator) processPhase2(
 	if ctx.hasTxs {
 		wg2.Go(func() {
 			l.Info().Msg("Phase 2: Starting ProcessMessages")
-			or.dataProcessor.ProcessMessages(ctx.transactions, ctx.fromHeight, ctx.toHeight)
+			if err := or.dataProcessor.ProcessMessages(
+				ctx.transactions, ctx.fromHeight, ctx.toHeight,
+			); err != nil {
+				l.Error().Err(err).Msg("Phase 2: ProcessMessages failed")
+			}
 			l.Info().Msg("Phase 2: ProcessMessages completed")
 		})
 		wg2.Go(func() {

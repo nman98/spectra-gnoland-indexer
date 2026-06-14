@@ -597,27 +597,27 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 
 	// Insert DbMsgSend messages with address IDs
 	if msgSendCount > 0 {
-		d.insertMessage(msgSendInserter(groups.MsgSend), msgSendCount, insertErrors)
+		d.insertMessage(msgSendInserter(groups.MsgSend), msgSendCount, &insertErrors)
 	}
 
 	// Insert DbMsgCall messages with address IDs
 	if msgCallCount > 0 {
-		d.insertMessage(msgCallInserter(groups.MsgCall), msgCallCount, insertErrors)
+		d.insertMessage(msgCallInserter(groups.MsgCall), msgCallCount, &insertErrors)
 	}
 
 	// Insert DbMsgAddPackage messages with address IDs
 	if msgAddPkgCount > 0 {
-		d.insertMessage(msgAddPackageInserter(groups.MsgAddPkg), msgAddPkgCount, insertErrors)
+		d.insertMessage(msgAddPackageInserter(groups.MsgAddPkg), msgAddPkgCount, &insertErrors)
 	}
 
 	// Insert DbMsgRun messages with address IDs
 	if msgRunCount > 0 {
-		d.insertMessage(msgRunInserter(groups.MsgRun), msgRunCount, insertErrors)
+		d.insertMessage(msgRunInserter(groups.MsgRun), msgRunCount, &insertErrors)
 	}
 
 	// Insert DbMsgMultiSend messages with address IDs
 	if msgMultiSendCount > 0 {
-		d.insertMessage(msgMultiSendInserter(groups.MsgMultiSend), msgMultiSendCount, insertErrors)
+		d.insertMessage(msgMultiSendInserter(groups.MsgMultiSend), msgMultiSendCount, &insertErrors)
 	}
 
 	// Combine all errors if any occurred
@@ -635,7 +635,7 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 func (d *DataProcessor) insertMessage(
 	msgGroups messageInserter,
 	msgCount int,
-	errors []error,
+	errors *[]error,
 ) {
 	timeout := 10*time.Second + (time.Duration(msgCount) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -644,7 +644,7 @@ func (d *DataProcessor) insertMessage(
 	if err != nil {
 		txIds := msgGroups.getTxIds()
 		hashes := d.findHashes(txIds)
-		errors = append(errors, fmt.Errorf("failed to insert messages: %w, hashes: %v", err, hashes))
+		*errors = append(*errors, fmt.Errorf("failed to insert messages: %w, hashes: %v", err, hashes))
 	}
 }
 
