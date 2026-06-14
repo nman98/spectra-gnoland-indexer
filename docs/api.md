@@ -21,6 +21,7 @@ There are total of 5 routes available. This are the basic routes that are needed
 - /blocks - Get a list of blocks by setting the limit and using cursor.
 - /blocks/stats/count/recent - Get the total number of blocks produced in the last 24 hours.
 - /blocks/stats/count/daily - Get the block count per day within the given date range. Max range is 30 days.
+- /blocks/stats/avg_time - Get Average Block production time.
 
 ### Transactions
 
@@ -35,8 +36,9 @@ There are total of 5 routes available. This are the basic routes that are needed
 
 ### Addresses
 
-- /address/{address}/txs?from_timestamp={from_timestamp}&to_timestamp={to_timestamp} - Get all of the transactions for a given address for a certain time period
+- /address/{address}/transactions - Get all of the transactions for a given address for a certain time period
 - /addresses/stats/active/daily - Get the number of daily active addresses within the given date range.
+- /addresses/stats/total - Get the total number of addresses active since indexer started to process the data.
 
 ### Utilities
 
@@ -49,6 +51,8 @@ These endpoints can be queried via POST method.
 
 - /validators/{validator_address}/signing/recent - Get the signing performance of a validator over the last 24 hours.
 - /validators/{validator_address}/signing/hourly - Get the per-hour signing performance of a validator within the given datetime range. Max range is 7 days.
+- /validators/list - Get a list of all validators that were at any point active on the network.
+- /validators/signing/24h - Get all validators that signed at least one block in the last 24 hours.
 
 ## Setup API
 
