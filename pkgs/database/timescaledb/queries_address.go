@@ -69,9 +69,11 @@ func (t *TimescaleDb) GetAddressTxs(
 func (t *TimescaleDb) GetTotalAddressesCount(ctx context.Context, chainName string) (int32, error) {
 	query := `
 	SELECT
-	MAX(id)
+	id
 	FROM gno_addresses
 	WHERE chain_name = $1
+	ORDER BY id DESC
+	LIMIT 1
 	`
 	row := t.pool.QueryRow(ctx, query, chainName)
 	var maxId int32
