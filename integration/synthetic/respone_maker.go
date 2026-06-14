@@ -50,6 +50,26 @@ func (rm *ResponseMaker) GenerateBlockResponse(input GenBlockInput) *rpcClient.B
 		})
 	}
 
+	// BlockMeta.Header and Block.Header carry the same header in this mock.
+	header := rpcClient.BlockHeader{
+		Version:            "1.0.0",
+		ChainID:            input.ChainID,
+		Height:             strconv.FormatUint(input.Height, 10),
+		Time:               input.Timestamp,
+		NumTxs:             "0",
+		TotalTxs:           "0",
+		AppVersion:         "1.0.0",
+		ProposerAddress:    input.ProposerAddress,
+		LastBlockID:        rpcClient.BlockID{Hash: lastBlockHash, Parts: rpcClient.Parts{Total: "1", Hash: lastPartsHash}},
+		LastCommitHash:     lastCommitHash,
+		DataHash:           dataHash,
+		ValidatorsHash:     validatorsHash,
+		NextValidatorsHash: nextValidatorsHash,
+		ConsensusHash:      consensusHash,
+		AppHash:            appHash,
+		LastResultsHash:    lastResultsHash,
+	}
+
 	block := rpcClient.BlockResponse{
 		Jsonrpc: "2.0",
 		ID:      1,
@@ -60,44 +80,10 @@ func (rm *ResponseMaker) GenerateBlockResponse(input GenBlockInput) *rpcClient.B
 					Parts: rpcClient.Parts{
 						Total: "1", Hash: partsHash},
 				},
-				Header: rpcClient.BlockHeader{
-					Version:            "1.0.0",
-					ChainID:            input.ChainID,
-					Height:             strconv.FormatUint(input.Height, 10),
-					Time:               input.Timestamp,
-					NumTxs:             "0",
-					TotalTxs:           "0",
-					AppVersion:         "1.0.0",
-					ProposerAddress:    input.ProposerAddress,
-					LastBlockID:        rpcClient.BlockID{Hash: lastBlockHash, Parts: rpcClient.Parts{Total: "1", Hash: lastPartsHash}},
-					LastCommitHash:     lastCommitHash,
-					DataHash:           dataHash,
-					ValidatorsHash:     validatorsHash,
-					NextValidatorsHash: nextValidatorsHash,
-					ConsensusHash:      consensusHash,
-					AppHash:            appHash,
-					LastResultsHash:    lastResultsHash,
-				},
+				Header: header,
 			},
 			Block: rpcClient.BlockInfo{
-				Header: rpcClient.BlockHeader{
-					Version:            "1.0.0",
-					ChainID:            input.ChainID,
-					Height:             strconv.FormatUint(input.Height, 10),
-					Time:               input.Timestamp,
-					NumTxs:             "0",
-					TotalTxs:           "0",
-					AppVersion:         "1.0.0",
-					ProposerAddress:    input.ProposerAddress,
-					LastBlockID:        rpcClient.BlockID{Hash: lastBlockHash, Parts: rpcClient.Parts{Total: "1", Hash: lastPartsHash}},
-					LastCommitHash:     lastCommitHash,
-					DataHash:           dataHash,
-					ValidatorsHash:     validatorsHash,
-					NextValidatorsHash: nextValidatorsHash,
-					ConsensusHash:      consensusHash,
-					AppHash:            appHash,
-					LastResultsHash:    lastResultsHash,
-				},
+				Header: header,
 				Data: rpcClient.BlockData{
 					Txs: &input.TxsRaw,
 				},

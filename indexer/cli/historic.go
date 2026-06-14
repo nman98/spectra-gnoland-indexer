@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 
-	mainOperator "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_operator"
 	mainTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_types"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	"github.com/spf13/cobra"
@@ -23,30 +22,8 @@ var historicCmd = &cobra.Command{
 		l := logger.Get()
 		l.Info().Msg("running in historic mode")
 
-		configPath, err := cmd.Flags().GetString("config")
+		configPath, rateLimitFlags, compressEvents, err := parseCommonRunFlags(cmd)
 		if err != nil {
-			l.Error().Err(err).Msg("failed to get config path")
-			return err
-		}
-
-		maxRequestsPerWindow, err := cmd.Flags().GetInt("max-req-per-window")
-		if err != nil {
-			l.Error().Err(err).Msg("failed to get max requests per window")
-			return err
-		}
-		rateLimitWindow, err := cmd.Flags().GetDuration("rate-limit-window")
-		if err != nil {
-			l.Error().Err(err).Msg("failed to get rate limit window")
-			return err
-		}
-		timeout, err := cmd.Flags().GetDuration("timeout")
-		if err != nil {
-			l.Error().Err(err).Msg("failed to get timeout")
-			return err
-		}
-		compressEvents, err := cmd.Flags().GetBool("compress-events")
-		if err != nil {
-			l.Error().Err(err).Msg("failed to get compress events")
 			return err
 		}
 
@@ -61,12 +38,6 @@ var historicCmd = &cobra.Command{
 			return err
 		}
 
-		rateLimitFlags := mainTypes.RpcFlags{
-			RequestsPerWindow: maxRequestsPerWindow,
-			TimeWindow:        rateLimitWindow,
-			Timeout:           timeout,
-		}
-
 		runningFlags := mainTypes.RunningFlags{
 			RunningMode:        "historic",
 			SkipInitialDbCheck: false,
@@ -75,11 +46,7 @@ var historicCmd = &cobra.Command{
 			ToHeight:           toHeight,
 		}
 
-		l.Info().Msg("indexer started")
-		if compressEvents {
-			l.Warn().Msg("compress events is enabled, this is experimental and it might slow down the data processing speed")
-		}
-		mainOperator.InitMainOperator(configPath, ".", rateLimitFlags, runningFlags)
+		launchIndexer(configPath, rateLimitFlags, runningFlags)
 		return nil
 	},
 }
