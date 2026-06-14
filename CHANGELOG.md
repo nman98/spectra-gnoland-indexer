@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-06-14
+
+This release brings a versioned REST API, several new routes, real-time statistics, partial support 
+for the bank multi send message type, and a large number of query fixes and performance refactors. The
+database layer received significant work, including a schema migration table for future releases and
+a refactor of the transaction lookups to use `tx_hash_id`. The Go toolchain and dependencies were
+updated and the TimescaleDB code was separated out of the database package.
+
+This version will make a freeze on any new feature unless it is related to performance, stability, or
+security until the v1 release. All of the development will be focused on bug fixes and improvements of 
+the existing functionality.
+
+### Added
+
+- REST API routes are now versioned. All routes are served under a `v1` group using Huma route groups. [70b7330](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/70b733076826d664810a73f25ed6c06e4eb0423b), [5dafaf3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5dafaf3136056ab4f6125c7e52f35a6841bfc53a)
+- Real time statistics served from an in-memory handler. [1b6d563](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/1b6d56326127f2869c8ddc57f0906741037adcab)
+- New route to get all validator signings in the last 24h. [df369ad](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/df369ad221ef3a5f392927a2b82da3d915d9a72f)
+- Several new REST API routes added and existing ones fixed. [34360b7](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/34360b70b5fbbc0af5aefc85fc97fac35bcf4a6c)
+- Partial support for the bank multi send message type in the decoder, SQL data types and the DataProcessor. Full support will be added once Gno Amino encoder has it implemented. [d8c9e2f](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d8c9e2fcbe9f7922ea7795cf4374fd958a7f32cd)
+- Schema migration table to ease database migrations in future releases. [588500b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/588500beecda954a251be512233dc3e92ceed0be)
+- Option to use a base64 hash directly in the `transactions/{hash}` query. [641e5f7](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/641e5f79485fb0ad3ebc68a57806cf3436afc8b3)
+- Sort by date/time on queries that can support it.
+- Error log and success/execution status to transaction and address transaction queries.
+- User-agent support for the RPC client.
+- `SECURITY.md` file outlining the security policy and reporting guidelines. [74cdd48](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/74cdd4841dc0c3e4bc013d144c3894a6a1a6d590)
+
+### Changes
+
+- The TimescaleDB code was separated out of the `database` package into its own package. [afdc20d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/afdc20dd15543a4115e6ab8d55afeb6bfa07bdde)
+- Refactored database queries to use `tx_hash_id` for transaction lookups, and refactored the hypertables that contained the `tx_hash` column. [a4f4f3d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/a4f4f3de27c7f47fa5c0255f415efebb6b2235b5), [f13d980](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f13d980cde9808ddcbecb2b921916b03dd278af6)
+- Optimized the indexer orchestrator and adjusted the codebase to the recent changes. [8d53baa](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/8d53baa00674fafb9b85bbf995b411242e4af676)
+- Implemented rate limiting for specific API routes. [0e39720](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/0e39720d7afa21186cbe47b21f1c2a540051535f)
+- Refactored hypertable creation to use a structured `HypertableParams` struct for better configuration management, including `OrderBy` and `SegmentBy` options. [79c4fd8](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/79c4fd8b5b5fde01e11de0a5b9bd93e68c72bab5)
+- Moved the CLI commands to the `cli` directory and `indexer.go` to the `cmd` file. [59999fa](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/59999fad13ab83080a80255edfcb7ad51e544811)
+- Force the pgx driver to use UTC time and refactored date handling across the API and database queries. [0a1cfcb](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/0a1cfcb6f7abed1d7408719418fd52e59807b8ea)
+- Daily query views now include data up to the end of the day, and every daily query returns `0` when there is no data instead of returning nothing.
+- Changed `NextCursor` and `PrevCursor` fields to be non-omittable in the JSON output.
+- Refactored error handling in the address and block handlers, and removed the sort order parameter from address transaction handling.
+- Adjusted the RPC HTTP client to use a better HTTP configuration.
+- Refactored the Valkey client implementation and used pure Go implementation.
+- Updated the Go toolchain to go1.26.4 and updated other dependencies.
+
+### Fixed
+
+- The indexer querying the new database for the last block height returned an error.
+- The validator 24h signing query incorrectly counted all blocks instead of only the blocks with validator signings. [6c8a920](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/6c8a920d1a4b920826093ced073dabb67320f463)
+- Fixed duplicate entries being made for the `address_tx` table. [04b1a01](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/04b1a011b310c20568b58f552ecfc9fe09cd0514)
+- The rate limiter added a TTL of a couple of thousand years; fixed alongside the rate limiting work. [0e39720](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/0e39720d7afa21186cbe47b21f1c2a540051535f)
+- Fixed missing query columns in `GetBlock` on the TimescaleDB query.
+- Fixed unique detection for the SQL database initialization and added unique keys to some tables.
+- `extractCoins` now inserts a `0` value and the coins are inserted at the index.
+- Various fixes to the view and transaction queries, including the daily block production query.
+- Reverted `performRequest` to first read the body and then parse the JSON.
+
 ## [0.6.0] - 2026-03-14
 
 This release has some new features added and minor improvements.
