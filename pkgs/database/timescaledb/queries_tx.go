@@ -2,7 +2,6 @@ package timescaledb
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
@@ -31,9 +30,9 @@ func init() {
 	}
 }
 
-// GetTransaction gets the transaction for a given transaction hash.
-func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainName string) (*database.Transaction, error) {
-	query := `
+// txSelectCols is the shared full-transaction projection. Its column order must stay
+// in lockstep with txScanDest.
+const txSelectCols = `
 	SELECT
 	encode(id.tx_hash, 'base64') AS tx_hash,
 	tx.timestamp,
@@ -50,26 +49,58 @@ func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainNa
 	tx.error_log
 	FROM transaction_general tx
 	JOIN tx_hash_id id ON tx.tx_id = id.tx_id AND tx.chain_name = id.chain_name
+`
+
+// txScanDest returns the scan destinations for txSelectCols, in matching column order.
+func txScanDest(t *database.FullTxData) []any {
+	return []any{
+		&t.TxHash,
+		&t.Timestamp,
+		&t.BlockHeight,
+		&t.TxEvents,
+		&t.TxEventsCompressed,
+		&t.CompressionOn,
+		&t.GasUsed,
+		&t.GasWanted,
+		&t.Fee.Amount,
+		&t.Fee.Denom,
+		&t.MsgTypes,
+		&t.Success,
+		&t.ErrorLog,
+	}
+}
+
+// scanTransactionRows drains a result set produced by txSelectCols into decoded
+// transactions.
+func scanTransactionRows(rows pgx.Rows) ([]*database.Transaction, error) {
+	defer rows.Close()
+	transactions := make([]*database.Transaction, 0)
+	for rows.Next() {
+		transaction := &database.FullTxData{}
+		if err := rows.Scan(txScanDest(transaction)...); err != nil {
+			return nil, err
+		}
+		tx, err := transaction.ToTransaction(decodeEvents)
+		if err != nil {
+			return nil, err
+		}
+		transactions = append(transactions, tx)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return transactions, nil
+}
+
+// GetTransaction gets the transaction for a given transaction hash.
+func (t *TimescaleDb) GetTransaction(ctx context.Context, txHash string, chainName string) (*database.Transaction, error) {
+	query := txSelectCols + `
 	WHERE id.tx_hash = decode($1, 'base64')
 	AND tx.chain_name = $2
 	`
 	row := t.pool.QueryRow(ctx, query, txHash, chainName)
 	var transaction database.FullTxData
-	err := row.Scan(
-		&transaction.TxHash,
-		&transaction.Timestamp,
-		&transaction.BlockHeight,
-		&transaction.TxEvents,
-		&transaction.TxEventsCompressed,
-		&transaction.CompressionOn,
-		&transaction.GasUsed,
-		&transaction.GasWanted,
-		&transaction.Fee.Amount,
-		&transaction.Fee.Denom,
-		&transaction.MsgTypes,
-		&transaction.Success,
-		&transaction.ErrorLog,
-	)
+	err := row.Scan(txScanDest(&transaction)...)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("transaction %s: %w", txHash, database.ErrNotFound)
@@ -96,23 +127,7 @@ func (t *TimescaleDb) GetLastXTransactions(
 		*sortOrder = database.SortOrderDesc
 	}
 	order := sortOrder.SQL()
-	query := fmt.Sprintf(`
-	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
-	tx.timestamp,
-	tx.block_height,
-	tx.tx_events,
-	tx.tx_events_compressed,
-	tx.compression_on,
-	tx.gas_used,
-	tx.gas_wanted,
-	tx.fee_amount,
-	tx.fee_denom,
-	tx.msg_types,
-	tx.success,
-	tx.error_log
-	FROM transaction_general tx
-	JOIN tx_hash_id id ON tx.tx_id = id.tx_id AND tx.chain_name = id.chain_name
+	query := fmt.Sprintf(txSelectCols+`
 	WHERE tx.chain_name = $1
 	ORDER BY tx.timestamp %s
 	LIMIT $2
@@ -121,34 +136,8 @@ func (t *TimescaleDb) GetLastXTransactions(
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	transactions := make([]*database.Transaction, 0)
-	for rows.Next() {
-		transaction := &database.FullTxData{}
-		err := rows.Scan(
-			&transaction.TxHash,
-			&transaction.Timestamp,
-			&transaction.BlockHeight,
-			&transaction.TxEvents,
-			&transaction.TxEventsCompressed,
-			&transaction.CompressionOn,
-			&transaction.GasUsed,
-			&transaction.GasWanted,
-			&transaction.Fee.Amount,
-			&transaction.Fee.Denom,
-			&transaction.MsgTypes,
-			&transaction.Success,
-			&transaction.ErrorLog)
-		if err != nil {
-			return nil, err
-		}
-		tx, err := transaction.ToTransaction(decodeEvents)
-		if err != nil {
-			return nil, err
-		}
-		transactions = append(transactions, tx)
-	}
-	if err := rows.Err(); err != nil {
+	transactions, err := scanTransactionRows(rows)
+	if err != nil {
 		return nil, err
 	}
 	if len(transactions) == 0 {
@@ -236,53 +225,22 @@ func (t *TimescaleDb) GetTransactionsByRange(
 		return nil, false, fmt.Errorf("limit must be between 1 and 100")
 	}
 
-	const selectCols = `
-	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
-	tx.timestamp,
-	tx.block_height,
-	tx.tx_events,
-	tx.tx_events_compressed,
-	tx.compression_on,
-	tx.gas_used,
-	tx.gas_wanted,
-	tx.fee_amount,
-	tx.fee_denom,
-	tx.msg_types,
-	tx.success,
-	tx.error_log
-	FROM transaction_general tx
-	JOIN tx_hash_id id ON tx.tx_id = id.tx_id AND tx.chain_name = id.chain_name
-	`
-
-	hasCursor := cursor != ""
-	var (
-		query         string
-		args          []any
-		reverse       bool
-		blockHeight   uint64
-		decodedTxHash []byte
-	)
-
-	if hasCursor {
-		bh, txHash, err := unmarshalCursorParam(cursor)
-		if err != nil {
-			return nil, false, err
-		}
-		decoded, err := base64.URLEncoding.Strict().DecodeString(txHash)
-		if err != nil {
-			return nil, false, fmt.Errorf("error decoding cursor tx hash: %w", err)
-		}
-		blockHeight = bh
-		decodedTxHash = decoded
+	hasCursor, blockHeight, decodedTxHash, err := decodeCursor(&cursor)
+	if err != nil {
+		return nil, false, err
 	}
 
 	fetchLimit := limit + 1
+	var (
+		query   string
+		args    []any
+		reverse bool
+	)
 
 	switch direction {
 	case database.Next:
 		if hasCursor {
-			query = selectCols + `
+			query = txSelectCols + `
 			WHERE tx.chain_name = $1
 			AND (tx.block_height, id.tx_hash) < ($2, $3)
 			ORDER BY tx.block_height DESC, id.tx_hash DESC
@@ -290,7 +248,7 @@ func (t *TimescaleDb) GetTransactionsByRange(
 			`
 			args = []any{chainName, blockHeight, decodedTxHash, fetchLimit}
 		} else {
-			query = selectCols + `
+			query = txSelectCols + `
 			WHERE tx.chain_name = $1
 			ORDER BY tx.block_height DESC, id.tx_hash DESC
 			LIMIT $2
@@ -301,7 +259,7 @@ func (t *TimescaleDb) GetTransactionsByRange(
 		if !hasCursor {
 			return nil, false, fmt.Errorf("prev direction requires a cursor")
 		}
-		query = selectCols + `
+		query = txSelectCols + `
 		WHERE tx.chain_name = $1
 		AND (tx.block_height, id.tx_hash) > ($2, $3)
 		ORDER BY tx.block_height ASC, id.tx_hash ASC
@@ -317,36 +275,8 @@ func (t *TimescaleDb) GetTransactionsByRange(
 	if err != nil {
 		return nil, false, err
 	}
-	defer rows.Close()
-
-	transactions := make([]*database.Transaction, 0, fetchLimit)
-	for rows.Next() {
-		transaction := &database.FullTxData{}
-		err := rows.Scan(
-			&transaction.TxHash,
-			&transaction.Timestamp,
-			&transaction.BlockHeight,
-			&transaction.TxEvents,
-			&transaction.TxEventsCompressed,
-			&transaction.CompressionOn,
-			&transaction.GasUsed,
-			&transaction.GasWanted,
-			&transaction.Fee.Amount,
-			&transaction.Fee.Denom,
-			&transaction.MsgTypes,
-			&transaction.Success,
-			&transaction.ErrorLog,
-		)
-		if err != nil {
-			return nil, false, err
-		}
-		tx, err := transaction.ToTransaction(decodeEvents)
-		if err != nil {
-			return nil, false, err
-		}
-		transactions = append(transactions, tx)
-	}
-	if err := rows.Err(); err != nil {
+	transactions, err := scanTransactionRows(rows)
+	if err != nil {
 		return nil, false, err
 	}
 
@@ -355,9 +285,7 @@ func (t *TimescaleDb) GetTransactionsByRange(
 		transactions = transactions[:limit]
 	}
 	if reverse {
-		for i, j := 0, len(transactions)-1; i < j; i, j = i+1, j-1 {
-			transactions[i], transactions[j] = transactions[j], transactions[i]
-		}
+		reverseSlice(transactions)
 	}
 	return transactions, hasMore, nil
 }
