@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build-and-release:
@@ -19,14 +19,14 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: "1.26.4"
 
       - name: Get version
         id: version
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
+
           # Check if this is a pre-release (contains alpha, beta, rc, etc.)
           if [[ $VERSION =~ (alpha|beta|rc) ]]; then
             echo "prerelease=true" >> $GITHUB_OUTPUT
@@ -86,7 +86,7 @@ jobs:
           generate_release_notes: true
           body: |
             ## Release ${{ steps.version.outputs.version }}
-            
+
             ### Installation for the indexer
             Download the binary for your platform and make it executable:
             ```bash
@@ -144,7 +144,7 @@ jobs:
             GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
       - name: Build and push Docker API image
         uses: docker/build-push-action@v6
         with:

@@ -1,5 +1,5 @@
 name: Golangci-lint
-  
+
 on:
   push:
     branches: [dev, release/**]
@@ -14,16 +14,16 @@ jobs:
       packages: read
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-      
-    - name: Setup Go
-      uses: actions/setup-go@v6
-      with:
-        go-version: '1.26.3'
-        
-    - name: Install golangci-lint
-      run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-      
-    - name: Run golangci-lint
-      run: golangci-lint run --timeout=5m ./...
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.4"
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+      - name: Run golangci-lint
+        run: golangci-lint run --timeout=5m ./...

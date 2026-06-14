@@ -1,15 +1,15 @@
 name: Integration Tests
 on:
   pull_request:
-    branches: [ main, dev ]
+    branches: [main, dev]
   push:
-    branches: [ main, dev ]
+    branches: [main, dev]
   workflow_dispatch:
     inputs:
       test_size:
-        description: 'Test size (small/medium/large)'
+        description: "Test size (small/medium/large)"
         required: true
-        default: 'small'
+        default: "small"
         type: choice
         options:
           - small
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_size == 'small')
     timeout-minutes: 10
-    
+
     services:
       timescaledb:
         image: timescale/timescaledb-ha:pg17
@@ -47,7 +47,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: "1.26.4"
           cache: true
 
       - name: Wait for PostgreSQL
@@ -81,7 +81,7 @@ jobs:
           pool_max_conn_idle_time: 2m
           pool_health_check_period: 30s
           pool_max_conn_lifetime_jitter: 30s
-          
+
           chain_id: gnoland
           max_height: 1000
           from_height: 1
@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_size == 'medium')
     timeout-minutes: 30
-    
+
     services:
       timescaledb:
         image: timescale/timescaledb-ha:pg17
@@ -125,7 +125,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: "1.26.4"
           cache: true
 
       - name: Wait for PostgreSQL
@@ -159,7 +159,7 @@ jobs:
           pool_max_conn_idle_time: 2m
           pool_health_check_period: 30s
           pool_max_conn_lifetime_jitter: 30s
-          
+
           chain_id: gnoland
           max_height: 10000
           from_height: 1
@@ -181,7 +181,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_size == 'large'
     timeout-minutes: 90
-    
+
     services:
       timescaledb:
         image: timescale/timescaledb-ha:pg17
@@ -203,7 +203,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26.3'
+          go-version: "1.26.4"
           cache: true
 
       - name: Wait for PostgreSQL
@@ -237,7 +237,7 @@ jobs:
           pool_max_conn_idle_time: 2m
           pool_health_check_period: 30s
           pool_max_conn_lifetime_jitter: 30s
-          
+
           chain_id: gnoland
           max_height: 100000
           from_height: 1
@@ -259,4 +259,3 @@ jobs:
             integration/test_results/
             state_dumps/
           retention-days: 7
-
