@@ -4,8 +4,8 @@
 # the indexer can listen to http or https
 rpc: http://localhost:26657
 
-// Uncomment the following line to set a custom user agent
-// user_agent: gnoland-indexer
+# Uncomment the following line to set a custom user agent
+# user_agent: gnoland-indexer
 
 # Pool configuration
 # these are settings related to the database connection pool

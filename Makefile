@@ -2,7 +2,7 @@
 # Build and install the indexer and API
 ########################################################
 
-.PHONY: build build-indexer build-api clean
+.PHONY: build-indexer build-api clean
 
 # Get git information
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
