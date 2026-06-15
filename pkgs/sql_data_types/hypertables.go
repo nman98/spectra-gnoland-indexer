@@ -19,7 +19,7 @@ import (
 // PRIMARY KEY (tx_id, timestamp. chain_name)
 type TxHashId struct {
 	TxId      int64     `db:"tx_id" dbtype:"bigint generated always as identity" nullable:"false" primary:"true"`
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"primary" unique:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false" unique:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true" unique:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
 }
@@ -506,7 +506,7 @@ type MsgMultiSend struct {
 	// True means output, false means input. It has primary to true
 	Direction      bool     `db:"direction" dbtype:"boolean" nullable:"false" primary:"true"`
 	AddressId      int32    `db:"address_id" dbtype:"integer" nullable:"false" primary:"true"`
-	Coins          []Amount `db:"coins" dbtype:"amount" nullable:"false" primary:"false"`
+	Coins          []Amount `db:"coins" dbtype:"amount[]" nullable:"false" primary:"false"`
 	Signers        []int32  `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
 	MessageCounter int16    `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
 }

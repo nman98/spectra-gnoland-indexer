@@ -3,7 +3,6 @@ package sql_data_types
 import (
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"time"
 
@@ -319,16 +318,29 @@ func aggFunctions(v any) []string {
 
 func aggGroupBy(v any) []string {
 	t := reflect.TypeOf(v)
-	gb := make([]string, t.NumField())
+	type entry struct {
+		idx  int
+		name string
+	}
+	var entries []entry
+	maxIdx := -1
 	for f := range t.Fields() {
-		f := f
-		name := f.Tag.Get("mt")
 		idx := f.Tag.Get("gb")
 		if idx == "" {
 			continue
 		}
 		idxInt, _ := strconv.Atoi(idx)
-		gb = slices.Insert(gb, idxInt, name)
+		entries = append(entries, entry{idxInt, f.Tag.Get("mt")})
+		if idxInt > maxIdx {
+			maxIdx = idxInt
+		}
+	}
+	if maxIdx < 0 {
+		return nil
+	}
+	gb := make([]string, maxIdx+1)
+	for _, e := range entries {
+		gb[e.idx] = e.name
 	}
 	return gb
 }
