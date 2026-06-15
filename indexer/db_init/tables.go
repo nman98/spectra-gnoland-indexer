@@ -143,15 +143,11 @@ func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 			columnDef += " NOT NULL"
 		} else if col.Nullable != nil && *col.Nullable {
 			columnDef += " NULL"
-		} else if col.Default != nil {
+		}
+
+		if col.Default != nil {
 			columnDef += fmt.Sprintf(" DEFAULT %s", *col.Default)
 		}
-		// coment this out for now
-		// better to have a explicit null value than to have a implicit null value
-		//  else {
-		// 	// skip because it's not set
-		// 	continue
-		// }
 
 		if col.Primary != nil && *col.Primary {
 			primaryKeys = append(primaryKeys, col.Name)

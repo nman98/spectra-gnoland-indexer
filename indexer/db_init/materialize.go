@@ -100,10 +100,13 @@ func GenerateContinuousAggregateSQL(
 	fmt.Fprintf(&sb, "CREATE MATERIALIZED VIEW %s\n", agg.TableName())
 	sb.WriteString("WITH (timescaledb.continuous) AS\n")
 	sb.WriteString("SELECT\n")
-	sb.WriteString("    " + strings.Join(selectParts, ",\n    ") + "\n")
+	sb.WriteString("    ")
+	sb.WriteString(strings.Join(selectParts, ",\n    "))
+	sb.WriteString("\n")
 	fmt.Fprintf(&sb, "FROM %s\n", fromClause)
 	for _, lp := range lateralParts {
-		sb.WriteString(lp + "\n")
+		sb.WriteString(lp)
+		sb.WriteString("\n")
 	}
 	if len(gbOrdinals) > 0 {
 		fmt.Fprintf(&sb, "GROUP BY %s\n", strings.Join(gbOrdinals, ", "))
