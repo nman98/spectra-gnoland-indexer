@@ -71,11 +71,11 @@ jobs:
           LDFLAGS_API="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION} -w -s"
 
           # amd64
-          GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-amd64 indexer/indexer.go
+          GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-amd64 indexer/cmd/indexer.go
           GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_API" -o build/api-linux-amd64 api/*.go
 
           # arm64
-          GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-arm64 indexer/indexer.go
+          GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-arm64 indexer/cmd/indexer.go
           GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_API" -o build/api-linux-arm64 api/*.go
 
       - name: Create GitHub Release
