@@ -52,23 +52,7 @@ func NewInMemoryHandler(db InMemoryDbHandler, chainName string) *InMemoryHandler
 // - none
 func (h *InMemoryHandler) Start() {
 	// initialize the data
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
-	defer cancel()
-	avgBlockProdTime, err := h.db.GetAvgBlockProdTime(ctx, h.chainName)
-	if err != nil {
-		log.Printf("error getting average block production time: %v", err)
-		h.data.AvgBlockProdTime = 0
-		return
-	}
-	h.data.AvgBlockProdTime = avgBlockProdTime
-
-	totalAddressesCount, err := h.db.GetTotalAddressesCount(ctx, h.chainName)
-	if err != nil {
-		log.Printf("error getting total addresses count: %v", err)
-		h.data.TotalAddressesCount = 0
-		return
-	}
-	h.data.TotalAddressesCount = totalAddressesCount
+	h.refresh()
 
 	go func() {
 		for {
@@ -76,25 +60,32 @@ func (h *InMemoryHandler) Start() {
 			case <-h.done:
 				return
 			case <-time.After(h.interval):
-				ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
-				defer cancel()
-				avgBlockProdTime, err := h.db.GetAvgBlockProdTime(ctx, h.chainName)
-				if err != nil {
-					log.Printf("error getting average block production time: %v", err)
-					h.data.AvgBlockProdTime = 0
-					continue
-				}
-				h.data.AvgBlockProdTime = avgBlockProdTime
-				totalAddressesCount, err := h.db.GetTotalAddressesCount(ctx, h.chainName)
-				if err != nil {
-					log.Printf("error getting total addresses count: %v", err)
-					h.data.TotalAddressesCount = 0
-					continue
-				}
-				h.data.TotalAddressesCount = totalAddressesCount
+				h.refresh()
 			}
 		}
 	}()
+}
+
+// refresh fetches the latest constant data from the database.
+// On error it logs and keeps the previously held value, so a transient
+// failure does not wipe otherwise-good data.
+func (h *InMemoryHandler) refresh() {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	defer cancel()
+
+	avgBlockProdTime, err := h.db.GetAvgBlockProdTime(ctx, h.chainName)
+	if err != nil {
+		log.Printf("error getting average block production time: %v", err)
+	} else {
+		h.data.AvgBlockProdTime = avgBlockProdTime
+	}
+
+	totalAddressesCount, err := h.db.GetTotalAddressesCount(ctx, h.chainName)
+	if err != nil {
+		log.Printf("error getting total addresses count: %v", err)
+	} else {
+		h.data.TotalAddressesCount = totalAddressesCount
+	}
 }
 
 func (h *InMemoryHandler) Stop() {

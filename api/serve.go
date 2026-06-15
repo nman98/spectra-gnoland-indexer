@@ -205,12 +205,14 @@ func runServe(cmd *cobra.Command, args []string) {
 		log.Printf("Starting server on %s with HTTPS", addr)
 		err = http.ListenAndServeTLS(addr, certFilePath, keyFilePath, mux)
 		if err != nil {
+			inMemoryHandler.Stop()
 			log.Fatalf("failed to start server: %v", err)
 		}
 	} else {
 		log.Printf("Starting server on %s with HTTP", addr)
 		err = http.ListenAndServe(addr, mux)
 		if err != nil {
+			inMemoryHandler.Stop()
 			log.Fatalf("failed to start server: %v", err)
 		}
 	}

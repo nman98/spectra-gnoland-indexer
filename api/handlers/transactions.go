@@ -287,7 +287,7 @@ func (h *TransactionsHandler) GetVolumeByDate(ctx context.Context, input *humaty
 	if !input.StartDate.Before(input.EndDate.Time) {
 		return nil, badRequest("start_date must be before end_date")
 	}
-	if input.StartDate.Sub(input.EndDate.Time) > 24*time.Hour*30 {
+	if input.EndDate.Sub(input.StartDate.Time) > 24*time.Hour*30 {
 		return nil, badRequest("end_date must be within 30 days of start_date")
 	}
 
