@@ -146,9 +146,10 @@ func setupConnection(config DatabasePoolConfig) (*pgxpool.Pool, error) {
 // CreateDatabase creates a new database with the given name.
 func CreateDatabase(db *TimescaleDb, dbname string) error {
 	_, err := db.pool.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", dbname))
-	if err != nil && !strings.Contains(err.Error(), fmt.Sprintf("database %s already exists", dbname)) {
-		return nil
-	} else if err != nil {
+	if err != nil {
+		if strings.Contains(err.Error(), fmt.Sprintf("database %s already exists", dbname)) {
+			return nil
+		}
 		return err
 	}
 	return nil

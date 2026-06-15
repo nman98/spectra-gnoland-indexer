@@ -12,13 +12,18 @@ func (t *TimescaleDb) GetAllValidators(ctx context.Context, chainName string) (*
 	SELECT
 	address
 	FROM gno_validators
+	WHERE chain_name = $1
 	ORDER BY id ASC
 	`
 	var validators = make([]string, 0)
-	rows, err := t.pool.Query(ctx, query)
+	rows, err := t.pool.Query(ctx, query, chainName)
+
 	if err != nil {
 		return nil, err
 	}
+
+	defer rows.Close()
+
 	for rows.Next() {
 		var valAddr string
 		err := rows.Scan(&valAddr)
@@ -27,12 +32,15 @@ func (t *TimescaleDb) GetAllValidators(ctx context.Context, chainName string) (*
 		}
 		validators = append(validators, valAddr)
 	}
+
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
 	if len(validators) == 0 {
 		return nil, fmt.Errorf("validator list: %w", database.ErrNotFound)
 	}
+
 	return &database.ValidatorList{
 		ValAddresses: validators,
 	}, nil

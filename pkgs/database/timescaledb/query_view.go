@@ -121,7 +121,7 @@ func (t *TimescaleDb) GetTotalTxCount(
 ) (int64, error) {
 	query := `
 	SELECT
-	SUM(transaction_count) as total_tx_count
+	coalesce(SUM(transaction_count), 0) as total_tx_count
 	FROM tx_counter
 	WHERE
 	chain_name = $1
@@ -297,7 +297,7 @@ func (t *TimescaleDb) GetVolumeByHour(
 
 	query := fmt.Sprintf(`
 	WITH hours AS (
-		SELECT generate_series($2::timestamptz, $3::timestamptz - '1 hour'::interval, '1 hour'::interval) AS hour
+		SELECT generate_series($2::timestamptz, $3::timestamptz, '1 hour'::interval) AS hour
 	),
 	denoms AS (
 		SELECT DISTINCT denom FROM fee_volume WHERE chain_name = $1
@@ -522,6 +522,10 @@ func (t *TimescaleDb) GetAllValidatorSigning24h(
 			return nil, err
 		}
 		result[address] = entry
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
