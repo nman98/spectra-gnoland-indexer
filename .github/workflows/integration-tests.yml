@@ -17,92 +17,46 @@ on:
           - large
 
 jobs:
-  integration-test-small:
-    name: Integration Test (Small)
-    permissions:
-      contents: read
-      packages: read
+  setup:
+    name: Determine test matrix
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_size == 'small')
-    timeout-minutes: 10
-
-    services:
-      timescaledb:
-        image: timescale/timescaledb-ha:pg17
-        env:
-          POSTGRES_PASSWORD: test_password_12345678
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: "1.26.4"
-          cache: true
-
-      - name: Wait for PostgreSQL
+      - id: set-matrix
         run: |
-          timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done'
-        env:
-          PGPASSWORD: test_password_12345678
+          case "${{ github.event_name }}" in
+            pull_request)
+              echo 'matrix={"include":[{"size":"small","label":"Small","max_height":1000,"job_timeout":10,"test_timeout":"5m","test_timeout_min":5,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
+              ;;
+            push)
+              echo 'matrix={"include":[{"size":"medium","label":"Medium","max_height":10000,"job_timeout":30,"test_timeout":"20m","test_timeout_min":20,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
+              ;;
+            workflow_dispatch)
+              case "${{ github.event.inputs.test_size }}" in
+                small)
+                  echo 'matrix={"include":[{"size":"small","label":"Small","max_height":1000,"job_timeout":10,"test_timeout":"5m","test_timeout_min":5,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
+                  ;;
+                medium)
+                  echo 'matrix={"include":[{"size":"medium","label":"Medium","max_height":10000,"job_timeout":30,"test_timeout":"20m","test_timeout_min":20,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
+                  ;;
+                large)
+                  echo 'matrix={"include":[{"size":"large","label":"Large","max_height":100000,"job_timeout":90,"test_timeout":"75m","test_timeout_min":75,"upload_artifacts":true}]}' >> $GITHUB_OUTPUT
+                  ;;
+              esac
+              ;;
+          esac
 
-      - name: Initialize database schema
-        run: |
-          go run indexer/cmd/indexer.go setup create-db --db-user postgres --db-name postgres
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USER: gnoland
-          DB_PASSWORD: test_password_12345678
-          DB_NAME: gnoland
-
-      - name: Create test config
-        run: |
-          cat > integration/test_config.yml << EOF
-          host: localhost
-          port: 5432
-          user: postgres
-          password: test_password_12345678
-          dbname: gnoland
-          sslmode: disable
-          pool_max_conns: 100
-          pool_min_conns: 2
-          pool_max_conn_lifetime: 5m
-          pool_max_conn_idle_time: 2m
-          pool_health_check_period: 30s
-          pool_max_conn_lifetime_jitter: 30s
-
-          chain_id: gnoland
-          max_height: 1000
-          from_height: 1
-          to_height: 1000
-          EOF
-
-      - name: Run small integration test (1K blocks)
-        run: |
-          cd integration
-          go test -v -tags=integration -timeout=5m
-        timeout-minutes: 5
-
-  # Medium test for merges to main/develop
-  integration-test-medium:
-    name: Integration Test (Medium)
+  integration-test:
+    name: Integration Test (${{ matrix.label }})
+    needs: setup
     permissions:
       contents: read
       packages: read
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_size == 'medium')
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.job_timeout }}
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
 
     services:
       timescaledb:
@@ -161,97 +115,19 @@ jobs:
           pool_max_conn_lifetime_jitter: 30s
 
           chain_id: gnoland
-          max_height: 10000
+          max_height: ${{ matrix.max_height }}
           from_height: 1
-          to_height: 10000
+          to_height: ${{ matrix.max_height }}
           EOF
 
-      - name: Run medium integration test (10K blocks)
+      - name: Run ${{ matrix.size }} integration test (${{ matrix.label }})
         run: |
           cd integration
-          go test -v -tags=integration -timeout=20m
-        timeout-minutes: 20
-
-  # Full test for releases (manual trigger)
-  integration-test-large:
-    name: Integration Test (Large)
-    permissions:
-      contents: read
-      packages: read
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_size == 'large'
-    timeout-minutes: 90
-
-    services:
-      timescaledb:
-        image: timescale/timescaledb-ha:pg17
-        env:
-          POSTGRES_PASSWORD: test_password_12345678
-          POSTGRES_DB: gnoland
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d gnoland"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: "1.26.4"
-          cache: true
-
-      - name: Wait for PostgreSQL
-        run: |
-          timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done'
-        env:
-          PGPASSWORD: test_password_12345678
-
-      - name: Initialize database schema
-        run: |
-          go run indexer/cmd/indexer.go setup create-db
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USER: postgres
-          DB_PASSWORD: test_password_12345678
-          DB_NAME: gnoland
-
-      - name: Create test config
-        run: |
-          cat > integration/test_config.yml << EOF
-          host: localhost
-          port: 5432
-          user: postgres
-          password: test_password_12345678
-          dbname: gnoland
-          sslmode: disable
-          pool_max_conns: 100
-          pool_min_conns: 2
-          pool_max_conn_lifetime: 5m
-          pool_max_conn_idle_time: 2m
-          pool_health_check_period: 30s
-          pool_max_conn_lifetime_jitter: 30s
-
-          chain_id: gnoland
-          max_height: 100000
-          from_height: 1
-          to_height: 100000
-          EOF
-
-      - name: Run large integration test (100K blocks)
-        run: |
-          cd integration
-          go test -v -tags=integration -timeout=75m
-        timeout-minutes: 75
+          go test -v -tags=integration -timeout=${{ matrix.test_timeout }}
+        timeout-minutes: ${{ matrix.test_timeout_min }}
 
       - name: Upload test results
-        if: always()
+        if: always() && matrix.upload_artifacts
         uses: actions/upload-artifact@v4
         with:
           name: integration-test-results
