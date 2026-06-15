@@ -240,56 +240,51 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 }
 
 func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string) (float64, error) {
-	blockData, err := t.GetLatestBlock(ctx, chainName)
-	if err != nil {
-		return 0, err
-	}
-
-	latestHeight := blockData.Height
-	var compHeight uint64
-	var diffHeight uint64 = 10000
-	if latestHeight <= 10000 {
-		compHeight = 1
-		diffHeight = latestHeight - compHeight
-	} else {
-		compHeight = latestHeight - 10000
-	}
-
 	query := `
-	SELECT
-	timestamp
+	SELECT height, timestamp
 	FROM blocks
-	WHERE height IN ($1, $2) AND chain_name = $3
+	WHERE chain_name = $1
+	AND height IN (
+	    (SELECT MAX(height) FROM blocks WHERE chain_name = $1),
+	    (SELECT MIN(height) FROM blocks WHERE chain_name = $1)
+	)
 	ORDER BY height DESC
 	`
 
-	rows, err := t.pool.Query(ctx, query, latestHeight, compHeight, chainName)
+	rows, err := t.pool.Query(ctx, query, chainName)
 	if err != nil {
 		return 0, err
 	}
 	defer rows.Close()
 
-	var timestamps []time.Time
+	type blockPoint struct {
+		height uint64
+		ts     time.Time
+	}
+	var points []blockPoint
+
 	for rows.Next() {
-		var timestamp time.Time
-		err := rows.Scan(&timestamp)
-		if err != nil {
+		var p blockPoint
+		if err := rows.Scan(&p.height, &p.ts); err != nil {
 			return 0, err
 		}
-		timestamps = append(timestamps, timestamp)
+		points = append(points, p)
 	}
+
 	if err := rows.Err(); err != nil {
 		return 0, err
 	}
-	if len(timestamps) != 2 {
-		return 0, fmt.Errorf("expected 2 timestamps, got %d", len(timestamps))
+
+	if len(points) < 2 {
+		return 0, fmt.Errorf("not enough block data to compute average block time for chain %q", chainName)
 	}
-	latestTimestamp := timestamps[0]
-	compTimestamp := timestamps[1]
 
-	calc := (latestTimestamp.Sub(compTimestamp) / time.Duration(diffHeight)).Seconds()
+	diffHeight := points[0].height - points[1].height
+	if diffHeight == 0 {
+		return 0, fmt.Errorf("not enough block data to compute average block time for chain %q", chainName)
+	}
 
-	return calc, nil
+	return points[0].ts.Sub(points[1].ts).Seconds() / float64(diffHeight), nil
 }
 
 func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ...any) ([]*database.BlockData, error) {
