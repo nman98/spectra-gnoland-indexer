@@ -14,7 +14,7 @@ RUN if [ -z "$VERSION" ]; then \
     else VERSION="${GIT_BRANCH}-${GIT_COMMIT}"; \
     fi; \
     fi && \
-    go build -ldflags="-s -w -X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}" -o build/api ./api
+    GOTOOLCHAIN=auto go build -ldflags="-s -w -X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}" -o build/api ./api
 
 RUN touch config-api.yml
 RUN chmod +x build/api
