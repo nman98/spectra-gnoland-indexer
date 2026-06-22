@@ -126,112 +126,16 @@ func processMsgs(
 		messageCounter := int16(i)
 		switch m := msg.(type) {
 		case bank.MsgSend:
-			// amount should have something like 1000000 ugnot we just need to split it and convert it to uint64
-			amount, err := extractCoins(m.Amount)
-			if err != nil {
-				amount = []Coin{}
-			}
-			messages[i] = map[string]any{
-				"msg_type":        "bank_msg_send",
-				"from_address":    m.FromAddress.String(),
-				"to_address":      m.ToAddress.String(),
-				"amount":          amount,
-				"message_counter": messageCounter,
-			}
+			processSend(&m, messages, i, messageCounter)
 		case bank.MsgMultiSend:
-			distinctAddresses := make(map[string]struct{})
-			for _, input := range m.Inputs {
-				distinctAddresses[input.Address.String()] = struct{}{}
-			}
-			for _, output := range m.Outputs {
-				distinctAddresses[output.Address.String()] = struct{}{}
-			}
-			messages[i] = map[string]any{
-				"msg_type":           "bank_msg_multi_send",
-				"input":              m.Inputs,
-				"output":             m.Outputs,
-				"message_counter":    messageCounter,
-				"distinct_addresses": distinctAddresses,
-			}
-
+			processMultiSend(&m, messages, i, messageCounter)
 		// VM messages
 		case vm.MsgCall:
-			caller := m.Caller.String()
-			send, err := extractCoins(m.Send)
-			if err != nil {
-				send = []Coin{}
-			}
-			pkgPath := m.PkgPath
-			// max deposit could be empty and there is a chance it will return an error
-			// so we need to handle that
-			maxDeposit, err := extractCoins(m.MaxDeposit)
-			if err != nil {
-				maxDeposit = []Coin{}
-			}
-			funcName := m.Func
-			// combine the args into a string
-			args := strings.Join(m.Args, ",")
-			messages[i] = map[string]any{
-				"msg_type":        "vm_msg_call",
-				"caller":          caller,
-				"pkg_path":        pkgPath,
-				"func_name":       funcName,
-				"args":            args,
-				"send":            send,
-				"max_deposit":     maxDeposit,
-				"message_counter": messageCounter,
-			}
+			processVmCall(&m, messages, i, messageCounter)
 		case vm.MsgAddPackage:
-			pkgPath := m.Package.Path
-			pkgName := m.Package.Name
-			pkgFileNames := m.Package.FileNames()
-			creator := m.Creator.String()
-			send, err := extractCoins(m.Send)
-			if err != nil {
-				send = []Coin{}
-			}
-			maxDeposit, err := extractCoins(m.MaxDeposit)
-			if err != nil {
-				maxDeposit = []Coin{}
-			}
-			messages[i] = map[string]any{
-				"msg_type":        "vm_msg_add_package",
-				"pkg_path":        pkgPath,
-				"pkg_name":        pkgName,
-				"pkg_file_names":  pkgFileNames,
-				"creator":         creator,
-				"send":            send,
-				"max_deposit":     maxDeposit,
-				"message_counter": messageCounter,
-			}
-
+			processVmAddPkg(&m, messages, i, messageCounter)
 		case vm.MsgRun:
-			caller := m.Caller.String()
-			pkgPath := m.Package.Path
-			pkgName := m.Package.Name
-			pkgFileNames := m.Package.FileNames()
-			send, err := extractCoins(m.Send)
-			if err != nil {
-				send = []Coin{}
-			}
-			// max deposit could be empty and there is a chance it will return an error
-			// so we need to handle that
-			maxDeposit, err := extractCoins(m.MaxDeposit)
-			if err != nil {
-				maxDeposit = []Coin{}
-			}
-			messages[i] = map[string]any{
-				"msg_type":        "vm_msg_run",
-				"caller":          caller,
-				"pkg_path":        pkgPath,
-				"pkg_name":        pkgName,
-				"pkg_file_names":  pkgFileNames,
-				"send":            send,
-				"max_deposit":     maxDeposit,
-				"message_counter": messageCounter,
-			}
-
-		// TO-DO: when available add auth messages
+			processVmRun(&m, messages, i, messageCounter)
 		default:
 			return fmt.Errorf("unknown or unsupported message type: %T", m)
 		}
@@ -250,4 +154,141 @@ func extractCoins(amount std.Coins) ([]Coin, error) {
 		}
 	}
 	return coins, nil
+}
+
+func processSend(
+	m *bank.MsgSend,
+	messages []map[string]any,
+	i int,
+	messageCounter int16,
+) {
+	// amount should have something like 1000000 ugnot we just need to split it and convert it to uint64
+	amount, err := extractCoins(m.Amount)
+	if err != nil {
+		amount = []Coin{}
+	}
+	messages[i] = map[string]any{
+		"msg_type":        "bank_msg_send",
+		"from_address":    m.FromAddress.String(),
+		"to_address":      m.ToAddress.String(),
+		"amount":          amount,
+		"message_counter": messageCounter,
+	}
+}
+
+func processMultiSend(
+	m *bank.MsgMultiSend,
+	messages []map[string]any,
+	i int,
+	messageCounter int16,
+) {
+	distinctAddresses := make(map[string]struct{})
+	for _, input := range m.Inputs {
+		distinctAddresses[input.Address.String()] = struct{}{}
+	}
+	for _, output := range m.Outputs {
+		distinctAddresses[output.Address.String()] = struct{}{}
+	}
+	messages[i] = map[string]any{
+		"msg_type":           "bank_msg_multi_send",
+		"input":              m.Inputs,
+		"output":             m.Outputs,
+		"message_counter":    messageCounter,
+		"distinct_addresses": distinctAddresses,
+	}
+}
+
+func processVmCall(
+	m *vm.MsgCall,
+	messages []map[string]any,
+	i int,
+	messageCounter int16,
+) {
+	caller := m.Caller.String()
+	send, err := extractCoins(m.Send)
+	if err != nil {
+		send = []Coin{}
+	}
+	pkgPath := m.PkgPath
+	// max deposit could be empty and there is a chance it will return an error
+	// so we need to handle that
+	maxDeposit, err := extractCoins(m.MaxDeposit)
+	if err != nil {
+		maxDeposit = []Coin{}
+	}
+	funcName := m.Func
+	// combine the args into a string
+	args := strings.Join(m.Args, ",")
+	messages[i] = map[string]any{
+		"msg_type":        "vm_msg_call",
+		"caller":          caller,
+		"pkg_path":        pkgPath,
+		"func_name":       funcName,
+		"args":            args,
+		"send":            send,
+		"max_deposit":     maxDeposit,
+		"message_counter": messageCounter,
+	}
+}
+
+func processVmAddPkg(
+	m *vm.MsgAddPackage,
+	messages []map[string]any,
+	i int,
+	messageCounter int16,
+) {
+	pkgPath := m.Package.Path
+	pkgName := m.Package.Name
+	pkgFileNames := m.Package.FileNames()
+	creator := m.Creator.String()
+	send, err := extractCoins(m.Send)
+	if err != nil {
+		send = []Coin{}
+	}
+	maxDeposit, err := extractCoins(m.MaxDeposit)
+	if err != nil {
+		maxDeposit = []Coin{}
+	}
+	messages[i] = map[string]any{
+		"msg_type":        "vm_msg_add_package",
+		"pkg_path":        pkgPath,
+		"pkg_name":        pkgName,
+		"pkg_file_names":  pkgFileNames,
+		"creator":         creator,
+		"send":            send,
+		"max_deposit":     maxDeposit,
+		"message_counter": messageCounter,
+	}
+}
+
+func processVmRun(
+	m *vm.MsgRun,
+	messages []map[string]any,
+	i int,
+	messageCounter int16,
+) {
+	caller := m.Caller.String()
+	pkgPath := m.Package.Path
+	pkgName := m.Package.Name
+	pkgFileNames := m.Package.FileNames()
+	send, err := extractCoins(m.Send)
+	if err != nil {
+		send = []Coin{}
+	}
+	// max deposit could be empty and there is a chance it will return an error
+	// so we need to handle that
+	maxDeposit, err := extractCoins(m.MaxDeposit)
+	if err != nil {
+		maxDeposit = []Coin{}
+	}
+	messages[i] = map[string]any{
+		"msg_type":        "vm_msg_run",
+		"caller":          caller,
+		"pkg_path":        pkgPath,
+		"pkg_name":        pkgName,
+		"pkg_file_names":  pkgFileNames,
+		"send":            send,
+		"max_deposit":     maxDeposit,
+		"message_counter": messageCounter,
+	}
 }
