@@ -2,10 +2,12 @@ package timescaledb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -323,4 +325,36 @@ func (t *TimescaleDb) fetchTransactionData(ctx context.Context, query string, ar
 		txs[tx.BlockHeight] = append(txs[tx.BlockHeight], tx.TxHash)
 	}
 	return txs, rows.Err()
+}
+
+// GetAllBlockSigners returns all validators that signed a block, plus the proposer.
+func (t *TimescaleDb) GetAllBlockSigners(
+	ctx context.Context,
+	chainName string,
+	blockHeight uint64,
+) (*database.BlockSigners, error) {
+	query := `
+	SELECT
+	vb.block_height,
+	gv.address AS proposer,
+	array(
+		SELECT gv.address
+		FROM unnest(vb.signed_vals) AS signed_val_id
+		JOIN gno_validators gv ON gv.id = signed_val_id
+	) AS signed_vals
+	FROM validator_block_signing vb
+	LEFT JOIN gno_validators gv ON vb.proposer = gv.id
+	WHERE vb.chain_name = $1
+	AND vb.block_height = $2
+	`
+	row := t.pool.QueryRow(ctx, query, chainName, blockHeight)
+	var blockSigners database.BlockSigners
+	err := row.Scan(&blockSigners.BlockHeight, &blockSigners.Proposer, &blockSigners.SignedVals)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("block signers at height %d: %w", blockHeight, database.ErrNotFound)
+		}
+		return nil, err
+	}
+	return &blockSigners, nil
 }
