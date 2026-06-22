@@ -7,7 +7,7 @@ toolchain go1.26.4
 require (
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/danielgtaylor/huma/v2 v2.37.3
-	github.com/gnolang/gno v1.1.0
+	github.com/gnolang/gno v0.0.0-20260605100654-f45cc5c88e6a
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
 	github.com/jackc/pgx/v5 v5.9.2
@@ -26,7 +26,14 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
-require go.opentelemetry.io/otel/log/logtest v0.18.0 // indirect
+require (
+	github.com/bits-and-blooms/bitset v1.14.2 // indirect
+	github.com/consensys/bavard v0.1.13 // indirect
+	github.com/consensys/gnark-crypto v0.14.0 // indirect
+	github.com/mmcloughlin/addchain v0.4.0 // indirect
+	go.opentelemetry.io/otel/log/logtest v0.18.0 // indirect
+	rsc.io/tmplfunc v0.0.3 // indirect
+)
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6 // indirect
