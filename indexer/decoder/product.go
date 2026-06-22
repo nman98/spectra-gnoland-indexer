@@ -2,13 +2,13 @@ package decoder
 
 import (
 	"fmt"
-	"math/big"
 	"time"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	dataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
-	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
-	"github.com/jackc/pgx/v5/pgtype"
 )
+
+var l = logger.Get()
 
 // NewDecodedMsg creates a new DecodedMsg struct.
 //
@@ -24,6 +24,8 @@ func NewDecodedMsg(encodedTx string) *DecodedMsg {
 	decoder := NewDecoder(encodedTx)
 	basicData, messages, err := decoder.GetMessageFromStdTx()
 	if err != nil {
+		// It should never happen, but we need some way to halt the program.
+		l.Fatal().Stack().Msgf("failed to decode message %s", err)
 		return nil
 	}
 	return &DecodedMsg{
@@ -153,7 +155,23 @@ func (dm *DecodedMsg) CollectAllAddresses() []string {
 			if caller, ok := msgMap["caller"].(string); ok {
 				addressSet[caller] = struct{}{}
 			}
+
+		case "auth_msg_create_session":
+			if caller, ok := msgMap["caller"].(string); ok {
+				addressSet[caller] = struct{}{}
+			}
+
+		case "auth_msg_revoke_session":
+			if caller, ok := msgMap["caller"].(string); ok {
+				addressSet[caller] = struct{}{}
+			}
+
+		case "auth_msg_revoke_all_sessions":
+			if caller, ok := msgMap["caller"].(string); ok {
+				addressSet[caller] = struct{}{}
+			}
 		}
+
 	}
 
 	// Convert set to slice
@@ -167,11 +185,14 @@ func (dm *DecodedMsg) CollectAllAddresses() []string {
 
 // DbMessageGroups holds database-ready message types with address IDs
 type DbMessageGroups struct {
-	MsgSend      []dataTypes.MsgSend
-	MsgMultiSend []dataTypes.MsgMultiSend
-	MsgCall      []dataTypes.MsgCall
-	MsgAddPkg    []dataTypes.MsgAddPackage
-	MsgRun       []dataTypes.MsgRun
+	MsgSend              []dataTypes.MsgSend
+	MsgMultiSend         []dataTypes.MsgMultiSend
+	MsgCall              []dataTypes.MsgCall
+	MsgAddPkg            []dataTypes.MsgAddPackage
+	MsgRun               []dataTypes.MsgRun
+	MsgAuthCrSession     []dataTypes.MsgAuthCrSession
+	MsgAuthRvSession     []dataTypes.MsgAuthRvSession
+	MsgAuthRvAllSessions []dataTypes.MsgAuthRvAllSessions
 }
 
 // ConvertToDbMessages directly converts the decoded message maps to database-ready message types
@@ -190,13 +211,26 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 	}
 
 	dbGroups := &DbMessageGroups{
-		MsgSend:   make([]dataTypes.MsgSend, 0),
-		MsgCall:   make([]dataTypes.MsgCall, 0),
-		MsgAddPkg: make([]dataTypes.MsgAddPackage, 0),
-		MsgRun:    make([]dataTypes.MsgRun, 0),
+		MsgSend:              make([]dataTypes.MsgSend, 0),
+		MsgMultiSend:         make([]dataTypes.MsgMultiSend, 0),
+		MsgCall:              make([]dataTypes.MsgCall, 0),
+		MsgAddPkg:            make([]dataTypes.MsgAddPackage, 0),
+		MsgRun:               make([]dataTypes.MsgRun, 0),
+		MsgAuthCrSession:     make([]dataTypes.MsgAuthCrSession, 0),
+		MsgAuthRvSession:     make([]dataTypes.MsgAuthRvSession, 0),
+		MsgAuthRvAllSessions: make([]dataTypes.MsgAuthRvAllSessions, 0),
 	}
 
+	cvt := converter{
+		msgMap:          nil,
+		txId:            txId,
+		chainName:       chainName,
+		addressResolver: addressResolver,
+		timestamp:       timestamp,
+		signerIds:       signerIds,
+	}
 	for _, msgMap := range dm.Messages {
+		cvt.msgMap = msgMap
 		msgType, ok := msgMap["msg_type"].(string)
 		if !ok {
 			return nil, fmt.Errorf("missing or invalid msg_type")
@@ -204,39 +238,60 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 
 		switch msgType {
 		case "bank_msg_send":
-			msg, err := dm.convertToDbMsgSend(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
+			msg, err := cvt.toMsgSend()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert bank_msg_send: %w", err)
 			}
 			dbGroups.MsgSend = append(dbGroups.MsgSend, *msg)
 
 		case "bank_msg_multi_send":
-			msgs, err := dm.convertToDbMsgMultiSend(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
+			msgs, err := cvt.toMsgMultiSend()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert bank_msg_multi_send: %w", err)
 			}
 			dbGroups.MsgMultiSend = append(dbGroups.MsgMultiSend, msgs...)
 
 		case "vm_msg_call":
-			msg, err := dm.convertToDbMsgCall(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
+			msg, err := cvt.toMsgCall()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert vm_msg_call: %w", err)
 			}
 			dbGroups.MsgCall = append(dbGroups.MsgCall, *msg)
 
 		case "vm_msg_add_package":
-			msg, err := dm.convertToDbMsgAddPackage(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
+			msg, err := cvt.toMsgAddPackage()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert vm_msg_add_package: %w", err)
 			}
 			dbGroups.MsgAddPkg = append(dbGroups.MsgAddPkg, *msg)
 
 		case "vm_msg_run":
-			msg, err := dm.convertToDbMsgRun(msgMap, addressResolver, txId, chainName, timestamp, signerIds)
+			msg, err := cvt.toMsgRun()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert vm_msg_run: %w", err)
 			}
 			dbGroups.MsgRun = append(dbGroups.MsgRun, *msg)
+
+		case "auth_msg_create_session":
+			msg, err := cvt.toMsgCrSession()
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert auth_msg_auth_cr_session: %w", err)
+			}
+			dbGroups.MsgAuthCrSession = append(dbGroups.MsgAuthCrSession, *msg)
+
+		case "auth_msg_revoke_session":
+			msg, err := cvt.toMsgRvSession()
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert auth_msg_auth_rv_session: %w", err)
+			}
+			dbGroups.MsgAuthRvSession = append(dbGroups.MsgAuthRvSession, *msg)
+
+		case "auth_msg_revoke_all_sessions":
+			msg, err := cvt.toMsgRvAllSessions()
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert auth_msg_auth_rv_all_sessions: %w", err)
+			}
+			dbGroups.MsgAuthRvAllSessions = append(dbGroups.MsgAuthRvAllSessions, *msg)
 
 		default:
 			return nil, fmt.Errorf("unknown message type: %s", msgType)
@@ -244,347 +299,4 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 	}
 
 	return dbGroups, nil
-}
-
-// convertToDbMsgSend converts a map data type directly to a database-ready MsgSend struct
-func (dm *DecodedMsg) convertToDbMsgSend(
-	msgMap map[string]any,
-	addressResolver AddressResolver,
-	txId int64,
-	chainName string,
-	timestamp time.Time,
-	signerIds []int32,
-) (*dataTypes.MsgSend, error) {
-	messageCounter, ok := msgMap["message_counter"].(int16)
-	if !ok {
-		return nil, fmt.Errorf("missing message_counter")
-	}
-
-	fromAddress, ok := msgMap["from_address"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing from_address")
-	}
-
-	toAddress, ok := msgMap["to_address"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing to_address")
-	}
-
-	// Convert amount from []Coin to dataTypes.Amount
-	coinAmount, ok := msgMap["amount"].([]Coin)
-	if !ok {
-		return nil, fmt.Errorf("missing amount")
-	}
-
-	amount := make([]dataTypes.Amount, len(coinAmount))
-	for j, amt := range coinAmount {
-		bigInt := big.NewInt(amt.Amount)
-		amount[j] = dataTypes.Amount{
-			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
-			Denom:  amt.Denom,
-		}
-	}
-
-	return &dataTypes.MsgSend{
-		TxId:           txId,
-		ChainName:      chainName,
-		FromAddress:    addressResolver.GetAddress(fromAddress),
-		ToAddress:      addressResolver.GetAddress(toAddress),
-		Amount:         amount,
-		Signers:        signerIds,
-		Timestamp:      timestamp,
-		MessageCounter: messageCounter,
-	}, nil
-}
-
-func (dm *DecodedMsg) convertToDbMsgMultiSend(
-	msgMap map[string]any,
-	addressResolver AddressResolver,
-	txId int64,
-	chainName string,
-	timestamp time.Time,
-	signerIds []int32,
-) ([]dataTypes.MsgMultiSend, error) {
-	messageCounter, ok := msgMap["message_counter"].(int16)
-	if !ok {
-		return nil, fmt.Errorf("missing message_counter")
-	}
-
-	input, ok := msgMap["input"].([]bank.Input)
-	if !ok {
-		return nil, fmt.Errorf("missing input")
-	}
-
-	output, ok := msgMap["output"].([]bank.Output)
-	if !ok {
-		return nil, fmt.Errorf("missing output")
-	}
-
-	msgMultiSend := make([]dataTypes.MsgMultiSend, 0, len(input)+len(output))
-
-	for _, in := range input {
-		coins := make([]dataTypes.Amount, len(in.Coins))
-		for i, coin := range in.Coins {
-			bigInt := big.NewInt(coin.Amount)
-			coins[i].Amount = pgtype.Numeric{Int: bigInt, Valid: true}
-			coins[i].Denom = coin.Denom
-		}
-		multiSend := dataTypes.MsgMultiSend{
-			TxId:           txId,
-			Timestamp:      timestamp,
-			ChainName:      chainName,
-			Direction:      false,
-			AddressId:      addressResolver.GetAddress(in.Address.String()),
-			Coins:          coins,
-			MessageCounter: messageCounter,
-			Signers:        signerIds,
-		}
-		msgMultiSend = append(msgMultiSend, multiSend)
-	}
-
-	for _, ou := range output {
-		coins := make([]dataTypes.Amount, len(ou.Coins))
-		for i, coin := range ou.Coins {
-			bigInt := big.NewInt(coin.Amount)
-			coins[i].Amount = pgtype.Numeric{Int: bigInt, Valid: true}
-			coins[i].Denom = coin.Denom
-		}
-		multiSend := dataTypes.MsgMultiSend{
-			TxId:           txId,
-			Timestamp:      timestamp,
-			ChainName:      chainName,
-			Direction:      true,
-			AddressId:      addressResolver.GetAddress(ou.Address.String()),
-			Coins:          coins,
-			MessageCounter: messageCounter,
-			Signers:        signerIds,
-		}
-		msgMultiSend = append(msgMultiSend, multiSend)
-	}
-	return msgMultiSend, nil
-}
-
-// convertToDbMsgCall converts a map data type directly to a database-ready MsgCall struct
-func (dm *DecodedMsg) convertToDbMsgCall(
-	msgMap map[string]any,
-	addressResolver AddressResolver,
-	txId int64,
-	chainName string,
-	timestamp time.Time,
-	signerIds []int32,
-) (*dataTypes.MsgCall, error) {
-	messageCounter, ok := msgMap["message_counter"].(int16)
-	if !ok {
-		return nil, fmt.Errorf("missing message_counter")
-	}
-
-	caller, ok := msgMap["caller"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing caller")
-	}
-
-	pkgPath, ok := msgMap["pkg_path"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing pkg_path")
-	}
-
-	funcName, ok := msgMap["func_name"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing func_name")
-	}
-
-	argsStr, ok := msgMap["args"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing args")
-	}
-
-	// Convert send from []Coin to dataTypes.Amount
-	coinSend, ok := msgMap["send"].([]Coin)
-	if !ok {
-		return nil, fmt.Errorf("missing send")
-	}
-
-	send := make([]dataTypes.Amount, len(coinSend))
-	for j, amt := range coinSend {
-		bigInt := big.NewInt(amt.Amount)
-		send[j] = dataTypes.Amount{
-			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
-			Denom:  amt.Denom,
-		}
-	}
-
-	// Convert maxDeposit from []Coin to dataTypes.Amount
-	coinMaxDeposit, ok := msgMap["max_deposit"].([]Coin)
-	if !ok {
-		return nil, fmt.Errorf("missing max_deposit")
-	}
-
-	maxDeposit := make([]dataTypes.Amount, len(coinMaxDeposit))
-	for j, amt := range coinMaxDeposit {
-		bigInt := big.NewInt(amt.Amount)
-		maxDeposit[j] = dataTypes.Amount{
-			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
-			Denom:  amt.Denom,
-		}
-	}
-
-	return &dataTypes.MsgCall{
-		TxId:           txId,
-		MessageCounter: messageCounter,
-		ChainName:      chainName,
-		Caller:         addressResolver.GetAddress(caller),
-		Send:           send,
-		PkgPath:        pkgPath,
-		FuncName:       funcName,
-		Args:           argsStr,
-		MaxDeposit:     maxDeposit,
-		Signers:        signerIds,
-		Timestamp:      timestamp,
-	}, nil
-}
-
-// convertToDbMsgAddPackage converts a map data type directly to a database-ready MsgAddPackage struct
-func (dm *DecodedMsg) convertToDbMsgAddPackage(
-	msgMap map[string]any,
-	addressResolver AddressResolver,
-	txId int64,
-	chainName string,
-	timestamp time.Time,
-	signerIds []int32,
-) (*dataTypes.MsgAddPackage, error) {
-	messageCounter, ok := msgMap["message_counter"].(int16)
-	if !ok {
-		return nil, fmt.Errorf("missing message_counter")
-	}
-
-	creator, ok := msgMap["creator"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing creator")
-	}
-
-	pkgPath, ok := msgMap["pkg_path"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing pkg_path")
-	}
-
-	pkgName, ok := msgMap["pkg_name"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing pkg_name")
-	}
-
-	// Convert send from []Coin to dataTypes.Amount
-	coinSend, ok := msgMap["send"].([]Coin)
-	if !ok {
-		return nil, fmt.Errorf("missing send")
-	}
-
-	send := make([]dataTypes.Amount, len(coinSend))
-	for j, amt := range coinSend {
-		bigInt := big.NewInt(amt.Amount)
-		send[j] = dataTypes.Amount{
-			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
-			Denom:  amt.Denom,
-		}
-	}
-
-	// Convert maxDeposit from []Coin to dataTypes.Amount
-	coinMaxDeposit, ok := msgMap["max_deposit"].([]Coin)
-	if !ok {
-		return nil, fmt.Errorf("missing max_deposit")
-	}
-
-	maxDeposit := make([]dataTypes.Amount, len(coinMaxDeposit))
-	for j, amt := range coinMaxDeposit {
-		bigInt := big.NewInt(amt.Amount)
-		maxDeposit[j] = dataTypes.Amount{
-			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
-			Denom:  amt.Denom,
-		}
-	}
-
-	return &dataTypes.MsgAddPackage{
-		TxId:           txId,
-		MessageCounter: messageCounter,
-		ChainName:      chainName,
-		Creator:        addressResolver.GetAddress(creator),
-		PkgPath:        pkgPath,
-		PkgName:        pkgName,
-		Send:           send,
-		MaxDeposit:     maxDeposit,
-		Signers:        signerIds,
-		Timestamp:      timestamp,
-	}, nil
-}
-
-// convertToDbMsgRun converts a map data type directly to a database-ready MsgRun struct
-func (dm *DecodedMsg) convertToDbMsgRun(
-	msgMap map[string]any,
-	addressResolver AddressResolver,
-	txId int64,
-	chainName string,
-	timestamp time.Time,
-	signerIds []int32,
-) (*dataTypes.MsgRun, error) {
-	messageCounter, ok := msgMap["message_counter"].(int16)
-	if !ok {
-		return nil, fmt.Errorf("missing message_counter")
-	}
-
-	caller, ok := msgMap["caller"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing caller")
-	}
-
-	pkgPath, ok := msgMap["pkg_path"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing pkg_path")
-	}
-
-	pkgName, ok := msgMap["pkg_name"].(string)
-	if !ok {
-		return nil, fmt.Errorf("missing pkg_name")
-	}
-
-	// Convert send from []Coin to dataTypes.Amount
-	coinSend, ok := msgMap["send"].([]Coin)
-	if !ok {
-		return nil, fmt.Errorf("missing send")
-	}
-
-	send := make([]dataTypes.Amount, len(coinSend))
-	for j, amt := range coinSend {
-		bigInt := big.NewInt(amt.Amount)
-		send[j] = dataTypes.Amount{
-			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
-			Denom:  amt.Denom,
-		}
-	}
-
-	// Convert maxDeposit from []Coin to dataTypes.Amount
-	coinMaxDeposit, ok := msgMap["max_deposit"].([]Coin)
-	if !ok {
-		return nil, fmt.Errorf("missing max_deposit")
-	}
-
-	maxDeposit := make([]dataTypes.Amount, len(coinMaxDeposit))
-	for j, amt := range coinMaxDeposit {
-		bigInt := big.NewInt(amt.Amount)
-		maxDeposit[j] = dataTypes.Amount{
-			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
-			Denom:  amt.Denom,
-		}
-	}
-
-	return &dataTypes.MsgRun{
-		TxId:           txId,
-		MessageCounter: messageCounter,
-		ChainName:      chainName,
-		Caller:         addressResolver.GetAddress(caller),
-		PkgPath:        pkgPath,
-		PkgName:        pkgName,
-		Send:           send,
-		MaxDeposit:     maxDeposit,
-		Signers:        signerIds,
-		Timestamp:      timestamp,
-	}, nil
 }
