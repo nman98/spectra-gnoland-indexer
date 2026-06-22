@@ -542,3 +542,112 @@ func (m MsgMultiSend) TableColumns() []string {
 	}
 	return columns
 }
+
+type MsgAuthCrSession struct {
+	TxId       int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	Timestamp  time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName  string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
+	Creator    int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
+	SessionKey []byte    `db:"session_key" dbtype:"bytea" nullable:"false" primary:"false"`
+	ExpiresAt  time.Time `db:"expires_at" dbtype:"timestamptz" nullable:"false" primary:"false"`
+	SpendLimit []Amount  `db:"spend_limit" dbtype:"amount[]" nullable:"false" primary:"false"`
+	// According to the original type in gno spend period is supposed to be seconds.
+	// Keep that in mind. Also 0 means infinite!
+	SpendPeriod    int64   `db:"spend_period" dbtype:"bigint" nullable:"false" primary:"false"`
+	Signers        []int32 `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	MessageCounter int16   `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
+}
+
+func (ma MsgAuthCrSession) TableName() string {
+	return "auth_msg_create_session"
+}
+
+func (ma MsgAuthCrSession) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(ma, ma.TableName())
+}
+
+func (ma MsgAuthCrSession) TableColumns() []string {
+	fields := reflect.TypeFor[MsgAuthCrSession]()
+	numFields := fields.NumField()
+	columns := make([]string, numFields)
+	for i := range numFields {
+		field := fields.Field(i)
+		columns[i] = field.Tag.Get("db")
+	}
+	return columns
+}
+
+func (ma *MsgAuthCrSession) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(ma.TxId)
+	txAddresses.AddAddress(ma.Creator)
+	return txAddresses
+}
+
+type MsgAuthRvSession struct {
+	TxId           int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	Timestamp      time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName      string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
+	Creator        int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
+	SessionKey     []byte    `db:"session_key" dbtype:"bytea" nullable:"false" primary:"false"`
+	Signers        []int32   `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	MessageCounter int16     `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
+}
+
+func (ma MsgAuthRvSession) TableName() string {
+	return "auth_msg_revoke_session"
+}
+
+func (ma MsgAuthRvSession) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(ma, ma.TableName())
+}
+
+func (ma MsgAuthRvSession) TableColumns() []string {
+	fields := reflect.TypeFor[MsgAuthRvSession]()
+	numFields := fields.NumField()
+	columns := make([]string, numFields)
+	for i := range numFields {
+		field := fields.Field(i)
+		columns[i] = field.Tag.Get("db")
+	}
+	return columns
+}
+
+func (ma *MsgAuthRvSession) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(ma.TxId)
+	txAddresses.AddAddress(ma.Creator)
+	return txAddresses
+}
+
+type MsgAuthRvAllSessions struct {
+	TxId           int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	Timestamp      time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName      string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
+	Creator        int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
+	Signers        []int32   `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	MessageCounter int16     `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
+}
+
+func (ma MsgAuthRvAllSessions) TableName() string {
+	return "auth_msg_revoke_all_sessions"
+}
+
+func (ma MsgAuthRvAllSessions) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(ma, ma.TableName())
+}
+
+func (ma MsgAuthRvAllSessions) TableColumns() []string {
+	fields := reflect.TypeFor[MsgAuthRvAllSessions]()
+	numFields := fields.NumField()
+	columns := make([]string, numFields)
+	for i := range numFields {
+		field := fields.Field(i)
+		columns[i] = field.Tag.Get("db")
+	}
+	return columns
+}
+
+func (ma *MsgAuthRvAllSessions) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(ma.TxId)
+	txAddresses.AddAddress(ma.Creator)
+	return txAddresses
+}

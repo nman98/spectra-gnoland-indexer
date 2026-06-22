@@ -218,6 +218,7 @@ func processAuthCr(
 		"expires_at":      expiresAt,
 		"allowed_paths":   m.AllowPaths,
 		"spend_limit":     spendLimit,
+		"spend_period":    m.SpendPeriod,
 		"message_counter": messageCounter,
 	}
 }
