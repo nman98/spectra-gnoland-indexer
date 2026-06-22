@@ -366,9 +366,15 @@ func (c *converter) toMsgCrSession() (*dataTypes.MsgAuthCrSession, error) {
 	if !ok {
 		return nil, fmt.Errorf("missing spend_period")
 	}
+
 	messageCounter, ok := data["message_counter"].(int16)
 	if !ok {
 		return nil, fmt.Errorf("missing message_counter")
+	}
+
+	allowPath, ok := data["allow_path"].([]string)
+	if !ok {
+		return nil, fmt.Errorf("missing allow_path")
 	}
 
 	return &dataTypes.MsgAuthCrSession{
@@ -382,6 +388,7 @@ func (c *converter) toMsgCrSession() (*dataTypes.MsgAuthCrSession, error) {
 		SpendPeriod:    spendPeriod,
 		Signers:        c.signerIds,
 		MessageCounter: messageCounter,
+		AllowPath:      allowPath,
 	}, nil
 }
 

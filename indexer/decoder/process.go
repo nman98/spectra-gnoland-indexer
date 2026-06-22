@@ -216,7 +216,7 @@ func processAuthCr(
 		"creator":         creator,
 		"session_key_raw": sessionKeyRaw,
 		"expires_at":      expiresAt,
-		"allowed_paths":   m.AllowPaths,
+		"allow_paths":     m.AllowPaths,
 		"spend_limit":     spendLimit,
 		"spend_period":    m.SpendPeriod,
 		"message_counter": messageCounter,

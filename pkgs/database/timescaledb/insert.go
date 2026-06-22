@@ -278,6 +278,75 @@ func (t *TimescaleDb) InsertMsgMultiSend(
 	return err
 }
 
+// InsertMsgAuthCrSession inserts a slice of MsgAuthCrSession messages into the database using COPY FROM.
+func (t *TimescaleDb) InsertMsgAuthCrSession(ctx context.Context, messages []sql_data_types.MsgAuthCrSession) error {
+	if len(messages) == 0 {
+		return nil
+	}
+	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+		return []any{
+			messages[i].TxId,
+			messages[i].Timestamp,
+			messages[i].ChainName,
+			messages[i].Creator,
+			messages[i].SessionKey,
+			messages[i].ExpiresAt,
+			makePgxArray(messages[i].SpendLimit),
+			makePgxArray(messages[i].AllowPath),
+			messages[i].SpendPeriod,
+			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
+		}, nil
+	})
+	columns := messages[0].TableColumns()
+	tableName := messages[0].TableName()
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	return err
+}
+
+// InsertMsgAuthRvSession inserts a slice of MsgAuthRvSession messages into the database using COPY FROM.
+func (t *TimescaleDb) InsertMsgAuthRvSession(ctx context.Context, messages []sql_data_types.MsgAuthRvSession) error {
+	if len(messages) == 0 {
+		return nil
+	}
+	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+		return []any{
+			messages[i].TxId,
+			messages[i].Timestamp,
+			messages[i].ChainName,
+			messages[i].Creator,
+			messages[i].SessionKey,
+			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
+		}, nil
+	})
+	columns := messages[0].TableColumns()
+	tableName := messages[0].TableName()
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	return err
+}
+
+// InsertMsgAuthRvAllSessions inserts a slice of MsgAuthRvAllSessions messages into the database using COPY FROM.
+func (t *TimescaleDb) InsertMsgAuthRvAllSessions(ctx context.Context, messages []sql_data_types.MsgAuthRvAllSessions) error {
+	if len(messages) == 0 {
+		return nil
+	}
+	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+		return []any{
+			messages[i].TxId,
+			messages[i].Timestamp,
+			messages[i].ChainName,
+			messages[i].Creator,
+			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
+		}, nil
+	})
+	columns := messages[0].TableColumns()
+	tableName := messages[0].TableName()
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	return err
+}
+
 // makePgxArray converts a Go slice into a pgx typed array for COPY FROM inserts.
 // Handles composite types and byte arrays; works on any insertable slice type.
 func makePgxArray[T any](v []T) pgtype.Array[T] {

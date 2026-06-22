@@ -551,6 +551,7 @@ type MsgAuthCrSession struct {
 	SessionKey []byte    `db:"session_key" dbtype:"bytea" nullable:"false" primary:"false"`
 	ExpiresAt  time.Time `db:"expires_at" dbtype:"timestamptz" nullable:"false" primary:"false"`
 	SpendLimit []Amount  `db:"spend_limit" dbtype:"amount[]" nullable:"false" primary:"false"`
+	AllowPath  []string  `db:"allow_path" dbtype:"text[]" nullable:"false" primary:"false"`
 	// According to the original type in gno spend period is supposed to be seconds.
 	// Keep that in mind. Also 0 means infinite!
 	SpendPeriod    int64   `db:"spend_period" dbtype:"bigint" nullable:"false" primary:"false"`
