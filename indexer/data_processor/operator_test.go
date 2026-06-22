@@ -54,6 +54,18 @@ func (m *MockDatabase) InsertMsgMultiSend(ctx context.Context, messages []sqlDat
 	return m.LastInsertError
 }
 
+func (m *MockDatabase) InsertMsgAuthCrSession(ctx context.Context, messages []sqlDataTypes.MsgAuthCrSession) error {
+	return m.LastInsertError
+}
+
+func (m *MockDatabase) InsertMsgAuthRvSession(ctx context.Context, messages []sqlDataTypes.MsgAuthRvSession) error {
+	return m.LastInsertError
+}
+
+func (m *MockDatabase) InsertMsgAuthRvAllSessions(ctx context.Context, messages []sqlDataTypes.MsgAuthRvAllSessions) error {
+	return m.LastInsertError
+}
+
 func (m *MockDatabase) InsertTxHashIds(ctx context.Context, txHashes []string, timestamps []time.Time, chainName string) (map[string]int64, error) {
 	return nil, m.LastInsertError
 }

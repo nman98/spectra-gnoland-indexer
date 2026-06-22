@@ -195,6 +195,56 @@ type DbMessageGroups struct {
 	MsgAuthRvAllSessions []dataTypes.MsgAuthRvAllSessions
 }
 
+// Merge appends all message slices from other into g.
+func (g *DbMessageGroups) Merge(other *DbMessageGroups) {
+	g.MsgSend = append(g.MsgSend, other.MsgSend...)
+	g.MsgMultiSend = append(g.MsgMultiSend, other.MsgMultiSend...)
+	g.MsgCall = append(g.MsgCall, other.MsgCall...)
+	g.MsgAddPkg = append(g.MsgAddPkg, other.MsgAddPkg...)
+	g.MsgRun = append(g.MsgRun, other.MsgRun...)
+	g.MsgAuthCrSession = append(g.MsgAuthCrSession, other.MsgAuthCrSession...)
+	g.MsgAuthRvSession = append(g.MsgAuthRvSession, other.MsgAuthRvSession...)
+	g.MsgAuthRvAllSessions = append(g.MsgAuthRvAllSessions, other.MsgAuthRvAllSessions...)
+}
+
+// AddressEntry holds the data needed to populate the address_tx table for a single message.
+type AddressEntry struct {
+	Addresses *dataTypes.TxAddresses
+	ChainName string
+	Timestamp time.Time
+	MsgType   string
+}
+
+// AllAddressEntries returns one AddressEntry per message across all groups.
+func (g *DbMessageGroups) AllAddressEntries() []AddressEntry {
+	entries := make([]AddressEntry, 0)
+	for _, m := range g.MsgSend {
+		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
+	}
+	for _, m := range g.MsgMultiSend {
+		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
+	}
+	for _, m := range g.MsgCall {
+		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
+	}
+	for _, m := range g.MsgAddPkg {
+		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
+	}
+	for _, m := range g.MsgRun {
+		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
+	}
+	for _, m := range g.MsgAuthCrSession {
+		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
+	}
+	for _, m := range g.MsgAuthRvSession {
+		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
+	}
+	for _, m := range g.MsgAuthRvAllSessions {
+		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
+	}
+	return entries
+}
+
 // ConvertToDbMessages directly converts the decoded message maps to database-ready message types
 // This method combines the previous two-step conversion into a single step for better performance
 func (dm *DecodedMsg) ConvertToDbMessages(

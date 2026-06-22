@@ -440,20 +440,10 @@ func (d *DataProcessor) ProcessMessages(
 
 	wg.Wait()
 
-	aggregatedDbGroups := &decoder.DbMessageGroups{
-		MsgSend:      make([]sqlDataTypes.MsgSend, 0),
-		MsgMultiSend: make([]sqlDataTypes.MsgMultiSend, 0),
-		MsgCall:      make([]sqlDataTypes.MsgCall, 0),
-		MsgAddPkg:    make([]sqlDataTypes.MsgAddPackage, 0),
-		MsgRun:       make([]sqlDataTypes.MsgRun, 0),
-	}
+	aggregatedDbGroups := &decoder.DbMessageGroups{}
 	for _, result := range msgResults {
 		if result != nil {
-			aggregatedDbGroups.MsgSend = append(aggregatedDbGroups.MsgSend, result.MsgSend...)
-			aggregatedDbGroups.MsgMultiSend = append(aggregatedDbGroups.MsgMultiSend, result.MsgMultiSend...)
-			aggregatedDbGroups.MsgCall = append(aggregatedDbGroups.MsgCall, result.MsgCall...)
-			aggregatedDbGroups.MsgAddPkg = append(aggregatedDbGroups.MsgAddPkg, result.MsgAddPkg...)
-			aggregatedDbGroups.MsgRun = append(aggregatedDbGroups.MsgRun, result.MsgRun...)
+			aggregatedDbGroups.Merge(result)
 		}
 	}
 
@@ -470,13 +460,16 @@ func (d *DataProcessor) ProcessMessages(
 		return fmt.Errorf("failed to insert optimized messages: %w", err)
 	}
 
-	l.Info().Msgf("Messages processed from %d to %d: MsgSend=%d, MsgCall=%d, MsgAddPkg=%d, MsgRun=%d, MsgMultiSend=%d",
+	l.Info().Msgf("Messages processed from %d to %d: MsgSend=%d, MsgCall=%d, MsgAddPkg=%d, MsgRun=%d, MsgMultiSend=%d, MsgAuthCrSession=%d, MsgAuthRvSession=%d, MsgAuthRvAllSessions=%d",
 		fromHeight, toHeight,
 		len(aggregatedDbGroups.MsgSend),
 		len(aggregatedDbGroups.MsgCall),
 		len(aggregatedDbGroups.MsgAddPkg),
 		len(aggregatedDbGroups.MsgRun),
 		len(aggregatedDbGroups.MsgMultiSend),
+		len(aggregatedDbGroups.MsgAuthCrSession),
+		len(aggregatedDbGroups.MsgAuthRvSession),
+		len(aggregatedDbGroups.MsgAuthRvAllSessions),
 	)
 
 	return nil
@@ -585,50 +578,34 @@ func (d *DataProcessor) processMessageGroup(
 	results[idx] = dbMessageGroups
 }
 
+func allInserters(g *decoder.DbMessageGroups) []messageInserter {
+	return []messageInserter{
+		msgSendInserter(g.MsgSend),
+		msgMultiSendInserter(g.MsgMultiSend),
+		msgCallInserter(g.MsgCall),
+		msgAddPackageInserter(g.MsgAddPkg),
+		msgRunInserter(g.MsgRun),
+		msgAuthCrSessionInserter(g.MsgAuthCrSession),
+		msgAuthRvSessionInserter(g.MsgAuthRvSession),
+		msgAuthRvAllSessionsInserter(g.MsgAuthRvAllSessions),
+	}
+}
+
 // insertDbMessageGroups performs optimized batch insertions using address IDs
 func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) error {
-	var insertErrors = make([]error, 0)
-
-	msgSendCount := len(groups.MsgSend)
-	msgCallCount := len(groups.MsgCall)
-	msgAddPkgCount := len(groups.MsgAddPkg)
-	msgRunCount := len(groups.MsgRun)
-	msgMultiSendCount := len(groups.MsgMultiSend)
-
-	// Insert DbMsgSend messages with address IDs
-	if msgSendCount > 0 {
-		d.insertMessage(msgSendInserter(groups.MsgSend), msgSendCount, &insertErrors)
-	}
-
-	// Insert DbMsgCall messages with address IDs
-	if msgCallCount > 0 {
-		d.insertMessage(msgCallInserter(groups.MsgCall), msgCallCount, &insertErrors)
-	}
-
-	// Insert DbMsgAddPackage messages with address IDs
-	if msgAddPkgCount > 0 {
-		d.insertMessage(msgAddPackageInserter(groups.MsgAddPkg), msgAddPkgCount, &insertErrors)
-	}
-
-	// Insert DbMsgRun messages with address IDs
-	if msgRunCount > 0 {
-		d.insertMessage(msgRunInserter(groups.MsgRun), msgRunCount, &insertErrors)
-	}
-
-	// Insert DbMsgMultiSend messages with address IDs
-	if msgMultiSendCount > 0 {
-		d.insertMessage(msgMultiSendInserter(groups.MsgMultiSend), msgMultiSendCount, &insertErrors)
-	}
-
-	// Combine all errors if any occurred
-	if len(insertErrors) > 0 {
-		var errorMessages []string
-		for _, err := range insertErrors {
-			errorMessages = append(errorMessages, err.Error())
+	var insertErrors []error
+	for _, ins := range allInserters(groups) {
+		if ins.count() > 0 {
+			d.insertMessage(ins, ins.count(), &insertErrors)
 		}
-		return fmt.Errorf("multiple insertion errors: %s", strings.Join(errorMessages, "; "))
 	}
-
+	if len(insertErrors) > 0 {
+		msgs := make([]string, len(insertErrors))
+		for i, err := range insertErrors {
+			msgs[i] = err.Error()
+		}
+		return fmt.Errorf("multiple insertion errors: %s", strings.Join(msgs, "; "))
+	}
 	return nil
 }
 
@@ -743,20 +720,8 @@ func (d *DataProcessor) findHashes(txIds []int64) []string {
 // createAddressTx builds a flat slice of AddressTx rows from all message groups.
 func createAddressTx(msgGroups *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	seen := make(map[key]sqlDataTypes.AddressTx)
-	for _, m := range msgGroups.MsgSend {
-		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
-	}
-	for _, m := range msgGroups.MsgCall {
-		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
-	}
-	for _, m := range msgGroups.MsgAddPkg {
-		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
-	}
-	for _, m := range msgGroups.MsgRun {
-		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
-	}
-	for _, m := range msgGroups.MsgMultiSend {
-		addToAddressTx(seen, m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName())
+	for _, entry := range msgGroups.AllAddressEntries() {
+		addToAddressTx(seen, entry.Addresses, entry.ChainName, entry.Timestamp, entry.MsgType)
 	}
 	result := make([]sqlDataTypes.AddressTx, 0, len(seen))
 	for _, e := range seen {

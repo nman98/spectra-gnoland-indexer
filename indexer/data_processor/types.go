@@ -18,6 +18,9 @@ type Database interface {
 	InsertMsgAddPackage(ctx context.Context, messages []sqlDataTypes.MsgAddPackage) error
 	InsertMsgRun(ctx context.Context, messages []sqlDataTypes.MsgRun) error
 	InsertMsgMultiSend(ctx context.Context, messages []sqlDataTypes.MsgMultiSend) error
+	InsertMsgAuthCrSession(ctx context.Context, messages []sqlDataTypes.MsgAuthCrSession) error
+	InsertMsgAuthRvSession(ctx context.Context, messages []sqlDataTypes.MsgAuthRvSession) error
+	InsertMsgAuthRvAllSessions(ctx context.Context, messages []sqlDataTypes.MsgAuthRvAllSessions) error
 	InsertAddressTx(ctx context.Context, addresses []sqlDataTypes.AddressTx) error
 	InsertTxHashIds(ctx context.Context, txHashes []string, timestamps []time.Time, chainName string) (map[string]int64, error)
 }
@@ -144,6 +147,48 @@ func (m msgMultiSendInserter) insert(ctx context.Context, db Database) error {
 }
 
 func (m msgMultiSendInserter) getTxIds() []int64 {
+	txIds := make([]int64, len(m))
+	for i, msg := range m {
+		txIds[i] = msg.TxId
+	}
+	return txIds
+}
+
+type msgAuthCrSessionInserter []sqlDataTypes.MsgAuthCrSession
+
+func (m msgAuthCrSessionInserter) count() int { return len(m) }
+func (m msgAuthCrSessionInserter) insert(ctx context.Context, db Database) error {
+	return db.InsertMsgAuthCrSession(ctx, []sqlDataTypes.MsgAuthCrSession(m))
+}
+func (m msgAuthCrSessionInserter) getTxIds() []int64 {
+	txIds := make([]int64, len(m))
+	for i, msg := range m {
+		txIds[i] = msg.TxId
+	}
+	return txIds
+}
+
+type msgAuthRvSessionInserter []sqlDataTypes.MsgAuthRvSession
+
+func (m msgAuthRvSessionInserter) count() int { return len(m) }
+func (m msgAuthRvSessionInserter) insert(ctx context.Context, db Database) error {
+	return db.InsertMsgAuthRvSession(ctx, []sqlDataTypes.MsgAuthRvSession(m))
+}
+func (m msgAuthRvSessionInserter) getTxIds() []int64 {
+	txIds := make([]int64, len(m))
+	for i, msg := range m {
+		txIds[i] = msg.TxId
+	}
+	return txIds
+}
+
+type msgAuthRvAllSessionsInserter []sqlDataTypes.MsgAuthRvAllSessions
+
+func (m msgAuthRvAllSessionsInserter) count() int { return len(m) }
+func (m msgAuthRvAllSessionsInserter) insert(ctx context.Context, db Database) error {
+	return db.InsertMsgAuthRvAllSessions(ctx, []sqlDataTypes.MsgAuthRvAllSessions(m))
+}
+func (m msgAuthRvAllSessionsInserter) getTxIds() []int64 {
 	txIds := make([]int64, len(m))
 	for i, msg := range m {
 		txIds[i] = msg.TxId
