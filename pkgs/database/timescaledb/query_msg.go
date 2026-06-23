@@ -238,6 +238,222 @@ func (t *TimescaleDb) GetMsgRun(
 	return msgRuns, nil
 }
 
+// GetBankMultiSend returns the bank multi-send message rows for a given transaction hash.
+// Each row represents one input (direction=false) or output (direction=true) entry.
+func (t *TimescaleDb) GetBankMultiSend(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*database.BankMultiSendRow, error) {
+	query := `
+	SELECT
+	encode(id.tx_hash, 'base64') AS tx_hash,
+	bms.message_counter,
+	bms.timestamp,
+	bms.direction,
+	gna.address,
+	bms.coins,
+	array(
+		SELECT gn.address
+		FROM unnest(bms.signers) AS signer_id
+		JOIN gno_addresses gn ON gn.id = signer_id
+	) AS signers
+	FROM bank_msg_multi_send bms
+	JOIN tx_hash_id id ON bms.tx_id = id.tx_id AND bms.chain_name = id.chain_name
+	LEFT JOIN gno_addresses gna ON bms.address_id = gna.id
+	WHERE id.tx_hash = decode($1, 'base64')
+	AND bms.chain_name = $2
+	`
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]*database.BankMultiSendRow, 0)
+	for rows.Next() {
+		row := &database.BankMultiSendRow{}
+		err := rows.Scan(
+			&row.TxHash,
+			&row.MessageCounter,
+			&row.Timestamp,
+			&row.Direction,
+			&row.Address,
+			&row.Coins,
+			&row.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// GetMsgAuthCrSession returns the auth create-session messages for a given transaction hash.
+func (t *TimescaleDb) GetMsgAuthCrSession(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*database.MsgAuthCrSession, error) {
+	query := `
+	SELECT
+	encode(id.tx_hash, 'base64') AS tx_hash,
+	acs.message_counter,
+	acs.timestamp,
+	gn_creator.address AS creator,
+	gn_session.address AS session_key,
+	acs.expires_at,
+	acs.spend_limit,
+	acs.spend_period,
+	acs.allow_paths,
+	array(
+		SELECT gn.address
+		FROM unnest(acs.signers) AS signer_id
+		JOIN gno_addresses gn ON gn.id = signer_id
+	) AS signers
+	FROM auth_msg_create_session acs
+	JOIN tx_hash_id id ON acs.tx_id = id.tx_id AND acs.chain_name = id.chain_name
+	LEFT JOIN gno_addresses gn_creator ON acs.creator = gn_creator.id
+	LEFT JOIN gno_addresses gn_session ON acs.session_key = gn_session.id
+	WHERE id.tx_hash = decode($1, 'base64')
+	AND acs.chain_name = $2
+	`
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make([]*database.MsgAuthCrSession, 0)
+	for rows.Next() {
+		msg := &database.MsgAuthCrSession{}
+		err := rows.Scan(
+			&msg.TxHash,
+			&msg.MessageCounter,
+			&msg.Timestamp,
+			&msg.Creator,
+			&msg.SessionKey,
+			&msg.ExpiresAt,
+			&msg.SpendLimit,
+			&msg.SpendPeriod,
+			&msg.AllowPaths,
+			&msg.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// GetMsgAuthRvSession returns the auth revoke-session messages for a given transaction hash.
+func (t *TimescaleDb) GetMsgAuthRvSession(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*database.MsgAuthRvSession, error) {
+	query := `
+	SELECT
+    encode(id.tx_hash, 'base64') AS tx_hash,
+    rvs.message_counter,
+    rvs.timestamp,
+    gn_creator.address AS creator,
+    gn_session.address AS session_key,
+    array(
+        SELECT gn.address
+        FROM unnest(rvs.signers) AS signer_id
+        JOIN gno_addresses gn ON gn.id = signer_id
+    ) AS signers
+    FROM auth_msg_revoke_session rvs
+    JOIN tx_hash_id id ON rvs.tx_id = id.tx_id AND rvs.chain_name = id.chain_name
+    LEFT JOIN gno_addresses gn_creator ON rvs.creator = gn_creator.id
+    LEFT JOIN gno_addresses gn_session ON rvs.session_key = gn_session.id
+    WHERE id.tx_hash = decode($1, 'base64')
+    AND rvs.chain_name = $2
+	`
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]*database.MsgAuthRvSession, 0)
+	for rows.Next() {
+		msg := &database.MsgAuthRvSession{}
+		err := rows.Scan(
+			&msg.TxHash,
+			&msg.MessageCounter,
+			&msg.Timestamp,
+			&msg.Creator,
+			&msg.SessionKey,
+			&msg.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// GetMsgAuthRvAllSessions returns the auth revoke-all-sessions messages for a given transaction hash.
+func (t *TimescaleDb) GetMsgAuthRvAllSessions(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*database.MsgAuthRvAllSessions, error) {
+	query := `
+	SELECT
+	encode(id.tx_hash, 'base64') AS tx_hash,
+	rvas.message_counter,
+	rvas.timestamp,
+	gn.address AS creator,
+	array(
+		SELECT gn.address
+		FROM unnest(rvas.signers) AS signer_id
+		JOIN gno_addresses gn ON gn.id = signer_id
+	) AS signers
+	FROM auth_msg_revoke_all_sessions rvas
+	JOIN tx_hash_id id ON rvas.tx_id = id.tx_id AND rvas.chain_name = id.chain_name
+	LEFT JOIN gno_addresses gn ON rvas.creator = gn.id
+	WHERE id.tx_hash = decode($1, 'base64')
+	AND rvas.chain_name = $2
+	`
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]*database.MsgAuthRvAllSessions, 0)
+	for rows.Next() {
+		msg := &database.MsgAuthRvAllSessions{}
+		err := rows.Scan(
+			&msg.TxHash,
+			&msg.MessageCounter,
+			&msg.Timestamp,
+			&msg.Creator,
+			&msg.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // GetMsgTypes returns the message types for a given transaction hash.
 func (t *TimescaleDb) GetMsgTypes(ctx context.Context, txHash string, chainName string) ([]string, error) {
 	query := `

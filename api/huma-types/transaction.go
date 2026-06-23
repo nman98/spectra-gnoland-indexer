@@ -17,14 +17,15 @@ type TransactionBasicGetOutput struct {
 	Body database.Transaction
 }
 
-// TransactionMessage represents a unified transaction message type that can be one of:
-// bank_msg_send, vm_msg_call, vm_msg_add_package, or vm_msg_run
-// not maybe the best implementation, but this one works for now
-// to future me, if you figure out a better way to do this, please do so
-// for now this is good enough
+type MultiSendEntry struct {
+	Address string            `json:"address" doc:"Address"`
+	Coins   []database.Amount `json:"coins" doc:"Coins"`
+}
+
+// TransactionMessage represents a unified transaction message type.
 type TransactionMessage struct {
 	// Common fields (always present)
-	MessageType string    `json:"message_type" doc:"Type of message: bank_msg_send, vm_msg_call, vm_msg_add_package, or vm_msg_run" enum:"bank_msg_send,vm_msg_call,vm_msg_add_package,vm_msg_run"`
+	MessageType string    `json:"message_type" doc:"Type of message" enum:"bank_msg_send,bank_msg_multi_send,vm_msg_call,vm_msg_add_package,vm_msg_run,auth_msg_create_session,auth_msg_revoke_session,auth_msg_revoke_all_sessions"`
 	TxHash      string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
 	Timestamp   time.Time `json:"timestamp" doc:"Transaction timestamp"`
 	Signers     []string  `json:"signers" doc:"Signers (addresses)"`
@@ -34,13 +35,17 @@ type TransactionMessage struct {
 	ToAddress   string            `json:"to_address,omitempty" doc:"To address (only for bank_msg_send)"`
 	Amount      []database.Amount `json:"amount,omitempty" doc:"Amount (only for bank_msg_send)"`
 
+	// BankMultiSend specific fields
+	Inputs  []MultiSendEntry `json:"inputs,omitempty" doc:"Input entries (only for bank_msg_multi_send)"`
+	Outputs []MultiSendEntry `json:"outputs,omitempty" doc:"Output entries (only for bank_msg_multi_send)"`
+
 	// MsgCall specific fields
 	Caller   string `json:"caller,omitempty" doc:"Caller address (for vm_msg_call and vm_msg_run)"`
 	FuncName string `json:"func_name,omitempty" doc:"Function name (only for vm_msg_call)"`
 	Args     string `json:"args,omitempty" doc:"Arguments (only for vm_msg_call)"`
 
-	// MsgAddPackage and MsgRun specific fields
-	Creator      string   `json:"creator,omitempty" doc:"Creator address (only for vm_msg_add_package)"`
+	// MsgAddPackage, MsgRun, and auth message specific fields
+	Creator      string   `json:"creator,omitempty" doc:"Creator address (for vm_msg_add_package and auth messages)"`
 	PkgName      string   `json:"pkg_name,omitempty" doc:"Package name (for vm_msg_add_package and vm_msg_run)"`
 	PkgFileNames []string `json:"pkg_file_names,omitempty" doc:"Package file names (for vm_msg_add_package and vm_msg_run)"`
 
@@ -48,6 +53,12 @@ type TransactionMessage struct {
 	PkgPath    string            `json:"pkg_path,omitempty" doc:"Package path (for vm_msg_call, vm_msg_add_package, and vm_msg_run)"`
 	Send       []database.Amount `json:"send,omitempty" doc:"Send amount (for vm_msg_call, vm_msg_add_package, and vm_msg_run)"`
 	MaxDeposit []database.Amount `json:"max_deposit,omitempty" doc:"Max deposit (for vm_msg_call, vm_msg_add_package, and vm_msg_run)"`
+
+	// Auth message specific fields
+	SessionKey  string            `json:"session_key,omitempty" doc:"Session key hex (for auth_msg_create_session and auth_msg_revoke_session)"`
+	ExpiresAt   *time.Time        `json:"expires_at,omitempty" doc:"Session expiry (only for auth_msg_create_session)"`
+	SpendLimit  []database.Amount `json:"spend_limit,omitempty" doc:"Spend limit (only for auth_msg_create_session)"`
+	SpendPeriod *int64            `json:"spend_period,omitempty" doc:"Spend period in seconds; 0 means infinite (only for auth_msg_create_session)"`
 }
 
 // TransactionMessageGetOutput represents the response containing all messages within a transaction

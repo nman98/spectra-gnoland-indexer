@@ -68,9 +68,13 @@ type TransactionDbHandler interface {
 	) ([]*database.Transaction, error)
 	GetMsgTypes(ctx context.Context, txHash string, chainName string) ([]string, error)
 	GetBankSend(ctx context.Context, txHash string, chainName string) ([]*database.BankSend, error)
+	GetBankMultiSend(ctx context.Context, txHash string, chainName string) ([]*database.BankMultiSendRow, error)
 	GetMsgCall(ctx context.Context, txHash string, chainName string) ([]*database.MsgCall, error)
 	GetMsgAddPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgAddPackage, error)
 	GetMsgRun(ctx context.Context, txHash string, chainName string) ([]*database.MsgRun, error)
+	GetMsgAuthCrSession(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthCrSession, error)
+	GetMsgAuthRvSession(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthRvSession, error)
+	GetMsgAuthRvAllSessions(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthRvAllSessions, error)
 	GetTransactionsByRange(
 		ctx context.Context, chainName string, cursor string, limit uint64, direction database.Direction,
 	) ([]*database.Transaction, bool, error)

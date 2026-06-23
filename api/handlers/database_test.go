@@ -16,11 +16,15 @@ type MockDatabase struct {
 	blockSigners map[uint64]*database.BlockSigners
 	latestBlock  *database.BlockData
 
-	bankSend      map[string]*database.BankSend
-	msgCall       map[string]*database.MsgCall
-	msgAddPackage map[string]*database.MsgAddPackage
-	msgRun        map[string]*database.MsgRun
-	msgTypes      map[string][]string
+	bankSend         map[string]*database.BankSend
+	bankMultiSend    map[string][]*database.BankMultiSendRow
+	msgCall          map[string]*database.MsgCall
+	msgAddPackage    map[string]*database.MsgAddPackage
+	msgRun           map[string]*database.MsgRun
+	msgAuthCrSession map[string]*database.MsgAuthCrSession
+	msgAuthRvSession map[string]*database.MsgAuthRvSession
+	msgAuthRvAll     map[string]*database.MsgAuthRvAllSessions
+	msgTypes         map[string][]string
 
 	shouldError bool
 	errorMsg    string
@@ -203,6 +207,50 @@ func (m *MockDatabase) GetMsgRun(ctx context.Context, txHash string, chainName s
 		return nil, notFoundErr("message run not found")
 	}
 	return []*database.MsgRun{msgRun}, nil
+}
+
+func (m *MockDatabase) GetBankMultiSend(ctx context.Context, txHash string, chainName string) ([]*database.BankMultiSendRow, error) {
+	if m.shouldError {
+		return nil, m.simulatedError()
+	}
+	rows, ok := m.bankMultiSend[txHash]
+	if !ok {
+		return nil, notFoundErr("bank multi send not found")
+	}
+	return rows, nil
+}
+
+func (m *MockDatabase) GetMsgAuthCrSession(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthCrSession, error) {
+	if m.shouldError {
+		return nil, m.simulatedError()
+	}
+	msg, ok := m.msgAuthCrSession[txHash]
+	if !ok {
+		return nil, notFoundErr("auth create session not found")
+	}
+	return []*database.MsgAuthCrSession{msg}, nil
+}
+
+func (m *MockDatabase) GetMsgAuthRvSession(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthRvSession, error) {
+	if m.shouldError {
+		return nil, m.simulatedError()
+	}
+	msg, ok := m.msgAuthRvSession[txHash]
+	if !ok {
+		return nil, notFoundErr("auth revoke session not found")
+	}
+	return []*database.MsgAuthRvSession{msg}, nil
+}
+
+func (m *MockDatabase) GetMsgAuthRvAllSessions(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthRvAllSessions, error) {
+	if m.shouldError {
+		return nil, m.simulatedError()
+	}
+	msg, ok := m.msgAuthRvAll[txHash]
+	if !ok {
+		return nil, notFoundErr("auth revoke all sessions not found")
+	}
+	return []*database.MsgAuthRvAllSessions{msg}, nil
 }
 
 func (m *MockDatabase) GetTransactionsByRange(

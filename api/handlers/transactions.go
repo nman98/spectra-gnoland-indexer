@@ -67,19 +67,35 @@ func (h *TransactionsHandler) GetTransactionMessage(
 	for _, msgType := range msgTypes {
 		switch msgType {
 		case "bank_msg_send":
-			if err := h.getBankSendResponse(ctx, msgType, txHashBase64, h.chainName, &response); err != nil {
+			if err := h.getBankSendResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
+				return nil, err
+			}
+		case "bank_msg_multi_send":
+			if err := h.getBankMultiSendResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
 				return nil, err
 			}
 		case "vm_msg_call":
-			if err := h.getMsgCallResponse(ctx, msgType, txHashBase64, h.chainName, &response); err != nil {
+			if err := h.getMsgCallResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
 				return nil, err
 			}
 		case "vm_msg_add_package":
-			if err := h.getMsgAddPackageResponse(ctx, msgType, txHashBase64, h.chainName, &response); err != nil {
+			if err := h.getMsgAddPackageResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
 				return nil, err
 			}
 		case "vm_msg_run":
-			if err := h.getMsgRunResponse(ctx, msgType, txHashBase64, h.chainName, &response); err != nil {
+			if err := h.getMsgRunResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
+				return nil, err
+			}
+		case "auth_msg_create_session":
+			if err := h.getMsgAuthCrSessionResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
+				return nil, err
+			}
+		case "auth_msg_revoke_session":
+			if err := h.getMsgAuthRvSessionResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
+				return nil, err
+			}
+		case "auth_msg_revoke_all_sessions":
+			if err := h.getMsgAuthRvAllSessionsResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
 				return nil, err
 			}
 		default:
@@ -331,7 +347,7 @@ func (h *TransactionsHandler) getMsgCallResponse(
 	msgType string,
 	txHash string,
 	chainName string,
-	response *map[int16]humatypes.TransactionMessage,
+	response map[int16]humatypes.TransactionMessage,
 ) error {
 	data, err := h.db.GetMsgCall(ctx, txHash, chainName)
 	if err != nil {
@@ -339,7 +355,7 @@ func (h *TransactionsHandler) getMsgCallResponse(
 	}
 	for _, d := range data {
 		index := d.MessageCounter
-		(*response)[index] = humatypes.TransactionMessage{
+		response[index] = humatypes.TransactionMessage{
 			MessageType: msgType,
 			TxHash:      d.TxHash,
 			Timestamp:   d.Timestamp,
@@ -361,7 +377,7 @@ func (h *TransactionsHandler) getMsgAddPackageResponse(
 	msgType string,
 	txHash string,
 	chainName string,
-	response *map[int16]humatypes.TransactionMessage,
+	response map[int16]humatypes.TransactionMessage,
 ) error {
 	data, err := h.db.GetMsgAddPackage(ctx, txHash, chainName)
 	if err != nil {
@@ -369,7 +385,7 @@ func (h *TransactionsHandler) getMsgAddPackageResponse(
 	}
 	for _, d := range data {
 		index := d.MessageCounter
-		(*response)[index] = humatypes.TransactionMessage{
+		response[index] = humatypes.TransactionMessage{
 			MessageType:  msgType,
 			TxHash:       d.TxHash,
 			Timestamp:    d.Timestamp,
@@ -391,7 +407,7 @@ func (h *TransactionsHandler) getMsgRunResponse(
 	msgType string,
 	txHash string,
 	chainName string,
-	response *map[int16]humatypes.TransactionMessage,
+	response map[int16]humatypes.TransactionMessage,
 ) error {
 	data, err := h.db.GetMsgRun(ctx, txHash, chainName)
 	if err != nil {
@@ -399,7 +415,7 @@ func (h *TransactionsHandler) getMsgRunResponse(
 	}
 	for _, d := range data {
 		index := d.MessageCounter
-		(*response)[index] = humatypes.TransactionMessage{
+		response[index] = humatypes.TransactionMessage{
 			MessageType:  msgType,
 			TxHash:       d.TxHash,
 			Timestamp:    d.Timestamp,
@@ -415,13 +431,142 @@ func (h *TransactionsHandler) getMsgRunResponse(
 	return nil
 }
 
+// Helper method that collects bank multi-send data from the database and adds it to the response.
+// Rows are aggregated by message_counter: direction=true rows become Outputs, direction=false become Inputs.
+func (h *TransactionsHandler) getBankMultiSendResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetBankMultiSend(ctx, txHash, chainName)
+	if err != nil {
+		return internalError("GetBankMultiSend", err)
+	}
+	type agg struct {
+		base    humatypes.TransactionMessage
+		inputs  []humatypes.MultiSendEntry
+		outputs []humatypes.MultiSendEntry
+	}
+	byCounter := make(map[int16]*agg)
+	for _, d := range data {
+		idx := d.MessageCounter
+		if _, ok := byCounter[idx]; !ok {
+			byCounter[idx] = &agg{
+				base: humatypes.TransactionMessage{
+					MessageType: msgType,
+					TxHash:      d.TxHash,
+					Timestamp:   d.Timestamp,
+					Signers:     d.Signers,
+				},
+			}
+		}
+		entry := humatypes.MultiSendEntry{Address: d.Address, Coins: d.Coins}
+		if d.Direction {
+			byCounter[idx].outputs = append(byCounter[idx].outputs, entry)
+		} else {
+			byCounter[idx].inputs = append(byCounter[idx].inputs, entry)
+		}
+	}
+	for idx, a := range byCounter {
+		msg := a.base
+		msg.Inputs = a.inputs
+		msg.Outputs = a.outputs
+		response[idx] = msg
+	}
+	return nil
+}
+
+// Helper method that collects auth create-session data from the database and adds it to the response
+func (h *TransactionsHandler) getMsgAuthCrSessionResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetMsgAuthCrSession(ctx, txHash, chainName)
+	if err != nil {
+		return internalError("GetMsgAuthCrSession", err)
+	}
+	for _, d := range data {
+		index := d.MessageCounter
+		expiresAt := d.ExpiresAt
+		spendPeriod := d.SpendPeriod
+		response[index] = humatypes.TransactionMessage{
+			MessageType: msgType,
+			TxHash:      d.TxHash,
+			Timestamp:   d.Timestamp,
+			Signers:     d.Signers,
+			Creator:     d.Creator,
+			SessionKey:  d.SessionKey,
+			ExpiresAt:   &expiresAt,
+			SpendLimit:  d.SpendLimit,
+			SpendPeriod: &spendPeriod,
+		}
+	}
+	return nil
+}
+
+// Helper method that collects auth revoke-session data from the database and adds it to the response
+func (h *TransactionsHandler) getMsgAuthRvSessionResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetMsgAuthRvSession(ctx, txHash, chainName)
+	if err != nil {
+		return internalError("GetMsgAuthRvSession", err)
+	}
+	for _, d := range data {
+		index := d.MessageCounter
+		response[index] = humatypes.TransactionMessage{
+			MessageType: msgType,
+			TxHash:      d.TxHash,
+			Timestamp:   d.Timestamp,
+			Signers:     d.Signers,
+			Creator:     d.Creator,
+			SessionKey:  d.SessionKey,
+		}
+	}
+	return nil
+}
+
+// Helper method that collects auth revoke-all-sessions data from the database and adds it to the response
+func (h *TransactionsHandler) getMsgAuthRvAllSessionsResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetMsgAuthRvAllSessions(ctx, txHash, chainName)
+	if err != nil {
+		return internalError("GetMsgAuthRvAllSessions", err)
+	}
+	for _, d := range data {
+		index := d.MessageCounter
+		response[index] = humatypes.TransactionMessage{
+			MessageType: msgType,
+			TxHash:      d.TxHash,
+			Timestamp:   d.Timestamp,
+			Signers:     d.Signers,
+			Creator:     d.Creator,
+		}
+	}
+	return nil
+}
+
 // Helper method that collects bank send data from the database and adds it to the response
 func (h *TransactionsHandler) getBankSendResponse(
 	ctx context.Context,
 	msgType string,
 	txHash string,
 	chainName string,
-	response *map[int16]humatypes.TransactionMessage,
+	response map[int16]humatypes.TransactionMessage,
 ) error {
 	data, err := h.db.GetBankSend(ctx, txHash, chainName)
 	if err != nil {
@@ -429,7 +574,7 @@ func (h *TransactionsHandler) getBankSendResponse(
 	}
 	for _, d := range data {
 		index := d.MessageCounter
-		(*response)[index] = humatypes.TransactionMessage{
+		response[index] = humatypes.TransactionMessage{
 			MessageType: msgType,
 			TxHash:      d.TxHash,
 			Timestamp:   d.Timestamp,

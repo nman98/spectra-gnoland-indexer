@@ -219,6 +219,51 @@ type DenomVolumeHourly struct {
 	Volume decimal.Decimal `json:"volume" doc:"Volume"`
 }
 
+type MultiSendEntry struct {
+	Address string   `json:"address" doc:"Address"`
+	Coins   []Amount `json:"coins" doc:"Coins"`
+}
+
+type BankMultiSendRow struct {
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	Direction      bool      `json:"direction" doc:"True if output, false if input"`
+	Address        string    `json:"address" doc:"Address"`
+	Coins          []Amount  `json:"coins" doc:"Coins"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
+}
+
+type MsgAuthCrSession struct {
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	Creator        string    `json:"creator" doc:"Creator address"`
+	SessionKey     string    `json:"session_key" doc:"Session key (bech32 address)"`
+	ExpiresAt      time.Time `json:"expires_at" doc:"Session expiry timestamp"`
+	AllowPaths     []string  `json:"allow_paths" doc:"Allowed paths"`
+	SpendLimit     []Amount  `json:"spend_limit" doc:"Spend limit"`
+	SpendPeriod    int64     `json:"spend_period" doc:"Spend period in seconds; 0 means infinite"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
+}
+
+type MsgAuthRvSession struct {
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	Creator        string    `json:"creator" doc:"Creator address"`
+	SessionKey     string    `json:"session_key" doc:"Session key (bech32 address)"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
+}
+
+type MsgAuthRvAllSessions struct {
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	Creator        string    `json:"creator" doc:"Creator address"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
+}
+
 type ValidatorSigning struct {
 	Time         *time.Time `json:"time" doc:"Time" omitempty:"true"`
 	BlocksSigned int64      `json:"blocks_signed" doc:"Blocks signed"`
