@@ -501,7 +501,7 @@ func (mr *MsgRun) GetAllAddresses() *TxAddresses {
 type MsgMultiSend struct {
 	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	ChainName string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// By direction it refers to if this part is output entry or input entry.
 	// True means output, false means input. It has primary to true
 	Direction      bool     `db:"direction" dbtype:"boolean" nullable:"false" primary:"true"`
@@ -546,7 +546,7 @@ func (m MsgMultiSend) TableColumns() []string {
 type MsgAuthCrSession struct {
 	TxId       int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp  time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	ChainName  string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
+	ChainName  string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Creator    int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
 	SessionKey int32     `db:"session_key" dbtype:"integer" nullable:"false" primary:"false"`
 	ExpiresAt  time.Time `db:"expires_at" dbtype:"timestamptz" nullable:"false" primary:"false"`
@@ -587,7 +587,7 @@ func (ma *MsgAuthCrSession) GetAllAddresses() *TxAddresses {
 type MsgAuthRvSession struct {
 	TxId           int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp      time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	ChainName      string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
+	ChainName      string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Creator        int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
 	SessionKey     int32     `db:"session_key" dbtype:"integer" nullable:"false" primary:"false"`
 	Signers        []int32   `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
@@ -622,7 +622,7 @@ func (ma *MsgAuthRvSession) GetAllAddresses() *TxAddresses {
 type MsgAuthRvAllSessions struct {
 	TxId           int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp      time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	ChainName      string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
+	ChainName      string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Creator        int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
 	Signers        []int32   `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
 	MessageCounter int16     `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
