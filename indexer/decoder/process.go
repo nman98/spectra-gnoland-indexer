@@ -204,7 +204,7 @@ func processAuthCr(
 	messageCounter int16,
 ) {
 	creator := m.Creator.String()
-	sessionKeyRaw := m.SessionKey.Bytes()
+	sessionKey := m.SessionKey.Address().Bech32().String()
 	// It might set it to local time so force it to UTC just in case.
 	expiresAt := time.Unix(m.ExpiresAt, 0).UTC()
 	spendLimit, err := extractCoins(m.SpendLimit)
@@ -214,7 +214,7 @@ func processAuthCr(
 	messages[i] = map[string]any{
 		"msg_type":        "auth_msg_create_session",
 		"creator":         creator,
-		"session_key_raw": sessionKeyRaw,
+		"session_key":     sessionKey,
 		"expires_at":      expiresAt,
 		"allow_paths":     m.AllowPaths,
 		"spend_limit":     spendLimit,

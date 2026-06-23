@@ -339,7 +339,7 @@ func (c *converter) toMsgCrSession() (*dataTypes.MsgAuthCrSession, error) {
 	if !ok {
 		return nil, fmt.Errorf("missing creator")
 	}
-	sessionKey, ok := data["session_key"].([]byte)
+	sessionKey, ok := data["session_key"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing session_key")
 	}
@@ -372,7 +372,7 @@ func (c *converter) toMsgCrSession() (*dataTypes.MsgAuthCrSession, error) {
 		return nil, fmt.Errorf("missing message_counter")
 	}
 
-	allowPath, ok := data["allow_path"].([]string)
+	allowPaths, ok := data["allow_paths"].([]string)
 	if !ok {
 		return nil, fmt.Errorf("missing allow_path")
 	}
@@ -382,13 +382,13 @@ func (c *converter) toMsgCrSession() (*dataTypes.MsgAuthCrSession, error) {
 		ChainName:      c.chainName,
 		Timestamp:      c.timestamp,
 		Creator:        c.addressResolver.GetAddress(creator),
-		SessionKey:     sessionKey,
+		SessionKey:     c.addressResolver.GetAddress(sessionKey),
 		ExpiresAt:      expiresAt,
 		SpendLimit:     spendLimitAmount,
 		SpendPeriod:    spendPeriod,
 		Signers:        c.signerIds,
 		MessageCounter: messageCounter,
-		AllowPath:      allowPath,
+		AllowPaths:     allowPaths,
 	}, nil
 }
 
@@ -398,7 +398,7 @@ func (c *converter) toMsgRvSession() (*dataTypes.MsgAuthRvSession, error) {
 	if !ok {
 		return nil, fmt.Errorf("missing creator")
 	}
-	sessionKey, ok := data["session_key"].([]byte)
+	sessionKey, ok := data["session_key"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing session_key")
 	}
@@ -412,7 +412,7 @@ func (c *converter) toMsgRvSession() (*dataTypes.MsgAuthRvSession, error) {
 		ChainName:      c.chainName,
 		Timestamp:      c.timestamp,
 		Creator:        c.addressResolver.GetAddress(creator),
-		SessionKey:     sessionKey,
+		SessionKey:     c.addressResolver.GetAddress(sessionKey),
 		Signers:        c.signerIds,
 		MessageCounter: messageCounter,
 	}, nil

@@ -292,7 +292,7 @@ func (t *TimescaleDb) InsertMsgAuthCrSession(ctx context.Context, messages []sql
 			messages[i].SessionKey,
 			messages[i].ExpiresAt,
 			makePgxArray(messages[i].SpendLimit),
-			makePgxArray(messages[i].AllowPath),
+			makePgxArray(messages[i].AllowPaths),
 			messages[i].SpendPeriod,
 			makePgxArray(messages[i].Signers),
 			messages[i].MessageCounter,

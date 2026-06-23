@@ -548,10 +548,10 @@ type MsgAuthCrSession struct {
 	Timestamp  time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName  string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
 	Creator    int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
-	SessionKey []byte    `db:"session_key" dbtype:"bytea" nullable:"false" primary:"false"`
+	SessionKey int32     `db:"session_key" dbtype:"integer" nullable:"false" primary:"false"`
 	ExpiresAt  time.Time `db:"expires_at" dbtype:"timestamptz" nullable:"false" primary:"false"`
 	SpendLimit []Amount  `db:"spend_limit" dbtype:"amount[]" nullable:"false" primary:"false"`
-	AllowPath  []string  `db:"allow_path" dbtype:"text[]" nullable:"false" primary:"false"`
+	AllowPaths []string  `db:"allow_paths" dbtype:"text[]" nullable:"false" primary:"false"`
 	// According to the original type in gno spend period is supposed to be seconds.
 	// Keep that in mind. Also 0 means infinite!
 	SpendPeriod    int64   `db:"spend_period" dbtype:"bigint" nullable:"false" primary:"false"`
@@ -589,7 +589,7 @@ type MsgAuthRvSession struct {
 	Timestamp      time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName      string    `db:"chain_name" dbtype:"text" nullable:"false" primary:"true"`
 	Creator        int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
-	SessionKey     []byte    `db:"session_key" dbtype:"bytea" nullable:"false" primary:"false"`
+	SessionKey     int32     `db:"session_key" dbtype:"integer" nullable:"false" primary:"false"`
 	Signers        []int32   `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
 	MessageCounter int16     `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
 }
