@@ -249,6 +249,12 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
+		{sdt.MsgMultiSend{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name", "message_counter"},
+		}},
 		{sdt.MsgCall{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
@@ -278,6 +284,24 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
+		}},
+		{sdt.MsgAuthCrSession{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name", "message_counter"},
+		}},
+		{sdt.MsgAuthRvSession{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name", "message_counter"},
+		}},
+		{sdt.MsgAuthRvAllSessions{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   "1 week",
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
 	}
 
@@ -485,7 +509,7 @@ var createUserCmd = &cobra.Command{
 var createConfigCmd = &cobra.Command{
 	Use:   "create-config",
 	Short: "Generate a config with default values.",
-	Long: `Generate a config with default values. It will make a config file with default values. 
+	Long: `Generate a config with default values. It will make a config file with default values.
 	You can add --overwrite to overwrite the existing config file. And you can use --config to specify the path`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
