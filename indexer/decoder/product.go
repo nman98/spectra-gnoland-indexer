@@ -160,10 +160,16 @@ func (dm *DecodedMsg) CollectAllAddresses() []string {
 			if caller, ok := msgMap["caller"].(string); ok {
 				addressSet[caller] = struct{}{}
 			}
+			if sessionKey, ok := msgMap["session_key"].(string); ok {
+				addressSet[sessionKey] = struct{}{}
+			}
 
 		case "auth_msg_revoke_session":
 			if caller, ok := msgMap["caller"].(string); ok {
 				addressSet[caller] = struct{}{}
+			}
+			if sessionKey, ok := msgMap["session_key"].(string); ok {
+				addressSet[sessionKey] = struct{}{}
 			}
 
 		case "auth_msg_revoke_all_sessions":
