@@ -273,12 +273,6 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sdt.MsgMultiSend{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name", "message_counter"},
-		}},
 		{sdt.TxHashId{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",

@@ -582,6 +582,9 @@ func (ma *MsgAuthCrSession) GetAllAddresses() *TxAddresses {
 	txAddresses := NewTxAddresses(ma.TxId)
 	txAddresses.AddAddress(ma.Creator)
 	txAddresses.AddAddress(ma.SessionKey)
+	for _, addr := range ma.Signers {
+		txAddresses.AddAddress(addr)
+	}
 	return txAddresses
 }
 
@@ -618,6 +621,9 @@ func (ma *MsgAuthRvSession) GetAllAddresses() *TxAddresses {
 	txAddresses := NewTxAddresses(ma.TxId)
 	txAddresses.AddAddress(ma.Creator)
 	txAddresses.AddAddress(ma.SessionKey)
+	for _, addr := range ma.Signers {
+		txAddresses.AddAddress(addr)
+	}
 	return txAddresses
 }
 
@@ -652,5 +658,8 @@ func (ma MsgAuthRvAllSessions) TableColumns() []string {
 func (ma *MsgAuthRvAllSessions) GetAllAddresses() *TxAddresses {
 	txAddresses := NewTxAddresses(ma.TxId)
 	txAddresses.AddAddress(ma.Creator)
+	for _, addr := range ma.Signers {
+		txAddresses.AddAddress(addr)
+	}
 	return txAddresses
 }

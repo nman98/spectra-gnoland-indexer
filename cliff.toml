@@ -2,7 +2,7 @@
 # Tuned to the existing CHANGELOG.md style (Keep a Changelog + Added/Changes/Fixed).
 #
 # Release workflow example:
-#   1. Preview:   git cliff --unreleased --tag v.0.7.1
+#   1. Preview:   git cliff --unreleased --tag v0.7.1
 #   2. Prepend:   git cliff --unreleased --tag v0.7.1 --prepend CHANGELOG.md
 #   3. Edit the new section: add a release summary paragraph below the heading.
 #   4. Commit:    git add CHANGELOG.md && git commit -m "chore: release v0.7.1"

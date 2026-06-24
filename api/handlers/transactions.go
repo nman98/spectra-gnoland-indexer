@@ -502,6 +502,7 @@ func (h *TransactionsHandler) getMsgAuthCrSessionResponse(
 			Creator:     d.Creator,
 			SessionKey:  d.SessionKey,
 			ExpiresAt:   &expiresAt,
+			AllowPaths:  d.AllowPaths,
 			SpendLimit:  d.SpendLimit,
 			SpendPeriod: &spendPeriod,
 		}

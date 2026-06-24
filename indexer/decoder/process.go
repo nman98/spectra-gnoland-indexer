@@ -230,11 +230,11 @@ func processAuthRv(
 	messageCounter int16,
 ) {
 	creator := m.Creator.String()
-	sessionKeyRaw := m.SessionKey.Bytes()
+	sessionKey := m.SessionKey.Address().Bech32().String()
 	messages[i] = map[string]any{
 		"msg_type":        "auth_msg_revoke_session",
 		"creator":         creator,
-		"session_key_raw": sessionKeyRaw,
+		"session_key":     sessionKey,
 		"message_counter": messageCounter,
 	}
 }

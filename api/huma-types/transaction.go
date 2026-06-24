@@ -56,6 +56,7 @@ type TransactionMessage struct {
 
 	// Auth message specific fields
 	SessionKey  string            `json:"session_key,omitempty" doc:"Session key hex (for auth_msg_create_session and auth_msg_revoke_session)"`
+	AllowPaths  []string          `json:"allow_paths,omitempty" doc:"Allowed paths (only for auth_msg_create_session)"`
 	ExpiresAt   *time.Time        `json:"expires_at,omitempty" doc:"Session expiry (only for auth_msg_create_session)"`
 	SpendLimit  []database.Amount `json:"spend_limit,omitempty" doc:"Spend limit (only for auth_msg_create_session)"`
 	SpendPeriod *int64            `json:"spend_period,omitempty" doc:"Spend period in seconds; 0 means infinite (only for auth_msg_create_session)"`

@@ -228,6 +228,11 @@ func (c *converter) toMsgAddPackage() (*dataTypes.MsgAddPackage, error) {
 		return nil, fmt.Errorf("missing send")
 	}
 
+	pkgFileNames, ok := data["pkg_file_names"].([]string)
+	if !ok {
+		return nil, fmt.Errorf("missing pkg_file_names")
+	}
+
 	send := make([]dataTypes.Amount, len(coinSend))
 	for j, amt := range coinSend {
 		bigInt := big.NewInt(amt.Amount)
@@ -260,6 +265,7 @@ func (c *converter) toMsgAddPackage() (*dataTypes.MsgAddPackage, error) {
 		PkgPath:        pkgPath,
 		PkgName:        pkgName,
 		Send:           send,
+		PkgFileNames:   pkgFileNames,
 		MaxDeposit:     maxDeposit,
 		Signers:        c.signerIds,
 		Timestamp:      c.timestamp,
@@ -319,6 +325,11 @@ func (c *converter) toMsgRun() (*dataTypes.MsgRun, error) {
 		}
 	}
 
+	pkgFileNames, ok := data["pkg_file_names"].([]string)
+	if !ok {
+		return nil, fmt.Errorf("missing pkg_file_names")
+	}
+
 	return &dataTypes.MsgRun{
 		TxId:           c.txId,
 		MessageCounter: messageCounter,
@@ -326,6 +337,7 @@ func (c *converter) toMsgRun() (*dataTypes.MsgRun, error) {
 		Caller:         c.addressResolver.GetAddress(caller),
 		PkgPath:        pkgPath,
 		PkgName:        pkgName,
+		PkgFileNames:   pkgFileNames,
 		Send:           send,
 		MaxDeposit:     maxDeposit,
 		Signers:        c.signerIds,
