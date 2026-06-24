@@ -1,10 +1,15 @@
 # git-cliff configuration for spectra-gnoland-indexer
 # Tuned to the existing CHANGELOG.md style (Keep a Changelog + Added/Changes/Fixed).
-# Generate the next section with:   git cliff --unreleased --tag v0.7.0
-# Regenerate the whole file with:   git cliff -o CHANGELOG.md
+#
+# Release workflow example:
+#   1. Preview:   git cliff --unreleased --tag v.0.7.1
+#   2. Prepend:   git cliff --unreleased --tag v0.7.1 --prepend CHANGELOG.md
+#   3. Edit the new section: add a release summary paragraph below the heading.
+#   4. Commit:    git add CHANGELOG.md && git commit -m "chore: release v0.7.1"
+#   5. Tag:       git tag -a v0.7.1 -m "v0.7.1" && git push --follow-tags
 
 [changelog]
-# Static header that matches the existing CHANGELOG.md preamble.
+# Static header — only emitted when regenerating the full file (-o), not on --prepend.
 header = """
 # Changelog
 
@@ -24,7 +29,7 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | striptags | trim | upper_first }}
 {% for commit in commits %}
-- {{ commit.message | upper_first }}\
+- {{ commit.message | split(pat="\n") | first | upper_first }}\
 {% if commit.id %} [{{ commit.id | truncate(length=7, end="") }}](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/{{ commit.id }}){% endif %}\
 {% endfor %}
 {% endfor %}\n
@@ -32,31 +37,26 @@ body = """
 trim = true
 
 [git]
-# For now do not strictly follow Conventional Commits. After v1 this should be changed.
 conventional_commits = false
 filter_unconventional = false
-# Don't split a commit into multiple changelog entries.
 split_commits = false
-# Strip leading/trailing whitespace from messages.
 protect_breaking_commits = false
 
-# Tidy up the subject line before it lands in the changelog:
-# drop the "prefix:" token (we re-group on it below) and the trailing period.
 commit_preprocessors = [
-  { pattern = '^\s*(?i)(add|added|feat|feature|change|changed|chore|deps|dep|refactor|refac|fix|bug|test|vuln|vulncheck|audit| ?fix|fixed|lint|go fmt|go fix|perf|docs|doc|test|ci|build)\s*:\s*', replace = "" },
+  # Only strip a trailing period from the subject — the type prefix stays so parsers can see it.
   { pattern = '\.\s*$', replace = "" },
 ]
 
-# Map each commit to a group by matching the ORIGINAL prefix.
-# The <!-- N --> markers control section ordering (git-cliff sorts groups by them).
+# Parsers match against the FULL commit message (including type prefix) since conventional_commits = false.
+# (\([^)]+\))? handles optional scopes: both "feat:" and "feat(api):" are matched.
+# The <!-- N --> markers control section sort order (lower number = higher in the output).
 commit_parsers = [
-  { message = '^\s*(?i)(add|added|feat|feature)\s*:', group = "<!-- 0 -->Added" },
-  { message = '^\s*(?i)(fix|bug ?fix|fixed)\s*:',      group = "<!-- 2 -->Fixed" },
-  { message = '^\s*(?i)(change|changed|chore|deps|dep|refactor|refac|lint|go fmt|go fix|perf|build|ci)\s*:', group = "<!-- 1 -->Changes" },
-  { message = '^\s*(?i)(test|audit|vulncheck|vuln)\s*:', group = "<!-- 3 -->Tests and Code Check" },
-  # Anything without a recognised prefix lands here so nothing silently vanishes.
-  # Triage these into the right section (or, better, start prefixing your commits).
-  { message = '.*', group = "<!-- 3 -->Uncategorized (please triage)" },
+  { message = '^\s*(?i)(feat|feature|add|added)(\([^)]+\))?:',                                                              group = "<!-- 0 -->Added" },
+  { message = '^\s*(?i)(fix|bug ?fix|fixed)(\([^)]+\))?:',                                                                  group = "<!-- 2 -->Fixed" },
+  { message = '^\s*(?i)(change|changed|chore|deps|dep|refactor|refac|lint|go fmt|go fix|perf|docs|doc|build|ci)(\([^)]+\))?:', group = "<!-- 1 -->Changes" },
+  { message = '^\s*(?i)(test|audit|vulncheck|vuln)(\([^)]+\))?:',                                                           group = "<!-- 3 -->Tests and Code Check" },
+  # Catch-all so nothing silently vanishes — triage these before releasing.
+  { message = '.*', group = "<!-- 4 -->Uncategorized (please triage)" },
 ]
 
 # Process commits newest-first within each group.

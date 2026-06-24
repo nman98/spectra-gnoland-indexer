@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.7.1] - 2026-06-24
+
+This version should add support to process new Gnoland testnet 13. Added support for Auth message
+types, and the bank multi send should be supported.
+
+### Added
+
+- Feat(api): add new message types to the tx message route [e38c9f3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/e38c9f38fe4b0a7285593196d89c140b29f71125)
+- Feat(cli): add to setup db to init auth tables and multi send [1b56f5f](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/1b56f5f3832682d04457ca9b8300a6a0fdc06c5a)
+- Feat(decoder): add convert to auth methods [72e2334](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/72e2334b44b2625e70ec3b863faf104c5f6ad3d2)
+- Feat(sql_data_types): add schemas for the new auth msg types [0ecf0c7](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/0ecf0c7fed377b75f8532dbae7d39029a4521eb9)
+- Feat(decoder): add auth msg types [32fb8df](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/32fb8df4c820a6d9a6c7782720194137aeb7bf87)
+- Feat(timescaledb): add auth insert methods [33f4d34](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/33f4d340dc27fa31467625438fcdd266e07348b1)
+
+### Changes
+
+- Refac(timescaledb): move the GetAllBlockSigners to query_block.go [a4f9bf3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/a4f9bf317c5da9bca5ff1abc4fb9bdebc144ed16)
+- Refac(data_processor): add new auth types and partially move decoding [81ff897](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/81ff897728d48b4916c86aee79143ad2e15659b0)
+- Refactor(decoder): refactor the decoder to use smaller fn per msg type [c71f39c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c71f39cbf4211f40e29193f39d2439506ba2628a)
+- Deps: update gno to chain/test13 [f08460d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f08460d6a44dcf3cf437f8456f7c1ed6a85b0b65)
+
+### Fixed
+
+- Fix: add missing add address [f681153](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f6811537e78ba1bcb9d46199a9938968b2cd7556)
+- Fix(sql_data_types): fix chain_name to use enum type in database [ca36797](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ca36797cfd6e92d3b9745ef0abe2f0ebd87551fc)
+- Fix: add missing data to the create session [ac2130c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ac2130c71e40ad8bd435d49dc58624d06c27778e)
+- Fix: dockerfile indexer.go path updated and force the toolcahin to auto [a04c48c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/a04c48ca497a82565673900f90a6e0343232a1ba)
+- Fix(ci): fix the release.yml to use correct path to indexer.go [61b96b3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/61b96b3df53d342567fa8f46c69b63da31505312)
 
 ## [0.7.0] - 2026-06-14
 
