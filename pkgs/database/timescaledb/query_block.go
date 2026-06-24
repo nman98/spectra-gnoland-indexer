@@ -241,7 +241,8 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 	return blocks, nil
 }
 
-func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string) (float64, error) {
+// GetAvgBlockProdTimeTrueMean computes the all-time average using the first and last indexed block.
+func (t *TimescaleDb) GetAvgBlockProdTimeTrueMean(ctx context.Context, chainName string) (float64, error) {
 	query := `
 	SELECT height, timestamp
 	FROM blocks
@@ -287,6 +288,36 @@ func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string)
 	}
 
 	return points[0].ts.Sub(points[1].ts).Seconds() / float64(diffHeight), nil
+}
+
+// GetAvgBlockProdTime computes the average block time over the last 10 000 blocks
+// (or all available blocks if fewer than 10 000 have been indexed).
+func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string) (float64, error) {
+	const window = 10_000
+
+	query := `
+	SELECT b_end.height - b_start.height, b_end.timestamp, b_start.timestamp
+	FROM
+		(SELECT height, timestamp FROM blocks
+		 WHERE chain_name = $1 ORDER BY height DESC LIMIT 1) b_end,
+		(SELECT height, timestamp FROM blocks
+		 WHERE chain_name = $1
+		   AND height >= (SELECT GREATEST(MIN(height), MAX(height) - $2)
+		                  FROM blocks WHERE chain_name = $1)
+		 ORDER BY height ASC LIMIT 1) b_start
+	`
+
+	row := t.pool.QueryRow(ctx, query, chainName, window)
+	var heightDiff uint64
+	var tEnd, tStart time.Time
+	if err := row.Scan(&heightDiff, &tEnd, &tStart); err != nil {
+		return 0, fmt.Errorf("not enough block data to compute average block time for chain %q", chainName)
+	}
+	if heightDiff == 0 {
+		return 0, fmt.Errorf("not enough block data to compute average block time for chain %q", chainName)
+	}
+
+	return tEnd.Sub(tStart).Seconds() / float64(heightDiff), nil
 }
 
 func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ...any) ([]*database.BlockData, error) {
