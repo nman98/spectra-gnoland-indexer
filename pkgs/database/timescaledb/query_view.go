@@ -297,7 +297,7 @@ func (t *TimescaleDb) GetVolumeByHour(
 
 	query := fmt.Sprintf(`
 	WITH hours AS (
-		SELECT generate_series($2::timestamptz, $3::timestamptz, '1 hour'::interval) AS hour
+		SELECT generate_series(date_trunc('hour', $2::timestamptz), date_trunc('hour', $3::timestamptz), '1 hour'::interval) AS hour
 	),
 	denoms AS (
 		SELECT DISTINCT denom FROM fee_volume WHERE chain_name = $1
