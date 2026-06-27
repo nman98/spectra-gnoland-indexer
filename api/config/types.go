@@ -33,6 +33,9 @@ type ApiEnv struct {
 	ApiDbPassword                  string        `env:"API_DB_PASSWORD" envDefault:"12345678"`
 	ApiDbName                      string        `env:"API_DB_NAME" envDefault:"gnoland"`
 	ApiDbSslmode                   string        `env:"API_DB_SSLMODE" envDefault:"disable"`
+	ApiDbSslRootCert               string        `env:"API_DB_SSLROOTCERT" envDefault:""`
+	ApiDbSslCert                   string        `env:"API_DB_SSLCERT" envDefault:""`
+	ApiDbSslKey                    string        `env:"API_DB_SSLKEY" envDefault:""`
 	ApiDbPoolMaxConns              int           `env:"API_DB_POOL_MAX_CONNS" envDefault:"50"`
 	ApiDbPoolMinConns              int           `env:"API_DB_POOL_MIN_CONNS" envDefault:"10"`
 	ApiDbPoolMaxConnLifetime       time.Duration `env:"API_DB_POOL_MAX_CONN_LIFETIME" envDefault:"10m"`

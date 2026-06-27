@@ -24,6 +24,9 @@ func parseCommonFlags(cmd *cobra.Command, defaultDbName string) (*dbParams, erro
 	params.user, _ = cmd.Flags().GetString("db-user")
 	params.sslMode, _ = cmd.Flags().GetString("ssl-mode")
 	params.name, _ = cmd.Flags().GetString("db-name")
+	params.sslRootCert, _ = cmd.Flags().GetString("ssl-rootcert")
+	params.sslCert, _ = cmd.Flags().GetString("ssl-cert")
+	params.sslKey, _ = cmd.Flags().GetString("ssl-key")
 
 	// Apply environment variable fallbacks (for CI/CD)
 	if params.host == "" {
@@ -47,6 +50,15 @@ func parseCommonFlags(cmd *cobra.Command, defaultDbName string) (*dbParams, erro
 		if envDbName := os.Getenv("DB_NAME"); envDbName != "" {
 			params.name = envDbName
 		}
+	}
+	if params.sslRootCert == "" {
+		params.sslRootCert = os.Getenv("DB_SSLROOTCERT")
+	}
+	if params.sslCert == "" {
+		params.sslCert = os.Getenv("DB_SSLCERT")
+	}
+	if params.sslKey == "" {
+		params.sslKey = os.Getenv("DB_SSLKEY")
 	}
 
 	// Apply defaults if still empty
@@ -103,6 +115,9 @@ func (p *dbParams) createDatabaseConfig() timescaledb.DatabasePoolConfig {
 		Dbname:                    p.name,
 		Password:                  p.password,
 		Sslmode:                   p.sslMode,
+		SslRootCert:               p.sslRootCert,
+		SslCert:                   p.sslCert,
+		SslKey:                    p.sslKey,
 		PoolMaxConns:              10,
 		PoolMinConns:              1,
 		PoolMaxConnLifetime:       10 * time.Minute,

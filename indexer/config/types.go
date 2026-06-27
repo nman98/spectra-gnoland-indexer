@@ -8,7 +8,10 @@ type Environment struct {
 	Host    string `env:"DB_HOST" envDefault:"localhost"`
 	Port    int    `env:"DB_PORT" envDefault:"5432"`
 	User    string `env:"DB_USER" envDefault:"postgres"`
-	Sslmode string `env:"DB_SSLMODE" envDefault:"disable"`
+	Sslmode     string `env:"DB_SSLMODE" envDefault:"disable"`
+	SslRootCert string `env:"DB_SSLROOTCERT" envDefault:""`
+	SslCert     string `env:"DB_SSLCERT" envDefault:""`
+	SslKey      string `env:"DB_SSLKEY" envDefault:""`
 	// do not use password default unless for development or testing!!!
 	Password string `env:"DB_PASSWORD" envDefault:"12345678"`
 	Dbname   string `env:"DB_NAME" envDefault:"gnoland"`

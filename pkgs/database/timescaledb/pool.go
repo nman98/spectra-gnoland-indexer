@@ -26,6 +26,12 @@ type DatabasePoolConfig struct {
 	Port     int
 	Dbname   string
 	Sslmode  string
+	// SSL cert paths — only needed for verify-ca/verify-full or mutual TLS.
+	// SslRootCert: CA cert to verify the server. SslCert + SslKey: client
+	// certificate keypair, only when pg_hba.conf uses cert auth.
+	SslRootCert string
+	SslCert     string
+	SslKey      string
 
 	// Pool config
 	PoolMaxConns              int
@@ -59,26 +65,35 @@ func NewTimescaleDbSetup(config DatabasePoolConfig) *TimescaleDb {
 	}
 }
 
+// buildDSN constructs a libpq keyword=value connection string from config.
+// SSL cert fields are appended only when non-empty so that modes like
+// "require" or "disable" work without any cert files on disk.
+func buildDSN(config DatabasePoolConfig) string {
+	dsn := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s"+
+			" pool_max_conns=%d pool_min_conns=%d pool_max_conn_lifetime=%s"+
+			" pool_max_conn_idle_time=%s pool_health_check_period=%s"+
+			" pool_max_conn_lifetime_jitter=%s",
+		config.Host, config.Port, config.User, config.Password,
+		config.Dbname, config.Sslmode,
+		config.PoolMaxConns, config.PoolMinConns, config.PoolMaxConnLifetime,
+		config.PoolMaxConnIdleTime, config.PoolHealthCheckPeriod,
+		config.PoolMaxConnLifetimeJitter,
+	)
+	if config.SslRootCert != "" {
+		dsn += fmt.Sprintf(" sslrootcert=%s", config.SslRootCert)
+	}
+	if config.SslCert != "" {
+		dsn += fmt.Sprintf(" sslcert=%s", config.SslCert)
+	}
+	if config.SslKey != "" {
+		dsn += fmt.Sprintf(" sslkey=%s", config.SslKey)
+	}
+	return dsn
+}
+
 func connectToDb(config DatabasePoolConfig) (*pgxpool.Pool, error) {
-	parseConfig, err := pgxpool.ParseConfig(
-		fmt.Sprintf(
-			`host=%s port=%d user=%s password=%s
-			dbname=%s sslmode=%s pool_max_conns=%d
-			pool_min_conns=%d pool_max_conn_lifetime=%s
-			pool_max_conn_idle_time=%s pool_health_check_period=%s
-			pool_max_conn_lifetime_jitter=%s`,
-			config.Host,
-			config.Port,
-			config.User,
-			config.Password,
-			config.Dbname,
-			config.Sslmode,
-			config.PoolMaxConns,
-			config.PoolMinConns,
-			config.PoolMaxConnLifetime,
-			config.PoolMaxConnIdleTime,
-			config.PoolHealthCheckPeriod,
-			config.PoolMaxConnLifetimeJitter))
+	parseConfig, err := pgxpool.ParseConfig(buildDSN(config))
 	if err != nil {
 		return nil, err
 	}
@@ -112,25 +127,7 @@ func connectToDb(config DatabasePoolConfig) (*pgxpool.Pool, error) {
 
 // setupConnection connects to the database for the setup process only.
 func setupConnection(config DatabasePoolConfig) (*pgxpool.Pool, error) {
-	parseConfig, err := pgxpool.ParseConfig(
-		fmt.Sprintf(
-			`host=%s port=%d user=%s password=%s
-			dbname=%s sslmode=%s pool_max_conns=%d
-			pool_min_conns=%d pool_max_conn_lifetime=%s
-			pool_max_conn_idle_time=%s pool_health_check_period=%s
-			pool_max_conn_lifetime_jitter=%s`,
-			config.Host,
-			config.Port,
-			config.User,
-			config.Password,
-			config.Dbname,
-			config.Sslmode,
-			config.PoolMaxConns,
-			config.PoolMinConns,
-			config.PoolMaxConnLifetime,
-			config.PoolMaxConnIdleTime,
-			config.PoolHealthCheckPeriod,
-			config.PoolMaxConnLifetimeJitter))
+	parseConfig, err := pgxpool.ParseConfig(buildDSN(config))
 	if err != nil {
 		return nil, err
 	}

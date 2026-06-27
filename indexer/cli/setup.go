@@ -19,12 +19,15 @@ var allowedUserPrivileges = []string{"reader", "writer", "keymgr"}
 
 // dbParams holds common database connection parameters
 type dbParams struct {
-	host     string
-	port     int
-	user     string
-	name     string
-	password string
-	sslMode  string
+	host        string
+	port        int
+	user        string
+	name        string
+	password    string
+	sslMode     string
+	sslRootCert string
+	sslCert     string
+	sslKey      string
 }
 
 var setupCmd = &cobra.Command{
@@ -47,6 +50,9 @@ func init() {
 		cmd.Flags().StringP("db-user", "u", "", "The database user, default is postgres")
 		cmd.Flags().StringP("db-name", "d", "", "The database name, default is postgres")
 		cmd.Flags().StringP("ssl-mode", "s", "", "The SSL mode for the database connection, default is disable")
+		cmd.Flags().String("ssl-rootcert", "", "Path to the CA certificate for server verification (verify-ca/verify-full)")
+		cmd.Flags().String("ssl-cert", "", "Path to the client certificate (mutual TLS only)")
+		cmd.Flags().String("ssl-key", "", "Path to the client private key (mutual TLS only)")
 	}
 
 	// refresh-aggregates flags (same connection flags as create-db)
@@ -55,6 +61,9 @@ func init() {
 	refreshAggregatesCmd.Flags().StringP("db-user", "u", "", "The database user, default is postgres")
 	refreshAggregatesCmd.Flags().StringP("db-name", "d", "", "The database name to refresh, default is gnoland")
 	refreshAggregatesCmd.Flags().StringP("ssl-mode", "s", "", "The SSL mode for the database connection, default is disable")
+	refreshAggregatesCmd.Flags().String("ssl-rootcert", "", "Path to the CA certificate for server verification (verify-ca/verify-full)")
+	refreshAggregatesCmd.Flags().String("ssl-cert", "", "Path to the client certificate (mutual TLS only)")
+	refreshAggregatesCmd.Flags().String("ssl-key", "", "Path to the client private key (mutual TLS only)")
 
 	// create-user specific flags
 	createUserCmd.Flags().StringP("privilege", "r", "", "The privilege level for the user (reader, writer or keymgr)")
