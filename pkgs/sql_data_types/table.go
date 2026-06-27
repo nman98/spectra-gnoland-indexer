@@ -164,6 +164,10 @@ func AllTableNames() []string {
 		MsgRun{},
 		ApiKey{},
 		SchemaMigration{},
+		MsgAuthCrSession{},
+		MsgAuthRvSession{},
+		MsgAuthRvAllSessions{},
+		TxHashId{},
 	}
 	names := make([]string, len(tables))
 	for i, t := range tables {

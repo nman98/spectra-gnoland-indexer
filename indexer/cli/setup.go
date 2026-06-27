@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
@@ -14,6 +15,7 @@ import (
 const defaultDBUser = "postgres"
 
 var allowedSslModes = []string{"disable", "require", "verify-ca", "verify-full", "allow", "prefer"}
+var allowedUserPrivileges = []string{"reader", "writer", "keymgr"}
 
 // dbParams holds common database connection parameters
 type dbParams struct {
@@ -55,7 +57,7 @@ func init() {
 	refreshAggregatesCmd.Flags().StringP("ssl-mode", "s", "", "The SSL mode for the database connection, default is disable")
 
 	// create-user specific flags
-	createUserCmd.Flags().StringP("privilege", "r", "", "The privilege level for the user (reader or writer)")
+	createUserCmd.Flags().StringP("privilege", "r", "", "The privilege level for the user (reader, writer or keymgr)")
 	createUserCmd.Flags().String("user", "", "The user name for the user to create")
 
 	// create-db specific flags
@@ -434,9 +436,10 @@ user does not have the required privileges.`,
 }
 
 var createUserCmd = &cobra.Command{
-	Use:   "create-user",
+	Use:   "create-user [user_name]",
 	Short: "Create a new user for the database",
 	Long:  `Create a new user for the database. It will ask for the password and create the user.`,
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
 
@@ -452,17 +455,13 @@ var createUserCmd = &cobra.Command{
 		if privilege == "" {
 			l.Fatal().Msg("privilege is required")
 			return cmd.Usage()
-		} else if privilege != "reader" && privilege != "writer" && privilege != "keymgr" {
+		} else if !slices.Contains(allowedUserPrivileges, privilege) {
 			l.Fatal().Str("privilege", privilege).Msg("invalid privilege, must be reader, writer, or keymgr")
 			return cmd.Usage()
 		}
 
 		// get the user name from the flags
-		userName, _ := cmd.Flags().GetString("user")
-		if userName == "" {
-			l.Fatal().Msg("user name is required")
-			return cmd.Usage()
-		}
+		userName := args[0]
 
 		// Prompt for password
 		params.password, err = promptPassword()

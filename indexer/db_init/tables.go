@@ -576,7 +576,7 @@ func (db *DBInitializer) CreateChainTypeEnum(enumValues []string) error {
 // - error: if the function fails
 func (db *DBInitializer) CreateUser(userName string) error {
 	l.Info().Msgf("Creating user %s.....\n", userName)
-	l.Info().Msg("Enter the password for the new user: ")
+	fmt.Print("Enter the password for the new user: ")
 	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
 		l.Error().Err(err).Msg("failed to read password")
