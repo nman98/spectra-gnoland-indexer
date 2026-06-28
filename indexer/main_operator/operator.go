@@ -94,7 +94,9 @@ func InitMainOperator(
 	switch runningFlags.RunningMode {
 	case "live":
 		go InitDebug(signalHandler.Context())
+		signalHandler.RegisterOperation()
 		orch.LiveProcess(signalHandler.Context(), runningFlags.SkipInitialDbCheck, runningFlags.CompressEvents)
+		signalHandler.OperationComplete()
 	case "historic":
 		if runningFlags.FromHeight == 0 || runningFlags.ToHeight == 0 {
 			l.Fatal().Caller().Stack().Msg("from height and to height are required for historic mode")
@@ -102,13 +104,9 @@ func InitMainOperator(
 			l.Fatal().Caller().Stack().Msg("from height must be less than to height")
 		}
 		go InitDebug(signalHandler.Context())
-		// Historic processing doesn't need context cancellation in the same way,
-		// but we should still respect shutdown signals
-		go func() {
-			<-signalHandler.Context().Done()
-			l.Info().Msg("Shutdown signal received during historic processing")
-		}()
+		signalHandler.RegisterOperation()
 		orch.HistoricProcess(runningFlags.FromHeight, runningFlags.ToHeight, runningFlags.CompressEvents)
+		signalHandler.OperationComplete()
 	default:
 		l.Fatal().Caller().Stack().Msg("invalid running mode, please choose between live and historic")
 	}
