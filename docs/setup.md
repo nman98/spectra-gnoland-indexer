@@ -1,25 +1,29 @@
-# Installation of the indexer, setting up the database and running the indexer
+# Setup Guide
 
 ## Installation of the indexer
 
-You can install the indexer by building it from the source code or by using the docker image.
+You can install the indexer by building it from the source code, downloading compiled executable from 
+Github or by using the docker image.
 
 ### Building from the source code
 
 This will assume that you are using Debian based system. Just use dnf or zypper for other systems to install the
-make package. It will also assume that you have the go installed.
+make package. It will also assume that you have the go installed. If you do not have go installed checked
+[installation docs](https://go.dev/doc/install).
 
 ```bash
 sudo apt install make
 git clone https://github.com/Cogwheel-Validator/spectra-gnoland-indexer.git
 cd spectra-gnoland-indexer
-make build
+make build-indexer
 ```
 
 ### Using the docker image
 
-For now there aren't any prebuilt docker images. You can build your own by using the Dockerfile. It will also assume that you have the docker installed and that user has the docker group.
-To build the image you can use the following command:
+There are prebuilt docker images. Check the [`docker-compose.yml`](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/blob/main/docker-compose.yml) 
+to see how can you use them. All of the images are available at the the Github project [packages](https://github.com/orgs/Cogwheel-Validator/packages?repo_name=spectra-gnoland-indexer).
+
+You can also make your own image
 
 ```bash
 git clone https://github.com/Cogwheel-Validator/spectra-gnoland-indexer.git
@@ -52,14 +56,10 @@ Usage:
   indexer setup [command]
 
 Available Commands:
-  create-config Generate a config with default values.
-  create-db     Create a new database named gnoland
-  create-user   Create a new user for the database
-
-Flags:
-  -h, --help   help for setup
-
-
+  create-config      Generate a config with default values.
+  create-db          Create a new database named gnoland.
+  create-user        Create a new user for the database.
+  refresh-aggregates Force a full refresh of all continuous aggregate views.
 ```
 
 To use all of these commands you will need a user with admin privileges.
@@ -73,11 +73,11 @@ indexer setup create-db --db-host localhost --db-port 5432 --db-user postgres --
 To create the users for the database you can use the following command.
 The user is the name of the user to create and the privilege is the privilege level for the user.
 The program will ask for admin password, and later it will ask for the password of the new user.
-The privilege level can be "reader" or "writer". The reader should have only the select privileges.
+The privilege level can be "reader", "writer" or "keymgr". The reader should have only the select privileges.
 The writer should have the select, insert, update and privileges.
 
 ```bash
-indexer setup create-user --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --user writer --privilege writer
+indexer setup create-user writer --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --privilege writer
 ```
 
 ## Running the indexer
@@ -87,27 +87,27 @@ The indexer can be ran in 2 modes: live and historic.
 Now when you have the database running you can actually run the indexer. The indexer has a lot of flags that can be used to configure it:
 
 ```bash
-A blockchain indexer for Gnoland that processes blocks and transactions.
+Run the indexer in either live or historic mode.
 
 Usage:
-  indexer [command]
+  indexer run [command]
 
 Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  help        Help about any command
-  run         Run the indexer
-  setup       Database setup tools
+  historic    Run the indexer in historic mode
+  live        Run the indexer in live mode
 
 Flags:
-  -h, --help      help for indexer
-  -v, --version   version for indexer
-
-Use "indexer [command] --help" for more information about a command.
+  -e, --compress-events              compress events
+  -c, --config string                config file path (default "config.yml")
+  -h, --help                         help for run
+  -m, --max-req-per-window int       max requests per window (default 10000000)
+  -r, --rate-limit-window duration   rate limit window (default 1m0s)
+  -t, --timeout duration             timeout (default 20s)
 ```
 
-Compress events doesn't work at the moment so do not use it!
+Compress events does work but it is still experimental.
 
-The max request per window is rated to the max request that can be made to the RPC per rate limit window. So depending on the RPC rate limit option you can decrease the rate limit window and set up any desired value for the maximum requests per window.
+The max request per window is the maximum number of requests that can be made to the RPC within the rate limit window. So depending on the RPC rate limit option you can decrease the rate limit window and set up any desired value for the maximum requests per window.
 
 The timeout is the timeout for the RPC requests. The default is 20 seconds. You can set it to lower if you want.
 
@@ -146,7 +146,7 @@ pool_max_conn_lifetime_jitter: 1m
 # Chunk sizes are the maximum number of blocks or transactions that the indexer will process in a single chunk
 # for now you can leave them as they are, you can increase or decrease them if you want
 # 
-# Reccomended chunk sizes are 50 blocks and 100 transactions but you should be safe to move block chunk size from 10 to 100
+# Recommended chunk sizes are 50 blocks and 100 transactions but you should be safe to move block chunk size from 10 to 100
 # and transaction chunk size from 10 to 200
 chain_name: gnoland
 max_block_chunk_size: 50
@@ -162,7 +162,7 @@ live_pooling: 5s
 #
 # The retry amount is the number of times that the indexer will retry to get the blocks or transactions
 # The pause is the number at which the indexer will make a bigger pause. 
-# The indexer will use modulo operator on the retry attampts, if the retry attempt modulo pause is 0, the indexer will pause for the pause time
+# The indexer will use modulo operator on the retry attempts, if the retry attempt modulo pause is 0, the indexer will pause for the pause time
 # The pause time is the time that the indexer will pause after failing to get the blocks or transactions
 # The exponential backoff is the time that the indexer will wait before it retries to get the blocks or transactions
 #

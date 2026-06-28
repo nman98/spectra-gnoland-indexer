@@ -21,6 +21,7 @@ not the best choice. And finally the nodes are not the best when it comes to sto
 ## Table of content
 
 - [Table of content](#table-of-content)
+- [Quick Start](#quick-start)
 - [The solution](#the-solution)
 - [Why TimescaleDB? And can it work on other SQL databases?](#why-timescaledb-and-can-it-work-on-other-sql-databases)
 - [How does the indexer work?](#how-does-the-indexer-work)
@@ -33,6 +34,78 @@ not the best choice. And finally the nodes are not the best when it comes to sto
   - [🦾 Pros](#-pros)
   - [🐞 Cons](#-cons)
 - [In depth documentation](#in-depth-documentation)
+
+## Quick Start
+
+The fastest way to get the indexer running is with Docker Compose for the database and a local binary for setup and ingestion.
+
+**Prerequisites:** Go 1.26+ and Docker with Docker Compose.
+
+### 1. Clone and build
+
+```bash
+git clone https://github.com/Cogwheel-Validator/spectra-gnoland-indexer.git
+cd spectra-gnoland-indexer
+make build-indexer
+```
+
+### 2. Configure
+
+```bash
+cp config.yml.example config.yml
+```
+
+Open `config.yml` and set the `rpc` field to your Gnoland node RPC endpoint (e.g. `https://gnoland-testnet-rpc.cogwheel.zone`). Make sure `chain_name` matches the name you want to use for the database.
+
+### 3. Start the database
+
+```bash
+docker-compose up -d timescaledb
+```
+
+This starts a TimescaleDB instance on port 5432 with the default password `12345678`. Change the password in `docker-compose.yml` for any non-local deployment.
+
+### 4. Initialize the database
+
+```bash
+./build/indexer setup create-db \
+  --db-host localhost --db-port 5432 \
+  --db-user postgres --db-name postgres \
+  --ssl-mode disable --new-db-name gnoland --chain-name gnoland
+```
+
+When prompted, enter the postgres password. This creates the schema and all necessary tables.
+
+Optionally create a dedicated writer user:
+
+```bash
+./build/indexer setup create-user writer \
+  --db-host localhost --db-port 5432 \
+  --db-user postgres --db-name postgres \
+  --ssl-mode disable --privilege writer
+```
+
+### 5. Run the indexer
+
+**Historic mode** — index a specific block range (useful for initial sync):
+
+```bash
+./build/indexer run historic --config config.yml --from-height 1 --to-height 50000
+```
+
+**Live mode** — follow the chain tip in real time after historic sync is done:
+
+```bash
+./build/indexer run live --config config.yml
+```
+
+If you want to start from the current chain tip without syncing history, add `--skip-db-check`:
+
+```bash
+./build/indexer run live --config config.yml --skip-db-check
+```
+
+For production deployment, systemd service examples, Docker usage, and configuration details see [docs/setup.md](docs/setup.md).
 
 ## The solution
 

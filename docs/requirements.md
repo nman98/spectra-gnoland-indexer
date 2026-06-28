@@ -1,10 +1,9 @@
 # Requirements
 
-The indexer could can run on one machine while the database is located on another machine. You can also use the
-Tiger Data (Timescaledb cloud edition) which is a managed service by Tiger Data which is a company that builds the
-Timescaledb.
+The indexer can run on one machine while the database is located on another machine. You can also use
+Tiger Data (the TimescaleDB cloud edition), a managed service by Tiger Data, the company behind TimescaleDB.
 
-However for the ease of understanding through the documentation will refer that the indexer and the database are located on the same machine.
+However, for ease of understanding, throughout this documentation we assume that the indexer and the database are located on the same machine.
 
 ## Hardware requirements
 
@@ -23,18 +22,15 @@ Recommended system requirements:
 The indexer could probably run on ARM64 architecture but it is not tested yet. So stick with the x86_64
 architecture. There shouldn't be any major difference but if you really want to run it on ARM64 you might need to compile the indexer from the source code.
 
-For storage HDD should be enough. During the whole time of the development it was tested on old laptop HDD
-with 5400 RPM. So it should work for the most part. But for any bigger projects where write and read
+It can work on HDD for development but for any bigger projects where write and read
 speeds are important you might needs SSD depending on what you are doing. The SATA SSD is a good choice for the
 most part but you can also use the NVMe SSD for better performance.
 
-As for the size it depends on the amount of the data that you are indexing.
-For example the integration test did about 400K blocks and 1 million
-transactions. So it took around 2.2 GB of disk space. There are a lot of things that can affect the size of the
-database but at least use this as some reference point to how much space you might need.
+For the storage capacity it depends. Given that the indexer is still in development it may vary and it can't be said for certain. For Gnoland Testnet 13 at arround 500K blocks and 250K transactions it used a 
+bit over 1.2 GB. This should give you some sort of image of how much space you might need.
 
-For the RAM and CPU it kinda depends but for now this is a good starting point. As the database size grows, you
-might need to increase the RAM and CPU.
+For the RAM and CPU it kinda depends but for now this is a good starting point. As the database size 
+grows, you might need to increase the RAM and CPU.
 
 Additional info for RAM. It is not that simple for more info look at [tiger data documentation](https://docs.tigerdata.com/use-timescale/latest/hypertables/improve-query-performance/).
 
@@ -65,7 +61,7 @@ and how much data is indexed you might need to increase the RAM size.
 
 The following software and OS requirements are required to run the indexer:
 
-- go 1.25.7
+- go 1.26.1
 - TimescaleDB 2.18 or higher but with PostgresSQL 16 or higher
 - OS: Linux, anything based on Debian(Ubuntu, Mint, etc.) or RHEL(CentOS stream, Rocky Linux, etc.) should work, openSUSE also ok
 - Docker (optional)
