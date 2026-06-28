@@ -32,7 +32,7 @@ type dbParams struct {
 
 var setupCmd = &cobra.Command{
 	Use:   "setup",
-	Short: "Database setup tools",
+	Short: "Database setup tools.",
 	Long:  `A collection of tools to set up and manage the database for the gnoland indexer.`,
 }
 
@@ -80,9 +80,9 @@ func init() {
 
 var createDbCmd = &cobra.Command{
 	Use:   "create-db",
-	Short: "Create a new database named gnoland",
+	Short: "Create a new database named gnoland.",
 	Long: `Create a new database named gnoland for the indexer. It goes\n
-	through a lot of steps to create the database and insert the tables and data.`,
+through a lot of steps to create the database and insert the tables and data.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return createDatabaseSetup(cmd)
 	},
@@ -512,7 +512,8 @@ var createConfigCmd = &cobra.Command{
 	Use:   "create-config",
 	Short: "Generate a config with default values.",
 	Long: `Generate a config with default values. It will make a config file with default values.
-	You can add --overwrite to overwrite the existing config file. And you can use --config to specify the path`,
+
+You can add --overwrite to overwrite the existing config file. And you can use --config to specify the path`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
 

@@ -204,7 +204,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64, compressEvents bool) error {
 	chunkStartTime := time.Now()
 
-	// Step 1: Get blocks concurrently
+	// Step 1: Get blocks
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -235,10 +235,13 @@ func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64, compressEvents
 
 	l.Info().Msgf("Collected %d transactions from %d blocks in live chunk", len(allTransactions), len(blocks))
 
-	// Step 3: Process all data concurrently
+	// Step 3: Process all data
 	if err := or.processAll(blocks, commits, allTransactions, compressEvents, chunkStart, chunkEnd); err != nil {
 		return fmt.Errorf("failed to process live chunk %d-%d: %w", chunkStart, chunkEnd, err)
 	}
+
+	processDuration := time.Since(chunkStartTime) - fetchDuration
+	l.Debug().Msgf("Chunk %d-%d processed in %v", chunkStart, chunkEnd, processDuration)
 
 	chunkDuration := time.Since(chunkStartTime)
 	l.Info().Msgf("Chunk %d-%d completed in %v", chunkStart, chunkEnd, chunkDuration)
@@ -264,7 +267,7 @@ func (or *Orchestrator) updateProgressMetrics(
 }
 
 /*
-	collectTransactionsFromBlocks extracts all transactions from blocks and queries them concurrently
+	collectTransactionsFromBlocks extracts all transactions from blocks and queries them at the smae time
 
 Parameters:
   - blocks: a slice of blocks

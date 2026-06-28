@@ -8,7 +8,6 @@ import (
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cli"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
-	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	"go.opentelemetry.io/otel/log/global"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -31,13 +30,8 @@ func main() {
 		}
 	}
 
-	logger.Init(logger.Config{
-		Level:       zerolog.InfoLevel,
-		ServiceName: "spectra-indexer",
-		Pretty:      true,
-	})
-
-	if err := cli.RootCmd.ExecuteContext(ctx); err != nil {
+	cmd := cli.RootCmd()
+	if err := cmd.ExecuteContext(ctx); err != nil {
 		logger.Get().Fatal().Err(err).Msg("failed to execute command")
 	}
 }

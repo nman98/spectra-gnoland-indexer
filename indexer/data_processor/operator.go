@@ -71,7 +71,7 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 	wg := sync.WaitGroup{}
 	wg.Add(len(blocks))
 
-	// Process blocks concurrently to extract addresses
+	// Process blocks to extract addresses
 	for _, block := range blocks {
 		go processPrecommits(&mu, addressesMap, &wg, block)
 	}
@@ -424,7 +424,7 @@ func (d *DataProcessor) ProcessMessages(
 			)
 	}
 
-	// Phase 2: Process message groups concurrently, each goroutine writes to its own index slot.
+	// Phase 2: Process message groups, each goroutine writes to its own index slot.
 	msgResults := make([]*decoder.DbMessageGroups, transactionAmount)
 	wg := sync.WaitGroup{}
 	wg.Add(transactionAmount)
