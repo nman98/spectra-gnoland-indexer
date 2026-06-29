@@ -149,26 +149,94 @@ func (sm SchemaMigration) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(sm, sm.TableName())
 }
 
-func AllTableNames() []string {
-	tables := []DBTable{
+// Hypertable couples a table with its TimescaleDB hypertable configuration.
+type Hypertable struct {
+	Table  DBTable
+	Params dbinit.HypertableParams
+}
+
+// RegularTables returns the plain (non-hypertable) persisted tables.
+func RegularTables() []DBTable {
+	return []DBTable{
 		GnoAddress{},
 		GnoValidatorAddress{},
-		Blocks{},
-		ValidatorBlockSigning{},
-		AddressTx{},
-		TransactionGeneral{},
-		MsgSend{},
-		MsgMultiSend{},
-		MsgCall{},
-		MsgAddPackage{},
-		MsgRun{},
 		ApiKey{},
 		SchemaMigration{},
-		MsgAuthCrSession{},
-		MsgAuthRvSession{},
-		MsgAuthRvAllSessions{},
-		TxHashId{},
 	}
+}
+
+// Hypertables returns every TimescaleDB hypertable with its creation parameters.
+// This is the single source of truth for hypertable setup: the CLI iterates this
+// list, and AllTables derives from it, so a new hypertable is added here once.
+func Hypertables() []Hypertable {
+	const chunk = "1 week"
+	// Most message tables share the same layout: partition by timestamp, order by
+	// timestamp, segment by chain and message counter.
+	msgParams := dbinit.HypertableParams{
+		PartitionColumn: "timestamp",
+		ChunkInterval:   chunk,
+		OrderBy:         "timestamp DESC",
+		SegmentBy:       []string{"chain_name", "message_counter"},
+	}
+	return []Hypertable{
+		{Blocks{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   chunk,
+			OrderBy:         "height DESC, timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
+		}},
+		{ValidatorBlockSigning{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   chunk,
+			OrderBy:         "block_height DESC, timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
+		}},
+		{AddressTx{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   chunk,
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
+		}},
+		{TransactionGeneral{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   chunk,
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
+		}},
+		{MsgSend{}, msgParams},
+		{MsgMultiSend{}, msgParams},
+		{MsgCall{}, msgParams},
+		{MsgAddPackage{}, msgParams},
+		{MsgRun{}, msgParams},
+		{TxHashId{}, dbinit.HypertableParams{
+			PartitionColumn: "timestamp",
+			ChunkInterval:   chunk,
+			OrderBy:         "timestamp DESC",
+			SegmentBy:       []string{"chain_name"},
+		}},
+		{MsgAuthCrSession{}, msgParams},
+		{MsgAuthRvSession{}, msgParams},
+		{MsgAuthRvAllSessions{}, msgParams},
+	}
+}
+
+// AllTables returns one instance of every persisted table struct (regular tables
+// followed by hypertables). It is derived from RegularTables and Hypertables, so
+// it cannot drift out of sync with setup; AllTableNames and the schema validation
+// test both build on it.
+func AllTables() []DBTable {
+	regular := RegularTables()
+	hypertables := Hypertables()
+	all := make([]DBTable, 0, len(regular)+len(hypertables))
+	all = append(all, regular...)
+	for _, h := range hypertables {
+		all = append(all, h.Table)
+	}
+	return all
+}
+
+func AllTableNames() []string {
+	tables := AllTables()
 	names := make([]string, len(tables))
 	for i, t := range tables {
 		names[i] = t.TableName()

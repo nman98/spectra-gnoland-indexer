@@ -205,15 +205,8 @@ func createDatabaseTypes(dbInit *dbinit.DBInitializer, chainName string) error {
 func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
-	regularTables := []s.DBTable{
-		s.GnoAddress{},
-		s.GnoValidatorAddress{},
-		s.ApiKey{},
-		s.SchemaMigration{},
-	}
-
 	l.Info().Str("chain", chainName).Msg("inserting regular tables")
-	for _, dataType := range regularTables {
+	for _, dataType := range s.RegularTables() {
 		if err := dbInit.CreateTableFromStruct(dataType, dataType.TableName()); err != nil {
 			l.Error().Err(err).Str("table", dataType.TableName()).Msg("failed to create table")
 			return err
@@ -226,94 +219,10 @@ func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
 func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
-	hypertables := []struct {
-		table  s.DBTable
-		params dbinit.HypertableParams
-	}{
-		{s.Blocks{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "height DESC, timestamp DESC",
-			SegmentBy:       []string{"chain_name"},
-		}},
-		{s.ValidatorBlockSigning{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "block_height DESC, timestamp DESC",
-			SegmentBy:       []string{"chain_name"},
-		}},
-		{s.AddressTx{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name"},
-		}},
-		{s.TransactionGeneral{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name"},
-		}},
-		{s.MsgSend{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name", "message_counter"},
-		}},
-		{s.MsgMultiSend{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name", "message_counter"},
-		}},
-		{s.MsgCall{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name", "message_counter"},
-		}},
-		{s.MsgAddPackage{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name", "message_counter"},
-		}},
-		{s.MsgRun{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name", "message_counter"},
-		}},
-		{s.TxHashId{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name"},
-		}},
-		{s.MsgAuthCrSession{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name", "message_counter"},
-		}},
-		{s.MsgAuthRvSession{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name", "message_counter"},
-		}},
-		{s.MsgAuthRvAllSessions{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   "1 week",
-			OrderBy:         "timestamp DESC",
-			SegmentBy:       []string{"chain_name", "message_counter"},
-		}},
-	}
-
 	l.Info().Str("chain", chainName).Msg("inserting hypertables")
-	for _, ht := range hypertables {
-		if err := dbInit.CreateHypertableFromStruct(ht.table, ht.table.TableName(), ht.params); err != nil {
-			l.Error().Err(err).Str("table", ht.table.TableName()).Msg("failed to create hypertable")
+	for _, ht := range s.Hypertables() {
+		if err := dbInit.CreateHypertableFromStruct(ht.Table, ht.Table.TableName(), ht.Params); err != nil {
+			l.Error().Err(err).Str("table", ht.Table.TableName()).Msg("failed to create hypertable")
 			return err
 		}
 	}
