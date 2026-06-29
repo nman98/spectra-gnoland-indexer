@@ -60,24 +60,3 @@ type key struct {
 	chainName string
 }
 
-// messageBatch is a homogeneous batch of message rows (all the same table) paired
-// with the transaction ids they belong to, retained so a failed insert can be
-// traced back to tx hashes for diagnostics.
-type messageBatch struct {
-	rows  []s.Insertable
-	txIds []int64
-}
-
-// newMessageBatch boxes a typed message slice into a messageBatch, capturing each
-// row's tx id via the supplied accessor while the concrete type is still known.
-func newMessageBatch[T s.Insertable](rows []T, txID func(T) int64) messageBatch {
-	batch := messageBatch{
-		rows:  make([]s.Insertable, len(rows)),
-		txIds: make([]int64, len(rows)),
-	}
-	for i, r := range rows {
-		batch.rows[i] = r
-		batch.txIds[i] = txID(r)
-	}
-	return batch
-}

@@ -189,28 +189,40 @@ func (dm *DecodedMsg) CollectAllAddresses() []string {
 	return addresses
 }
 
-// DbMessageGroups holds database-ready message types with address IDs
-type DbMessageGroups struct {
-	MsgSend              []s.MsgSend
-	MsgMultiSend         []s.MsgMultiSend
-	MsgCall              []s.MsgCall
-	MsgAddPkg            []s.MsgAddPackage
-	MsgRun               []s.MsgRun
-	MsgAuthCrSession     []s.MsgAuthCrSession
-	MsgAuthRvSession     []s.MsgAuthRvSession
-	MsgAuthRvAllSessions []s.MsgAuthRvAllSessions
+// messageRow bundles a converted, database-ready message row with the metadata
+// needed to populate the address_tx table, captured once at conversion time so
+// neither insertion nor address derivation has to re-enumerate message types.
+type messageRow struct {
+	row       s.Message
+	addresses *s.TxAddresses
+	chainName string
+	timestamp time.Time
 }
 
-// Merge appends all message slices from other into g.
-func (g *DbMessageGroups) Merge(other *DbMessageGroups) {
-	g.MsgSend = append(g.MsgSend, other.MsgSend...)
-	g.MsgMultiSend = append(g.MsgMultiSend, other.MsgMultiSend...)
-	g.MsgCall = append(g.MsgCall, other.MsgCall...)
-	g.MsgAddPkg = append(g.MsgAddPkg, other.MsgAddPkg...)
-	g.MsgRun = append(g.MsgRun, other.MsgRun...)
-	g.MsgAuthCrSession = append(g.MsgAuthCrSession, other.MsgAuthCrSession...)
-	g.MsgAuthRvSession = append(g.MsgAuthRvSession, other.MsgAuthRvSession...)
-	g.MsgAuthRvAllSessions = append(g.MsgAuthRvAllSessions, other.MsgAuthRvAllSessions...)
+// DbMessages is a type-erased collection of converted message rows. It replaces
+// the former per-type field struct: adding a new message type requires no change
+// here, only a new case in ConvertToDbMessages (the conversion is inherently
+// per-type) plus a struct that satisfies schema.Message.
+type DbMessages struct {
+	rows []messageRow
+}
+
+// add records a single converted message row.
+func (m *DbMessages) add(row s.Message, chainName string, timestamp time.Time) {
+	m.rows = append(m.rows, messageRow{
+		row:       row,
+		addresses: row.GetAllAddresses(),
+		chainName: chainName,
+		timestamp: timestamp,
+	})
+}
+
+// Len returns the number of message rows held.
+func (m *DbMessages) Len() int { return len(m.rows) }
+
+// Merge appends all rows from other into m.
+func (m *DbMessages) Merge(other *DbMessages) {
+	m.rows = append(m.rows, other.rows...)
 }
 
 // AddressEntry holds the data needed to populate the address_tx table for a single message.
@@ -221,34 +233,44 @@ type AddressEntry struct {
 	MsgType   string
 }
 
-// AllAddressEntries returns one AddressEntry per message across all groups.
-func (g *DbMessageGroups) AllAddressEntries() []AddressEntry {
-	entries := make([]AddressEntry, 0)
-	for _, m := range g.MsgSend {
-		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
-	}
-	for _, m := range g.MsgMultiSend {
-		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
-	}
-	for _, m := range g.MsgCall {
-		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
-	}
-	for _, m := range g.MsgAddPkg {
-		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
-	}
-	for _, m := range g.MsgRun {
-		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
-	}
-	for _, m := range g.MsgAuthCrSession {
-		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
-	}
-	for _, m := range g.MsgAuthRvSession {
-		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
-	}
-	for _, m := range g.MsgAuthRvAllSessions {
-		entries = append(entries, AddressEntry{m.GetAllAddresses(), m.ChainName, m.Timestamp, m.TableName()})
+// AddressEntries returns one AddressEntry per message row.
+func (m *DbMessages) AddressEntries() []AddressEntry {
+	entries := make([]AddressEntry, len(m.rows))
+	for i, r := range m.rows {
+		entries[i] = AddressEntry{r.addresses, r.chainName, r.timestamp, r.row.TableName()}
 	}
 	return entries
+}
+
+// InsertBatch is a homogeneous group of rows (all the same table) ready for the
+// generic COPY insert path, alongside the tx ids each row belongs to for
+// failure diagnostics.
+type InsertBatch struct {
+	Rows  []s.Insertable
+	TxIds []int64
+}
+
+// InsertBatches groups the collected rows by destination table. Table order is
+// the order each table was first seen, keeping the output deterministic.
+func (m *DbMessages) InsertBatches() []InsertBatch {
+	byTable := make(map[string]*InsertBatch)
+	order := make([]string, 0)
+	for _, r := range m.rows {
+		table := r.row.TableName()
+		batch, ok := byTable[table]
+		if !ok {
+			batch = &InsertBatch{}
+			byTable[table] = batch
+			order = append(order, table)
+		}
+		batch.Rows = append(batch.Rows, r.row)
+		batch.TxIds = append(batch.TxIds, r.addresses.TxId)
+	}
+	batches := make([]InsertBatch, len(order))
+	for i, table := range order {
+		batches[i] = *byTable[table]
+	}
+	return batches
 }
 
 // ConvertToDbMessages directly converts the decoded message maps to database-ready message types
@@ -259,23 +281,14 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 	chainName string,
 	timestamp time.Time,
 	signers []string,
-) (*DbMessageGroups, error) {
+) (*DbMessages, error) {
 	// Convert signers to address IDs once
 	signerIds := make([]int32, len(signers))
 	for k, signer := range signers {
 		signerIds[k] = addressResolver.GetAddress(signer)
 	}
 
-	dbGroups := &DbMessageGroups{
-		MsgSend:              make([]s.MsgSend, 0),
-		MsgMultiSend:         make([]s.MsgMultiSend, 0),
-		MsgCall:              make([]s.MsgCall, 0),
-		MsgAddPkg:            make([]s.MsgAddPackage, 0),
-		MsgRun:               make([]s.MsgRun, 0),
-		MsgAuthCrSession:     make([]s.MsgAuthCrSession, 0),
-		MsgAuthRvSession:     make([]s.MsgAuthRvSession, 0),
-		MsgAuthRvAllSessions: make([]s.MsgAuthRvAllSessions, 0),
-	}
+	out := &DbMessages{}
 
 	cvt := converter{
 		msgMap:          nil,
@@ -298,61 +311,63 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert bank_msg_send: %w", err)
 			}
-			dbGroups.MsgSend = append(dbGroups.MsgSend, *msg)
+			out.add(msg, chainName, timestamp)
 
 		case "bank_msg_multi_send":
 			msgs, err := cvt.toMsgMultiSend()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert bank_msg_multi_send: %w", err)
 			}
-			dbGroups.MsgMultiSend = append(dbGroups.MsgMultiSend, msgs...)
+			for i := range msgs {
+				out.add(&msgs[i], chainName, timestamp)
+			}
 
 		case "vm_msg_call":
 			msg, err := cvt.toMsgCall()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert vm_msg_call: %w", err)
 			}
-			dbGroups.MsgCall = append(dbGroups.MsgCall, *msg)
+			out.add(msg, chainName, timestamp)
 
 		case "vm_msg_add_package":
 			msg, err := cvt.toMsgAddPackage()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert vm_msg_add_package: %w", err)
 			}
-			dbGroups.MsgAddPkg = append(dbGroups.MsgAddPkg, *msg)
+			out.add(msg, chainName, timestamp)
 
 		case "vm_msg_run":
 			msg, err := cvt.toMsgRun()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert vm_msg_run: %w", err)
 			}
-			dbGroups.MsgRun = append(dbGroups.MsgRun, *msg)
+			out.add(msg, chainName, timestamp)
 
 		case "auth_msg_create_session":
 			msg, err := cvt.toMsgCrSession()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert auth_msg_auth_cr_session: %w", err)
 			}
-			dbGroups.MsgAuthCrSession = append(dbGroups.MsgAuthCrSession, *msg)
+			out.add(msg, chainName, timestamp)
 
 		case "auth_msg_revoke_session":
 			msg, err := cvt.toMsgRvSession()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert auth_msg_auth_rv_session: %w", err)
 			}
-			dbGroups.MsgAuthRvSession = append(dbGroups.MsgAuthRvSession, *msg)
+			out.add(msg, chainName, timestamp)
 
 		case "auth_msg_revoke_all_sessions":
 			msg, err := cvt.toMsgRvAllSessions()
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert auth_msg_auth_rv_all_sessions: %w", err)
 			}
-			dbGroups.MsgAuthRvAllSessions = append(dbGroups.MsgAuthRvAllSessions, *msg)
+			out.add(msg, chainName, timestamp)
 
 		default:
 			return nil, fmt.Errorf("unknown message type: %s", msgType)
 		}
 	}
 
-	return dbGroups, nil
+	return out, nil
 }

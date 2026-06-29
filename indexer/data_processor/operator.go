@@ -425,7 +425,7 @@ func (d *DataProcessor) ProcessMessages(
 	}
 
 	// Phase 2: Process message groups, each goroutine writes to its own index slot.
-	msgResults := make([]*decoder.DbMessageGroups, transactionAmount)
+	msgResults := make([]*decoder.DbMessages, transactionAmount)
 	wg := sync.WaitGroup{}
 	wg.Add(transactionAmount)
 
@@ -440,14 +440,14 @@ func (d *DataProcessor) ProcessMessages(
 
 	wg.Wait()
 
-	aggregatedDbGroups := &decoder.DbMessageGroups{}
+	aggregatedDbMessages := &decoder.DbMessages{}
 	for _, result := range msgResults {
 		if result != nil {
-			aggregatedDbGroups.Merge(result)
+			aggregatedDbMessages.Merge(result)
 		}
 	}
 
-	addresses := createAddressTx(aggregatedDbGroups)
+	addresses := createAddressTx(aggregatedDbMessages)
 	timeout := 10*time.Second + (time.Duration(len(addresses)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	err := d.dbPool.InsertRows(ctx, s.AsInsertable(addresses))
@@ -456,21 +456,17 @@ func (d *DataProcessor) ProcessMessages(
 		return fmt.Errorf("failed to insert address tx: %w", err)
 	}
 
-	if err := d.insertDbMessageGroups(aggregatedDbGroups); err != nil {
-		return fmt.Errorf("failed to insert optimized messages: %w", err)
+	batches := aggregatedDbMessages.InsertBatches()
+	if err := d.insertMessageBatches(batches); err != nil {
+		return fmt.Errorf("failed to insert messages: %w", err)
 	}
 
-	l.Info().Msgf("Messages processed from %d to %d: MsgSend=%d, MsgCall=%d, MsgAddPkg=%d, MsgRun=%d, MsgMultiSend=%d, MsgAuthCrSession=%d, MsgAuthRvSession=%d, MsgAuthRvAllSessions=%d",
-		fromHeight, toHeight,
-		len(aggregatedDbGroups.MsgSend),
-		len(aggregatedDbGroups.MsgCall),
-		len(aggregatedDbGroups.MsgAddPkg),
-		len(aggregatedDbGroups.MsgRun),
-		len(aggregatedDbGroups.MsgMultiSend),
-		len(aggregatedDbGroups.MsgAuthCrSession),
-		len(aggregatedDbGroups.MsgAuthRvSession),
-		len(aggregatedDbGroups.MsgAuthRvAllSessions),
-	)
+	counts := make([]string, len(batches))
+	for i, batch := range batches {
+		counts[i] = fmt.Sprintf("%s=%d", batch.Rows[0].TableName(), len(batch.Rows))
+	}
+	l.Info().Msgf("Messages processed from %d to %d: %s",
+		fromHeight, toHeight, strings.Join(counts, ", "))
 
 	return nil
 }
@@ -534,7 +530,7 @@ func (d *DataProcessor) processMessageGroup(
 	transaction TransactionsData,
 	decodedMsg *decoder.DecodedMsg,
 	wg *sync.WaitGroup,
-	results []*decoder.DbMessageGroups,
+	results []*decoder.DbMessages,
 ) {
 	defer wg.Done()
 
@@ -560,7 +556,7 @@ func (d *DataProcessor) processMessageGroup(
 		return
 	}
 
-	dbMessageGroups, err := decodedMsg.ConvertToDbMessages(
+	dbMessages, err := decodedMsg.ConvertToDbMessages(
 		d.addressCache, txId, d.chainName, transaction.Timestamp, decodedMsg.GetSigners(),
 	)
 	if err != nil {
@@ -575,29 +571,15 @@ func (d *DataProcessor) processMessageGroup(
 		return
 	}
 
-	results[idx] = dbMessageGroups
+	results[idx] = dbMessages
 }
 
-// allMessageBatches boxes every typed message slice into homogeneous batches ready
-// for the generic insert path, capturing tx ids for failure diagnostics.
-func allMessageBatches(g *decoder.DbMessageGroups) []messageBatch {
-	return []messageBatch{
-		newMessageBatch(g.MsgSend, func(m s.MsgSend) int64 { return m.TxId }),
-		newMessageBatch(g.MsgMultiSend, func(m s.MsgMultiSend) int64 { return m.TxId }),
-		newMessageBatch(g.MsgCall, func(m s.MsgCall) int64 { return m.TxId }),
-		newMessageBatch(g.MsgAddPkg, func(m s.MsgAddPackage) int64 { return m.TxId }),
-		newMessageBatch(g.MsgRun, func(m s.MsgRun) int64 { return m.TxId }),
-		newMessageBatch(g.MsgAuthCrSession, func(m s.MsgAuthCrSession) int64 { return m.TxId }),
-		newMessageBatch(g.MsgAuthRvSession, func(m s.MsgAuthRvSession) int64 { return m.TxId }),
-		newMessageBatch(g.MsgAuthRvAllSessions, func(m s.MsgAuthRvAllSessions) int64 { return m.TxId }),
-	}
-}
-
-// insertDbMessageGroups performs optimized batch insertions using address IDs
-func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) error {
+// insertMessageBatches inserts every per-table batch via the generic COPY path,
+// collecting any failures (with the tx hashes involved) into a single error.
+func (d *DataProcessor) insertMessageBatches(batches []decoder.InsertBatch) error {
 	var insertErrors []error
-	for _, batch := range allMessageBatches(groups) {
-		if len(batch.rows) > 0 {
+	for _, batch := range batches {
+		if len(batch.Rows) > 0 {
 			d.insertMessageBatch(batch, &insertErrors)
 		}
 	}
@@ -611,13 +593,13 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 	return nil
 }
 
-func (d *DataProcessor) insertMessageBatch(batch messageBatch, errors *[]error) {
-	timeout := 10*time.Second + (time.Duration(len(batch.rows)) * time.Second / 5)
+func (d *DataProcessor) insertMessageBatch(batch decoder.InsertBatch, errors *[]error) {
+	timeout := 10*time.Second + (time.Duration(len(batch.Rows)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	if err := d.dbPool.InsertRows(ctx, batch.rows); err != nil {
-		hashes := d.findHashes(batch.txIds)
-		*errors = append(*errors, fmt.Errorf("failed to insert %s: %w, hashes: %v", batch.rows[0].TableName(), err, hashes))
+	if err := d.dbPool.InsertRows(ctx, batch.Rows); err != nil {
+		hashes := d.findHashes(batch.TxIds)
+		*errors = append(*errors, fmt.Errorf("failed to insert %s: %w, hashes: %v", batch.Rows[0].TableName(), err, hashes))
 	}
 }
 
@@ -714,9 +696,9 @@ func (d *DataProcessor) findHashes(txIds []int64) []string {
 }
 
 // createAddressTx builds a flat slice of AddressTx rows from all message groups.
-func createAddressTx(msgGroups *decoder.DbMessageGroups) []s.AddressTx {
+func createAddressTx(msgs *decoder.DbMessages) []s.AddressTx {
 	seen := make(map[key]s.AddressTx)
-	for _, entry := range msgGroups.AllAddressEntries() {
+	for _, entry := range msgs.AddressEntries() {
 		addToAddressTx(seen, entry.Addresses, entry.ChainName, entry.Timestamp, entry.MsgType)
 	}
 	result := make([]s.AddressTx, 0, len(seen))

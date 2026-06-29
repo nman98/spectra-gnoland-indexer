@@ -12,6 +12,14 @@ type Insertable interface {
 	CopyRow() []any
 }
 
+// Message is implemented by every decoded transaction message row. It is an
+// Insertable that can also report the addresses it references, used to populate
+// the address_tx table. All Msg* structs satisfy it via pointer receivers.
+type Message interface {
+	Insertable
+	GetAllAddresses() *TxAddresses
+}
+
 // AsInsertable boxes a typed slice into []Insertable for the generic insert path.
 func AsInsertable[T Insertable](rows []T) []Insertable {
 	out := make([]Insertable, len(rows))
