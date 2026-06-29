@@ -8,7 +8,6 @@ import (
 
 	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // InsertAddresses inserts a slice of addresses into the database using COPY FROM.
@@ -39,18 +38,10 @@ func (t *TimescaleDb) InsertBlocks(ctx context.Context, blocks []s.Blocks) error
 	}
 
 	pgxSlice := pgx.CopyFromSlice(len(blocks), func(i int) ([]any, error) {
-		return []any{
-			blocks[i].Hash,
-			blocks[i].Height,
-			blocks[i].Timestamp,
-			blocks[i].ChainID,
-			blocks[i].ChainName}, nil
+		return blocks[i].CopyRow(), nil
 	})
 
-	columns := blocks[0].TableColumns()
-	tableName := blocks[0].TableName()
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{blocks[0].TableName()}, blocks[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -64,18 +55,10 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(
 	}
 
 	pgxSlice := pgx.CopyFromSlice(len(validatorBlockSigning), func(i int) ([]any, error) {
-		return []any{
-			validatorBlockSigning[i].BlockHeight,
-			validatorBlockSigning[i].Timestamp,
-			validatorBlockSigning[i].Proposer,
-			makePgxArray(validatorBlockSigning[i].SignedVals),
-			validatorBlockSigning[i].ChainName}, nil
+		return validatorBlockSigning[i].CopyRow(), nil
 	})
 
-	columns := validatorBlockSigning[0].TableColumns()
-	tableName := validatorBlockSigning[0].TableName()
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{validatorBlockSigning[0].TableName()}, validatorBlockSigning[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -89,28 +72,10 @@ func (t *TimescaleDb) InsertTransactionsGeneral(
 	}
 
 	pgxSlice := pgx.CopyFromSlice(len(transactionsGeneral), func(i int) ([]any, error) {
-		return []any{
-			transactionsGeneral[i].TxId,
-			transactionsGeneral[i].ChainName,
-			transactionsGeneral[i].Timestamp,
-			transactionsGeneral[i].BlockHeight,
-			makePgxArray(transactionsGeneral[i].MsgTypes),
-			makePgxArray(transactionsGeneral[i].TxEvents),
-			transactionsGeneral[i].TxEventsCompressed,
-			transactionsGeneral[i].CompressionOn,
-			transactionsGeneral[i].GasUsed,
-			transactionsGeneral[i].GasWanted,
-			transactionsGeneral[i].FeeAmount,
-			transactionsGeneral[i].FeeDenom,
-			transactionsGeneral[i].Success,
-			transactionsGeneral[i].ErrorLog,
-		}, nil
+		return transactionsGeneral[i].CopyRow(), nil
 	})
 
-	columns := transactionsGeneral[0].TableColumns()
-	tableName := transactionsGeneral[0].TableName()
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{transactionsGeneral[0].TableName()}, transactionsGeneral[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -121,17 +86,10 @@ func (t *TimescaleDb) InsertAddressTx(ctx context.Context, addresses []s.Address
 	}
 
 	pgxSlice := pgx.CopyFromSlice(len(addresses), func(i int) ([]any, error) {
-		return []any{
-			addresses[i].Address,
-			addresses[i].TxId,
-			addresses[i].ChainName,
-			addresses[i].Timestamp,
-		}, nil
+		return addresses[i].CopyRow(), nil
 	})
 
-	columns := addresses[0].TableColumns()
-	tableName := addresses[0].TableName()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{addresses[0].TableName()}, addresses[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -142,21 +100,10 @@ func (t *TimescaleDb) InsertMsgSend(ctx context.Context, messages []s.MsgSend) e
 	}
 
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return []any{
-			messages[i].TxId,
-			messages[i].Timestamp,
-			messages[i].ChainName,
-			messages[i].FromAddress,
-			messages[i].ToAddress,
-			makePgxArray(messages[i].Amount),
-			makePgxArray(messages[i].Signers),
-			messages[i].MessageCounter,
-		}, nil
+		return messages[i].CopyRow(), nil
 	})
 
-	columns := messages[0].TableColumns()
-	tableName := messages[0].TableName()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -167,24 +114,10 @@ func (t *TimescaleDb) InsertMsgCall(ctx context.Context, messages []s.MsgCall) e
 	}
 
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return []any{
-			messages[i].TxId,
-			messages[i].Timestamp,
-			messages[i].ChainName,
-			messages[i].Caller,
-			messages[i].PkgPath,
-			messages[i].FuncName,
-			messages[i].Args,
-			makePgxArray(messages[i].Send),
-			makePgxArray(messages[i].MaxDeposit),
-			makePgxArray(messages[i].Signers),
-			messages[i].MessageCounter,
-		}, nil
+		return messages[i].CopyRow(), nil
 	})
 
-	columns := messages[0].TableColumns()
-	tableName := messages[0].TableName()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -198,24 +131,10 @@ func (t *TimescaleDb) InsertMsgAddPackage(
 	}
 
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return []any{
-			messages[i].TxId,
-			messages[i].Timestamp,
-			messages[i].ChainName,
-			messages[i].Creator,
-			messages[i].PkgPath,
-			messages[i].PkgName,
-			makePgxArray(messages[i].PkgFileNames),
-			makePgxArray(messages[i].Send),
-			makePgxArray(messages[i].MaxDeposit),
-			makePgxArray(messages[i].Signers),
-			messages[i].MessageCounter,
-		}, nil
+		return messages[i].CopyRow(), nil
 	})
 
-	columns := messages[0].TableColumns()
-	tableName := messages[0].TableName()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -229,24 +148,10 @@ func (t *TimescaleDb) InsertMsgRun(
 	}
 
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return []any{
-			messages[i].TxId,
-			messages[i].Timestamp,
-			messages[i].ChainName,
-			messages[i].Caller,
-			messages[i].PkgPath,
-			messages[i].PkgName,
-			makePgxArray(messages[i].PkgFileNames),
-			makePgxArray(messages[i].Send),
-			makePgxArray(messages[i].MaxDeposit),
-			makePgxArray(messages[i].Signers),
-			messages[i].MessageCounter,
-		}, nil
+		return messages[i].CopyRow(), nil
 	})
 
-	columns := messages[0].TableColumns()
-	tableName := messages[0].TableName()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -260,21 +165,10 @@ func (t *TimescaleDb) InsertMsgMultiSend(
 	}
 
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return []any{
-			messages[i].TxId,
-			messages[i].Timestamp,
-			messages[i].ChainName,
-			messages[i].Direction,
-			messages[i].AddressId,
-			makePgxArray(messages[i].Coins),
-			makePgxArray(messages[i].Signers),
-			messages[i].MessageCounter,
-		}, nil
+		return messages[i].CopyRow(), nil
 	})
 
-	columns := messages[0].TableColumns()
-	tableName := messages[0].TableName()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -284,23 +178,9 @@ func (t *TimescaleDb) InsertMsgAuthCrSession(ctx context.Context, messages []s.M
 		return nil
 	}
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return []any{
-			messages[i].TxId,
-			messages[i].Timestamp,
-			messages[i].ChainName,
-			messages[i].Creator,
-			messages[i].SessionKey,
-			messages[i].ExpiresAt,
-			makePgxArray(messages[i].SpendLimit),
-			makePgxArray(messages[i].AllowPaths),
-			messages[i].SpendPeriod,
-			makePgxArray(messages[i].Signers),
-			messages[i].MessageCounter,
-		}, nil
+		return messages[i].CopyRow(), nil
 	})
-	columns := messages[0].TableColumns()
-	tableName := messages[0].TableName()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -310,19 +190,9 @@ func (t *TimescaleDb) InsertMsgAuthRvSession(ctx context.Context, messages []s.M
 		return nil
 	}
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return []any{
-			messages[i].TxId,
-			messages[i].Timestamp,
-			messages[i].ChainName,
-			messages[i].Creator,
-			messages[i].SessionKey,
-			makePgxArray(messages[i].Signers),
-			messages[i].MessageCounter,
-		}, nil
+		return messages[i].CopyRow(), nil
 	})
-	columns := messages[0].TableColumns()
-	tableName := messages[0].TableName()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
 	return err
 }
 
@@ -332,33 +202,10 @@ func (t *TimescaleDb) InsertMsgAuthRvAllSessions(ctx context.Context, messages [
 		return nil
 	}
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return []any{
-			messages[i].TxId,
-			messages[i].Timestamp,
-			messages[i].ChainName,
-			messages[i].Creator,
-			makePgxArray(messages[i].Signers),
-			messages[i].MessageCounter,
-		}, nil
+		return messages[i].CopyRow(), nil
 	})
-	columns := messages[0].TableColumns()
-	tableName := messages[0].TableName()
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{tableName}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
 	return err
-}
-
-// makePgxArray converts a Go slice into a pgx typed array for COPY FROM inserts.
-// Handles composite types and byte arrays; works on any insertable slice type.
-func makePgxArray[T any](v []T) pgtype.Array[T] {
-	if v == nil {
-		return pgtype.Array[T]{Valid: false}
-	}
-
-	return pgtype.Array[T]{
-		Elements: v,
-		Dims:     []pgtype.ArrayDimension{{Length: int32(len(v)), LowerBound: 1}},
-		Valid:    true,
-	}
 }
 
 func (t *TimescaleDb) InsertTxHashIds(
