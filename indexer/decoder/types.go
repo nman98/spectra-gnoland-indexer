@@ -2,6 +2,7 @@ package decoder
 
 import (
 	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type BasicTxData struct {
@@ -13,11 +14,6 @@ type BasicTxData struct {
 	TotalMsgCount int
 }
 
-type Coin struct {
-	Amount int64
-	Denom  string
-}
-
 // AddressResolver interface to make the code testable and flexible
 // the iterface is related to the type struct AddressCache.
 //
@@ -26,13 +22,11 @@ type AddressResolver interface {
 	GetAddress(address string) int32
 }
 
-// DecodedMsg struct to hold the basic data and messages of the decoded message.
-//
-// The struct contains the basic data and messages of the decoded message.
-// The basic data contains the tx hash, signers, memo, and fee, while
-// the messages contains the decoded messages related data.
-// The messages are stored in a map with the message type as the key and the message as the value.
+// DecodedMsg holds the basic transaction data and the decoded, strongly-typed
+// messages. Per-message handling (address extraction, conversion to database
+// rows, type label) is driven by the codec registry rather than re-decoding into
+// an untyped map, so each message type is defined in exactly one place.
 type DecodedMsg struct {
 	BasicData BasicTxData
-	Messages  []map[string]any
+	Msgs      []std.Msg
 }

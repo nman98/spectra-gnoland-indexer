@@ -3,6 +3,7 @@ package decoder
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"math/big"
 
 	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
@@ -53,18 +54,16 @@ func (d *Decoder) DecodeStdTxFromBase64() (*std.Tx, error) {
 	return &tx, nil
 }
 
-// GetMessageFromStdTx is a method that decodes the transaction and returns the appropriate basic tx data and messages
+// GetMessageFromStdTx decodes the transaction and returns the basic tx data and
+// the strongly-typed messages.
 //
 // # The use case of this function is to decode the raw tx data and gather information about the transaction
 //
-// Parameters:
-//   - none
-//
 // Returns:
 //   - BasicTxData: basic tx data
-//   - []map[string]any: messages data in a map
-//   - error: if the decoding or unmarshaling fails
-func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
+//   - []std.Msg: the decoded transaction messages
+//   - error: if decoding fails or a message type is not registered
+func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []std.Msg, error) {
 	tx, err := d.DecodeStdTxFromBase64()
 	if err != nil {
 		return BasicTxData{}, nil, err
@@ -91,22 +90,23 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 		Denom:  tx.Fee.GasFee.Denom,
 	}
 
-	msgCount := len(tx.GetMsgs())
+	msgs := tx.GetMsgs()
+
+	// Fail fast on any unsupported message type so decoding errors surface here
+	// rather than during conversion.
+	for _, msg := range msgs {
+		if _, ok := lookup(msg); !ok {
+			return BasicTxData{}, nil, fmt.Errorf("unknown or unsupported message type: %T", msg)
+		}
+	}
 
 	basicTxData := BasicTxData{
 		TxHash:        txHash[:],
 		Signers:       signersString,
 		Memo:          tx.GetMemo(),
 		Fee:           fee,
-		TotalMsgCount: msgCount,
+		TotalMsgCount: len(msgs),
 	}
 
-	var messages = make([]map[string]any, msgCount)
-
-	// Process each message in the transaction
-	err = processMsgs(tx, messages)
-	if err != nil {
-		return BasicTxData{}, nil, err
-	}
-	return basicTxData, messages, nil
+	return basicTxData, msgs, nil
 }

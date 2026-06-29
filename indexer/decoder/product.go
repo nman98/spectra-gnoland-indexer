@@ -30,7 +30,7 @@ func NewDecodedMsg(encodedTx string) *DecodedMsg {
 	}
 	return &DecodedMsg{
 		BasicData: basicData,
-		Messages:  messages,
+		Msgs:      messages,
 	}
 }
 
@@ -44,26 +44,16 @@ func (dm *DecodedMsg) GetBasicData() BasicTxData {
 	return dm.BasicData
 }
 
-// GetMessages returns the messages of the decoded message.
-//
-// Returns:
-//   - []map[string]any: the messages of the decoded message
-//
-// The method will not throw an error if the messages are not found, it will just return nil.
-func (dm *DecodedMsg) GetMessages() []map[string]any {
-	return dm.Messages
-}
-
-// GetMsgTypes returns the message types of the decoded message.
+// GetMsgTypes returns the message type label of each decoded message, in order.
 //
 // Returns:
 //   - []string: the message types of the decoded message
-//
-// The method will not throw an error if the message types are not found, it will just return nil.
 func (dm *DecodedMsg) GetMsgTypes() []string {
-	msgTypes := make([]string, 0, len(dm.Messages))
-	for _, message := range dm.Messages {
-		msgTypes = append(msgTypes, message["msg_type"].(string))
+	msgTypes := make([]string, 0, len(dm.Msgs))
+	for _, msg := range dm.Msgs {
+		if entry, ok := lookup(msg); ok {
+			msgTypes = append(msgTypes, entry.typeName)
+		}
 	}
 	return msgTypes
 }
@@ -108,8 +98,10 @@ func (dm *DecodedMsg) GetTotalMsgCount() int {
 	return dm.BasicData.TotalMsgCount
 }
 
-// CollectAllAddresses extracts all unique addresses from the decoded message
-// This includes signers and all addresses from individual messages
+// CollectAllAddresses extracts all unique addresses from the decoded message.
+// This includes the transaction signers and every address referenced by the
+// individual messages (reported by each message's codec), so they can all be
+// resolved to ids in a single batch.
 func (dm *DecodedMsg) CollectAllAddresses() []string {
 	addressSet := make(map[string]struct{})
 
@@ -118,66 +110,15 @@ func (dm *DecodedMsg) CollectAllAddresses() []string {
 		addressSet[signer] = struct{}{}
 	}
 
-	// Add addresses from each message
-	for _, msgMap := range dm.Messages {
-		msgType, ok := msgMap["msg_type"].(string)
+	// Add addresses referenced by each message
+	for _, msg := range dm.Msgs {
+		entry, ok := lookup(msg)
 		if !ok {
 			continue
 		}
-
-		switch msgType {
-		case "bank_msg_send":
-			if fromAddr, ok := msgMap["from_address"].(string); ok {
-				addressSet[fromAddr] = struct{}{}
-			}
-			if toAddr, ok := msgMap["to_address"].(string); ok {
-				addressSet[toAddr] = struct{}{}
-			}
-
-		case "bank_msg_multi_send":
-			if distinctAddresses, ok := msgMap["distinct_addresses"].(map[string]struct{}); ok {
-				for addr := range distinctAddresses {
-					addressSet[addr] = struct{}{}
-				}
-			}
-
-		case "vm_msg_call":
-			if caller, ok := msgMap["caller"].(string); ok {
-				addressSet[caller] = struct{}{}
-			}
-
-		case "vm_msg_add_package":
-			if creator, ok := msgMap["creator"].(string); ok {
-				addressSet[creator] = struct{}{}
-			}
-
-		case "vm_msg_run":
-			if caller, ok := msgMap["caller"].(string); ok {
-				addressSet[caller] = struct{}{}
-			}
-
-		case "auth_msg_create_session":
-			if caller, ok := msgMap["caller"].(string); ok {
-				addressSet[caller] = struct{}{}
-			}
-			if sessionKey, ok := msgMap["session_key"].(string); ok {
-				addressSet[sessionKey] = struct{}{}
-			}
-
-		case "auth_msg_revoke_session":
-			if caller, ok := msgMap["caller"].(string); ok {
-				addressSet[caller] = struct{}{}
-			}
-			if sessionKey, ok := msgMap["session_key"].(string); ok {
-				addressSet[sessionKey] = struct{}{}
-			}
-
-		case "auth_msg_revoke_all_sessions":
-			if caller, ok := msgMap["caller"].(string); ok {
-				addressSet[caller] = struct{}{}
-			}
+		for _, addr := range entry.codec.addresses(msg) {
+			addressSet[addr] = struct{}{}
 		}
-
 	}
 
 	// Convert set to slice
@@ -273,8 +214,9 @@ func (m *DbMessages) InsertBatches() []InsertBatch {
 	return batches
 }
 
-// ConvertToDbMessages directly converts the decoded message maps to database-ready message types
-// This method combines the previous two-step conversion into a single step for better performance
+// ConvertToDbMessages converts the decoded, strongly-typed messages directly into
+// database-ready rows using each message type's registered codec. Address strings
+// are resolved to ids via addressResolver (populated by an earlier batch resolve).
 func (dm *DecodedMsg) ConvertToDbMessages(
 	addressResolver AddressResolver,
 	txId int64,
@@ -290,82 +232,29 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 
 	out := &DbMessages{}
 
-	cvt := converter{
-		msgMap:          nil,
-		txId:            txId,
-		chainName:       chainName,
-		addressResolver: addressResolver,
-		timestamp:       timestamp,
-		signerIds:       signerIds,
-	}
-	for _, msgMap := range dm.Messages {
-		cvt.msgMap = msgMap
-		msgType, ok := msgMap["msg_type"].(string)
-		if !ok {
-			return nil, fmt.Errorf("missing or invalid msg_type")
+	for i, msg := range dm.Msgs {
+		if i > 32767 {
+			return nil, fmt.Errorf("transaction message count exceeds maximum: %d", i)
 		}
 
-		switch msgType {
-		case "bank_msg_send":
-			msg, err := cvt.toMsgSend()
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert bank_msg_send: %w", err)
-			}
-			out.add(msg, chainName, timestamp)
+		entry, ok := lookup(msg)
+		if !ok {
+			return nil, fmt.Errorf("unknown message type: %T", msg)
+		}
 
-		case "bank_msg_multi_send":
-			msgs, err := cvt.toMsgMultiSend()
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert bank_msg_multi_send: %w", err)
-			}
-			for i := range msgs {
-				out.add(&msgs[i], chainName, timestamp)
-			}
-
-		case "vm_msg_call":
-			msg, err := cvt.toMsgCall()
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert vm_msg_call: %w", err)
-			}
-			out.add(msg, chainName, timestamp)
-
-		case "vm_msg_add_package":
-			msg, err := cvt.toMsgAddPackage()
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert vm_msg_add_package: %w", err)
-			}
-			out.add(msg, chainName, timestamp)
-
-		case "vm_msg_run":
-			msg, err := cvt.toMsgRun()
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert vm_msg_run: %w", err)
-			}
-			out.add(msg, chainName, timestamp)
-
-		case "auth_msg_create_session":
-			msg, err := cvt.toMsgCrSession()
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert auth_msg_auth_cr_session: %w", err)
-			}
-			out.add(msg, chainName, timestamp)
-
-		case "auth_msg_revoke_session":
-			msg, err := cvt.toMsgRvSession()
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert auth_msg_auth_rv_session: %w", err)
-			}
-			out.add(msg, chainName, timestamp)
-
-		case "auth_msg_revoke_all_sessions":
-			msg, err := cvt.toMsgRvAllSessions()
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert auth_msg_auth_rv_all_sessions: %w", err)
-			}
-			out.add(msg, chainName, timestamp)
-
-		default:
-			return nil, fmt.Errorf("unknown message type: %s", msgType)
+		rows, err := entry.codec.convert(msg, convCtx{
+			txId:           txId,
+			chainName:      chainName,
+			timestamp:      timestamp,
+			resolver:       addressResolver,
+			signerIds:      signerIds,
+			messageCounter: int16(i),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert %s: %w", entry.typeName, err)
+		}
+		for _, row := range rows {
+			out.add(row, chainName, timestamp)
 		}
 	}
 
