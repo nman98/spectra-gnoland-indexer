@@ -699,7 +699,7 @@ func (d *DataProcessor) findHashes(txIds []int64) []string {
 func createAddressTx(msgs *decoder.DbMessages) []s.AddressTx {
 	seen := make(map[key]s.AddressTx)
 	for _, entry := range msgs.AddressEntries() {
-		addToAddressTx(seen, entry.Addresses, entry.ChainName, entry.Timestamp, entry.MsgType)
+		addToAddressTx(seen, entry.Addresses, entry.ChainName, entry.Timestamp)
 	}
 	result := make([]s.AddressTx, 0, len(seen))
 	for _, e := range seen {
@@ -713,7 +713,6 @@ func addToAddressTx(
 	addresses *s.TxAddresses,
 	chainName string,
 	ts time.Time,
-	msgType string,
 ) {
 	for _, addr := range addresses.GetAddressList() {
 		k := key{addr, addresses.TxId, chainName}
