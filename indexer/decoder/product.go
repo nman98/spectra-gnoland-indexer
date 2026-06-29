@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
-	dataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 )
 
 var l = logger.Get()
@@ -91,10 +91,10 @@ func (dm *DecodedMsg) GetMemo() string {
 // GetFee returns the fee of the decoded message.
 //
 // Returns:
-//   - dataTypes.Amount: the fee of the decoded message
+//   - s.Amount: the fee of the decoded message
 //
 // The method will not throw an error if the fee is not found, it will just return nil.
-func (dm *DecodedMsg) GetFee() dataTypes.Amount {
+func (dm *DecodedMsg) GetFee() s.Amount {
 	return dm.BasicData.Fee
 }
 
@@ -191,14 +191,14 @@ func (dm *DecodedMsg) CollectAllAddresses() []string {
 
 // DbMessageGroups holds database-ready message types with address IDs
 type DbMessageGroups struct {
-	MsgSend              []dataTypes.MsgSend
-	MsgMultiSend         []dataTypes.MsgMultiSend
-	MsgCall              []dataTypes.MsgCall
-	MsgAddPkg            []dataTypes.MsgAddPackage
-	MsgRun               []dataTypes.MsgRun
-	MsgAuthCrSession     []dataTypes.MsgAuthCrSession
-	MsgAuthRvSession     []dataTypes.MsgAuthRvSession
-	MsgAuthRvAllSessions []dataTypes.MsgAuthRvAllSessions
+	MsgSend              []s.MsgSend
+	MsgMultiSend         []s.MsgMultiSend
+	MsgCall              []s.MsgCall
+	MsgAddPkg            []s.MsgAddPackage
+	MsgRun               []s.MsgRun
+	MsgAuthCrSession     []s.MsgAuthCrSession
+	MsgAuthRvSession     []s.MsgAuthRvSession
+	MsgAuthRvAllSessions []s.MsgAuthRvAllSessions
 }
 
 // Merge appends all message slices from other into g.
@@ -215,7 +215,7 @@ func (g *DbMessageGroups) Merge(other *DbMessageGroups) {
 
 // AddressEntry holds the data needed to populate the address_tx table for a single message.
 type AddressEntry struct {
-	Addresses *dataTypes.TxAddresses
+	Addresses *s.TxAddresses
 	ChainName string
 	Timestamp time.Time
 	MsgType   string
@@ -267,14 +267,14 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 	}
 
 	dbGroups := &DbMessageGroups{
-		MsgSend:              make([]dataTypes.MsgSend, 0),
-		MsgMultiSend:         make([]dataTypes.MsgMultiSend, 0),
-		MsgCall:              make([]dataTypes.MsgCall, 0),
-		MsgAddPkg:            make([]dataTypes.MsgAddPackage, 0),
-		MsgRun:               make([]dataTypes.MsgRun, 0),
-		MsgAuthCrSession:     make([]dataTypes.MsgAuthCrSession, 0),
-		MsgAuthRvSession:     make([]dataTypes.MsgAuthRvSession, 0),
-		MsgAuthRvAllSessions: make([]dataTypes.MsgAuthRvAllSessions, 0),
+		MsgSend:              make([]s.MsgSend, 0),
+		MsgMultiSend:         make([]s.MsgMultiSend, 0),
+		MsgCall:              make([]s.MsgCall, 0),
+		MsgAddPkg:            make([]s.MsgAddPackage, 0),
+		MsgRun:               make([]s.MsgRun, 0),
+		MsgAuthCrSession:     make([]s.MsgAuthCrSession, 0),
+		MsgAuthRvSession:     make([]s.MsgAuthRvSession, 0),
+		MsgAuthRvAllSessions: make([]s.MsgAuthRvAllSessions, 0),
 	}
 
 	cvt := converter{

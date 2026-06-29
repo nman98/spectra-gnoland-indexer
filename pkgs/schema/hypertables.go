@@ -1,4 +1,4 @@
-package sql_data_types
+package schema
 
 import (
 	"reflect"

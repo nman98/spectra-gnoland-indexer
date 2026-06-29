@@ -5,23 +5,23 @@ import (
 	"time"
 
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
-	sqlDataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 )
 
 // Define interface for what DataProcessor needs from database
 type Database interface {
-	InsertBlocks(ctx context.Context, blocks []sqlDataTypes.Blocks) error
-	InsertValidatorBlockSignings(ctx context.Context, validatorBlockSignings []sqlDataTypes.ValidatorBlockSigning) error
-	InsertTransactionsGeneral(ctx context.Context, transactionsGeneral []sqlDataTypes.TransactionGeneral) error
-	InsertMsgSend(ctx context.Context, messages []sqlDataTypes.MsgSend) error
-	InsertMsgCall(ctx context.Context, messages []sqlDataTypes.MsgCall) error
-	InsertMsgAddPackage(ctx context.Context, messages []sqlDataTypes.MsgAddPackage) error
-	InsertMsgRun(ctx context.Context, messages []sqlDataTypes.MsgRun) error
-	InsertMsgMultiSend(ctx context.Context, messages []sqlDataTypes.MsgMultiSend) error
-	InsertMsgAuthCrSession(ctx context.Context, messages []sqlDataTypes.MsgAuthCrSession) error
-	InsertMsgAuthRvSession(ctx context.Context, messages []sqlDataTypes.MsgAuthRvSession) error
-	InsertMsgAuthRvAllSessions(ctx context.Context, messages []sqlDataTypes.MsgAuthRvAllSessions) error
-	InsertAddressTx(ctx context.Context, addresses []sqlDataTypes.AddressTx) error
+	InsertBlocks(ctx context.Context, blocks []s.Blocks) error
+	InsertValidatorBlockSignings(ctx context.Context, validatorBlockSignings []s.ValidatorBlockSigning) error
+	InsertTransactionsGeneral(ctx context.Context, transactionsGeneral []s.TransactionGeneral) error
+	InsertMsgSend(ctx context.Context, messages []s.MsgSend) error
+	InsertMsgCall(ctx context.Context, messages []s.MsgCall) error
+	InsertMsgAddPackage(ctx context.Context, messages []s.MsgAddPackage) error
+	InsertMsgRun(ctx context.Context, messages []s.MsgRun) error
+	InsertMsgMultiSend(ctx context.Context, messages []s.MsgMultiSend) error
+	InsertMsgAuthCrSession(ctx context.Context, messages []s.MsgAuthCrSession) error
+	InsertMsgAuthRvSession(ctx context.Context, messages []s.MsgAuthRvSession) error
+	InsertMsgAuthRvAllSessions(ctx context.Context, messages []s.MsgAuthRvAllSessions) error
+	InsertAddressTx(ctx context.Context, addresses []s.AddressTx) error
 	InsertTxHashIds(ctx context.Context, txHashes []string, timestamps []time.Time, chainName string) (map[string]int64, error)
 }
 
@@ -70,13 +70,13 @@ type key struct {
 	chainName string
 }
 
-type msgSendInserter []sqlDataTypes.MsgSend
+type msgSendInserter []s.MsgSend
 
 func (m msgSendInserter) count() int {
 	return len(m)
 }
 func (m msgSendInserter) insert(ctx context.Context, db Database) error {
-	return db.InsertMsgSend(ctx, []sqlDataTypes.MsgSend(m))
+	return db.InsertMsgSend(ctx, []s.MsgSend(m))
 }
 
 func (m msgSendInserter) getTxIds() []int64 {
@@ -87,13 +87,13 @@ func (m msgSendInserter) getTxIds() []int64 {
 	return txIds
 }
 
-type msgCallInserter []sqlDataTypes.MsgCall
+type msgCallInserter []s.MsgCall
 
 func (m msgCallInserter) count() int {
 	return len(m)
 }
 func (m msgCallInserter) insert(ctx context.Context, db Database) error {
-	return db.InsertMsgCall(ctx, []sqlDataTypes.MsgCall(m))
+	return db.InsertMsgCall(ctx, []s.MsgCall(m))
 }
 
 func (m msgCallInserter) getTxIds() []int64 {
@@ -104,13 +104,13 @@ func (m msgCallInserter) getTxIds() []int64 {
 	return txIds
 }
 
-type msgAddPackageInserter []sqlDataTypes.MsgAddPackage
+type msgAddPackageInserter []s.MsgAddPackage
 
 func (m msgAddPackageInserter) count() int {
 	return len(m)
 }
 func (m msgAddPackageInserter) insert(ctx context.Context, db Database) error {
-	return db.InsertMsgAddPackage(ctx, []sqlDataTypes.MsgAddPackage(m))
+	return db.InsertMsgAddPackage(ctx, []s.MsgAddPackage(m))
 }
 func (m msgAddPackageInserter) getTxIds() []int64 {
 	txIds := make([]int64, len(m))
@@ -120,13 +120,13 @@ func (m msgAddPackageInserter) getTxIds() []int64 {
 	return txIds
 }
 
-type msgRunInserter []sqlDataTypes.MsgRun
+type msgRunInserter []s.MsgRun
 
 func (m msgRunInserter) count() int {
 	return len(m)
 }
 func (m msgRunInserter) insert(ctx context.Context, db Database) error {
-	return db.InsertMsgRun(ctx, []sqlDataTypes.MsgRun(m))
+	return db.InsertMsgRun(ctx, []s.MsgRun(m))
 }
 
 func (m msgRunInserter) getTxIds() []int64 {
@@ -137,13 +137,13 @@ func (m msgRunInserter) getTxIds() []int64 {
 	return txIds
 }
 
-type msgMultiSendInserter []sqlDataTypes.MsgMultiSend
+type msgMultiSendInserter []s.MsgMultiSend
 
 func (m msgMultiSendInserter) count() int {
 	return len(m)
 }
 func (m msgMultiSendInserter) insert(ctx context.Context, db Database) error {
-	return db.InsertMsgMultiSend(ctx, []sqlDataTypes.MsgMultiSend(m))
+	return db.InsertMsgMultiSend(ctx, []s.MsgMultiSend(m))
 }
 
 func (m msgMultiSendInserter) getTxIds() []int64 {
@@ -154,11 +154,11 @@ func (m msgMultiSendInserter) getTxIds() []int64 {
 	return txIds
 }
 
-type msgAuthCrSessionInserter []sqlDataTypes.MsgAuthCrSession
+type msgAuthCrSessionInserter []s.MsgAuthCrSession
 
 func (m msgAuthCrSessionInserter) count() int { return len(m) }
 func (m msgAuthCrSessionInserter) insert(ctx context.Context, db Database) error {
-	return db.InsertMsgAuthCrSession(ctx, []sqlDataTypes.MsgAuthCrSession(m))
+	return db.InsertMsgAuthCrSession(ctx, []s.MsgAuthCrSession(m))
 }
 func (m msgAuthCrSessionInserter) getTxIds() []int64 {
 	txIds := make([]int64, len(m))
@@ -168,11 +168,11 @@ func (m msgAuthCrSessionInserter) getTxIds() []int64 {
 	return txIds
 }
 
-type msgAuthRvSessionInserter []sqlDataTypes.MsgAuthRvSession
+type msgAuthRvSessionInserter []s.MsgAuthRvSession
 
 func (m msgAuthRvSessionInserter) count() int { return len(m) }
 func (m msgAuthRvSessionInserter) insert(ctx context.Context, db Database) error {
-	return db.InsertMsgAuthRvSession(ctx, []sqlDataTypes.MsgAuthRvSession(m))
+	return db.InsertMsgAuthRvSession(ctx, []s.MsgAuthRvSession(m))
 }
 func (m msgAuthRvSessionInserter) getTxIds() []int64 {
 	txIds := make([]int64, len(m))
@@ -182,11 +182,11 @@ func (m msgAuthRvSessionInserter) getTxIds() []int64 {
 	return txIds
 }
 
-type msgAuthRvAllSessionsInserter []sqlDataTypes.MsgAuthRvAllSessions
+type msgAuthRvAllSessionsInserter []s.MsgAuthRvAllSessions
 
 func (m msgAuthRvAllSessionsInserter) count() int { return len(m) }
 func (m msgAuthRvAllSessionsInserter) insert(ctx context.Context, db Database) error {
-	return db.InsertMsgAuthRvAllSessions(ctx, []sqlDataTypes.MsgAuthRvAllSessions(m))
+	return db.InsertMsgAuthRvAllSessions(ctx, []s.MsgAuthRvAllSessions(m))
 }
 func (m msgAuthRvAllSessionsInserter) getTxIds() []int64 {
 	txIds := make([]int64, len(m))

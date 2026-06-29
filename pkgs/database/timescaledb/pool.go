@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -104,7 +104,7 @@ func connectToDb(config DatabasePoolConfig) (*pgxpool.Pool, error) {
 			return fmt.Errorf("failed to set session timezone to UTC: %w", err)
 		}
 
-		dataTypeNames := sql_data_types.CustomTypeNames()
+		dataTypeNames := s.CustomTypeNames()
 
 		for _, typeName := range dataTypeNames {
 			dataType, err := conn.LoadType(ctx, typeName)

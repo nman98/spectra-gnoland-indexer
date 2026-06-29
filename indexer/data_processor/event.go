@@ -4,7 +4,7 @@ import (
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 	dictloader "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/dict_loader"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
-	sqlDataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/klauspost/compress/zstd"
 )
@@ -33,8 +33,8 @@ func init() {
 // EventResult holds the result of EventSolver with type discrimination
 type EventResult struct {
 	Format         EventFormat
-	NativeEvents   []sqlDataTypes.Event // populated when Format == NativeFormat
-	CompressedData []byte               // populated when Format == CompressedFormat
+	NativeEvents   []s.Event // populated when Format == NativeFormat
+	CompressedData []byte    // populated when Format == CompressedFormat
 }
 
 // IsNative returns true if the result contains native format data
@@ -48,7 +48,7 @@ func (er *EventResult) IsCompressed() bool {
 }
 
 // GetNativeEvents returns the native events if available, nil otherwise
-func (er *EventResult) GetNativeEvents() []sqlDataTypes.Event {
+func (er *EventResult) GetNativeEvents() []s.Event {
 	if er.Format == NativeFormat {
 		return er.NativeEvents
 	}
@@ -67,7 +67,7 @@ func (er *EventResult) GetCompressedData() []byte {
 // it will solve the event of a transaction and return the event
 //
 // It can return data in two formats:
-// 1. Native postgres format ([]sqlDataTypes.Event)
+// 1. Native postgres format ([]s.Event)
 // 2. Compressed protobuf format ([]byte)
 //
 // Parameters:
@@ -101,16 +101,16 @@ func EventSolver(txResponse *rpcClient.TxResponse, useCompressed bool) (*EventRe
 	}
 
 	// Native format implementation
-	nativeEvents := make([]sqlDataTypes.Event, 0, len(txResponse.Result.TxResult.ResponseBase.Events))
+	nativeEvents := make([]s.Event, 0, len(txResponse.Result.TxResult.ResponseBase.Events))
 	for _, event := range txResponse.Result.TxResult.ResponseBase.Events {
-		attributes := make([]sqlDataTypes.Attribute, 0, len(event.Attrs))
+		attributes := make([]s.Attribute, 0, len(event.Attrs))
 		for _, attribute := range event.Attrs {
-			attributes = append(attributes, sqlDataTypes.Attribute{
+			attributes = append(attributes, s.Attribute{
 				Key:   attribute.Key,
 				Value: attribute.Value,
 			})
 		}
-		nativeEvents = append(nativeEvents, sqlDataTypes.Event{
+		nativeEvents = append(nativeEvents, s.Event{
 			AtType:     event.AtType,
 			Type:       event.Type,
 			Attributes: attributes,

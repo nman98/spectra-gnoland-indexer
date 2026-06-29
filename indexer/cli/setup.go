@@ -8,7 +8,7 @@ import (
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
-	sdt "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 	"github.com/spf13/cobra"
 )
 
@@ -178,10 +178,10 @@ func initializeNewDatabase(db *timescaledb.TimescaleDb, dbConfig timescaledb.Dat
 func createDatabaseTypes(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
-	specialTypes := []sdt.DBSpecialType{
-		sdt.Amount{},
-		sdt.Attribute{},
-		sdt.Event{},
+	specialTypes := []s.DBSpecialType{
+		s.Amount{},
+		s.Attribute{},
+		s.Event{},
 	}
 
 	l.Info().Str("chain", chainName).Msg("inserting special types")
@@ -205,11 +205,11 @@ func createDatabaseTypes(dbInit *dbinit.DBInitializer, chainName string) error {
 func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
-	regularTables := []sdt.DBTable{
-		sdt.GnoAddress{},
-		sdt.GnoValidatorAddress{},
-		sdt.ApiKey{},
-		sdt.SchemaMigration{},
+	regularTables := []s.DBTable{
+		s.GnoAddress{},
+		s.GnoValidatorAddress{},
+		s.ApiKey{},
+		s.SchemaMigration{},
 	}
 
 	l.Info().Str("chain", chainName).Msg("inserting regular tables")
@@ -227,82 +227,82 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
 	hypertables := []struct {
-		table  sdt.DBTable
+		table  s.DBTable
 		params dbinit.HypertableParams
 	}{
-		{sdt.Blocks{}, dbinit.HypertableParams{
+		{s.Blocks{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "height DESC, timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
-		{sdt.ValidatorBlockSigning{}, dbinit.HypertableParams{
+		{s.ValidatorBlockSigning{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "block_height DESC, timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
-		{sdt.AddressTx{}, dbinit.HypertableParams{
+		{s.AddressTx{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
-		{sdt.TransactionGeneral{}, dbinit.HypertableParams{
+		{s.TransactionGeneral{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
-		{sdt.MsgSend{}, dbinit.HypertableParams{
+		{s.MsgSend{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sdt.MsgMultiSend{}, dbinit.HypertableParams{
+		{s.MsgMultiSend{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sdt.MsgCall{}, dbinit.HypertableParams{
+		{s.MsgCall{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sdt.MsgAddPackage{}, dbinit.HypertableParams{
+		{s.MsgAddPackage{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sdt.MsgRun{}, dbinit.HypertableParams{
+		{s.MsgRun{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sdt.TxHashId{}, dbinit.HypertableParams{
+		{s.TxHashId{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
-		{sdt.MsgAuthCrSession{}, dbinit.HypertableParams{
+		{s.MsgAuthCrSession{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sdt.MsgAuthRvSession{}, dbinit.HypertableParams{
+		{s.MsgAuthRvSession{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
 			SegmentBy:       []string{"chain_name", "message_counter"},
 		}},
-		{sdt.MsgAuthRvAllSessions{}, dbinit.HypertableParams{
+		{s.MsgAuthRvAllSessions{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   "1 week",
 			OrderBy:         "timestamp DESC",
@@ -329,11 +329,11 @@ func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) 
 		segmentByCols []string
 		chunkInterval string
 	}{
-		{sdt.TxCounter{}, []string{"chain_name"}, "1 month"},
-		{sdt.FeeVolume{}, []string{"chain_name", "denom"}, "1 month"},
-		{sdt.DailyActiveAccounts{}, []string{"chain_name"}, "1 month"},
-		{sdt.ValidatorSigningCounter{}, []string{"chain_name", "validator_id"}, "1 month"},
-		{sdt.BlockCounter{}, []string{"chain_name"}, "1 month"},
+		{s.TxCounter{}, []string{"chain_name"}, "1 month"},
+		{s.FeeVolume{}, []string{"chain_name", "denom"}, "1 month"},
+		{s.DailyActiveAccounts{}, []string{"chain_name"}, "1 month"},
+		{s.ValidatorSigningCounter{}, []string{"chain_name", "validator_id"}, "1 month"},
+		{s.BlockCounter{}, []string{"chain_name"}, "1 month"},
 	}
 
 	l.Info().Str("chain", chainName).Msg("creating continuous aggregate views")
@@ -421,11 +421,11 @@ user does not have the required privileges.`,
 		dbInit := dbinit.NewDBInitializer(db.GetPool())
 
 		views := []dbinit.ContinuousAggregateDefinition{
-			sdt.TxCounter{},
-			sdt.FeeVolume{},
-			sdt.DailyActiveAccounts{},
-			sdt.ValidatorSigningCounter{},
-			sdt.BlockCounter{},
+			s.TxCounter{},
+			s.FeeVolume{},
+			s.DailyActiveAccounts{},
+			s.ValidatorSigningCounter{},
+			s.BlockCounter{},
 		}
 
 		l.Info().Msg("refreshing all continuous aggregate views")
@@ -491,9 +491,9 @@ var createUserCmd = &cobra.Command{
 			return err
 		}
 
-		var tableNames = sdt.AllTableNames()
+		var tableNames = s.AllTableNames()
 		if privilege == "reader" {
-			tableNames = append(tableNames, sdt.AllAggrTableNames()...)
+			tableNames = append(tableNames, s.AllAggrTableNames()...)
 		}
 
 		// Appoint privileges to the user

@@ -1,7 +1,7 @@
 package decoder
 
 import (
-	datatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 )
 
 type BasicTxData struct {
@@ -9,7 +9,7 @@ type BasicTxData struct {
 	// gno addresses
 	Signers       []string
 	Memo          string
-	Fee           datatypes.Amount
+	Fee           s.Amount
 	TotalMsgCount int
 }
 

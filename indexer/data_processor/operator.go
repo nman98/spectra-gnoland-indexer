@@ -14,7 +14,7 @@ import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/decoder"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
-	sqlDataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 )
 
 var l = logger.Get()
@@ -150,7 +150,7 @@ func processPrecommits(
 func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) {
 	// Preallocate slice to avoid growing allocations
 	blockAmount := len(blocks)
-	blocksData := make([]sqlDataTypes.Blocks, blockAmount)
+	blocksData := make([]s.Blocks, blockAmount)
 	wg := sync.WaitGroup{}
 	wg.Add(blockAmount)
 
@@ -184,7 +184,7 @@ func (d *DataProcessor) processBlock(
 	idx int,
 	block *rpcClient.BlockResponse,
 	wg *sync.WaitGroup,
-	blocksData []sqlDataTypes.Blocks,
+	blocksData []s.Blocks,
 ) {
 	defer wg.Done()
 	hash, err := base64.StdEncoding.DecodeString(block.Result.BlockMeta.BlockID.Hash)
@@ -207,7 +207,7 @@ func (d *DataProcessor) processBlock(
 			)
 		return
 	}
-	blocksData[idx] = sqlDataTypes.Blocks{
+	blocksData[idx] = s.Blocks{
 		Hash:      hash,
 		Height:    height,
 		Timestamp: block.Result.Block.Header.Time,
@@ -267,7 +267,7 @@ func (d *DataProcessor) ProcessTransactions(
 
 	// Preallocate slice to avoid growing allocations
 	transactionAmount := len(transactions)
-	transactionsData := make([]sqlDataTypes.TransactionGeneral, transactionAmount)
+	transactionsData := make([]s.TransactionGeneral, transactionAmount)
 	valid := make([]bool, transactionAmount)
 	wg := sync.WaitGroup{}
 	wg.Add(transactionAmount)
@@ -279,7 +279,7 @@ func (d *DataProcessor) ProcessTransactions(
 	wg.Wait()
 
 	// Collect only the entries that were successfully processed
-	result := make([]sqlDataTypes.TransactionGeneral, 0, transactionAmount)
+	result := make([]s.TransactionGeneral, 0, transactionAmount)
 	for idx, ok := range valid {
 		if ok {
 			result = append(result, transactionsData[idx])
@@ -313,7 +313,7 @@ func (d *DataProcessor) processTransaction(
 	transaction TransactionsData,
 	wg *sync.WaitGroup,
 	valid *bool,
-	transactionsData []sqlDataTypes.TransactionGeneral,
+	transactionsData []s.TransactionGeneral,
 	compressEvents bool,
 ) {
 	defer wg.Done()
@@ -371,7 +371,7 @@ func (d *DataProcessor) processTransaction(
 		errLog = transaction.GetTransactionErrorDetails()
 	}
 
-	transactionsData[idx] = sqlDataTypes.TransactionGeneral{
+	transactionsData[idx] = s.TransactionGeneral{
 		TxId:               txId,
 		ChainName:          d.chainName,
 		Timestamp:          transaction.Timestamp,
@@ -631,7 +631,7 @@ func (d *DataProcessor) ProcessValidatorSignings(
 	toHeight uint64) {
 
 	commitAmount := len(commits)
-	validatorData := make([]sqlDataTypes.ValidatorBlockSigning, commitAmount)
+	validatorData := make([]s.ValidatorBlockSigning, commitAmount)
 	valid := make([]bool, commitAmount)
 	wg := sync.WaitGroup{}
 	wg.Add(commitAmount)
@@ -643,7 +643,7 @@ func (d *DataProcessor) ProcessValidatorSignings(
 	wg.Wait()
 
 	// Collect only the entries that were successfully processed
-	result := make([]sqlDataTypes.ValidatorBlockSigning, 0, commitAmount)
+	result := make([]s.ValidatorBlockSigning, 0, commitAmount)
 	for idx, ok := range valid {
 		if ok {
 			result = append(result, validatorData[idx])
@@ -672,7 +672,7 @@ func (d *DataProcessor) processValidatorSigning(
 	commit *rpcClient.CommitResponse,
 	wg *sync.WaitGroup,
 	valid *bool,
-	validatorData []sqlDataTypes.ValidatorBlockSigning,
+	validatorData []s.ValidatorBlockSigning,
 ) {
 	defer wg.Done()
 
@@ -696,7 +696,7 @@ func (d *DataProcessor) processValidatorSigning(
 		return
 	}
 
-	validatorData[idx] = sqlDataTypes.ValidatorBlockSigning{
+	validatorData[idx] = s.ValidatorBlockSigning{
 		BlockHeight: height,
 		Timestamp:   commit.GetTimestamp(),
 		Proposer:    proposer,
@@ -718,12 +718,12 @@ func (d *DataProcessor) findHashes(txIds []int64) []string {
 }
 
 // createAddressTx builds a flat slice of AddressTx rows from all message groups.
-func createAddressTx(msgGroups *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
-	seen := make(map[key]sqlDataTypes.AddressTx)
+func createAddressTx(msgGroups *decoder.DbMessageGroups) []s.AddressTx {
+	seen := make(map[key]s.AddressTx)
 	for _, entry := range msgGroups.AllAddressEntries() {
 		addToAddressTx(seen, entry.Addresses, entry.ChainName, entry.Timestamp, entry.MsgType)
 	}
-	result := make([]sqlDataTypes.AddressTx, 0, len(seen))
+	result := make([]s.AddressTx, 0, len(seen))
 	for _, e := range seen {
 		result = append(result, e)
 	}
@@ -731,8 +731,8 @@ func createAddressTx(msgGroups *decoder.DbMessageGroups) []sqlDataTypes.AddressT
 }
 
 func addToAddressTx(
-	seen map[key]sqlDataTypes.AddressTx,
-	addresses *sqlDataTypes.TxAddresses,
+	seen map[key]s.AddressTx,
+	addresses *s.TxAddresses,
 	chainName string,
 	ts time.Time,
 	msgType string,
@@ -740,7 +740,7 @@ func addToAddressTx(
 	for _, addr := range addresses.GetAddressList() {
 		k := key{addr, addresses.TxId, chainName}
 		if _, ok := seen[k]; !ok {
-			seen[k] = sqlDataTypes.AddressTx{
+			seen[k] = s.AddressTx{
 				Address:   addr,
 				TxId:      addresses.TxId,
 				ChainName: chainName,

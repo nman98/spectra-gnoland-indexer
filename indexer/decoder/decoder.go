@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"math/big"
 
-	dataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -86,7 +86,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 	}
 	bigInt := big.NewInt(tx.Fee.GasFee.Amount)
 	feeAmount := pgtype.Numeric{Int: bigInt, Valid: true}
-	fee := dataTypes.Amount{
+	fee := s.Amount{
 		Amount: feeAmount,
 		Denom:  tx.Fee.GasFee.Denom,
 	}

@@ -1,4 +1,4 @@
-package sql_data_types
+package schema
 
 import (
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -33,7 +33,7 @@ func (t *TimescaleDb) InsertAddresses(
 }
 
 // InsertBlocks inserts a slice of blocks into the database using COPY FROM.
-func (t *TimescaleDb) InsertBlocks(ctx context.Context, blocks []sql_data_types.Blocks) error {
+func (t *TimescaleDb) InsertBlocks(ctx context.Context, blocks []s.Blocks) error {
 	if len(blocks) == 0 {
 		return nil
 	}
@@ -57,7 +57,7 @@ func (t *TimescaleDb) InsertBlocks(ctx context.Context, blocks []sql_data_types.
 // InsertValidatorBlockSignings inserts a slice of validator block signings using COPY FROM.
 func (t *TimescaleDb) InsertValidatorBlockSignings(
 	ctx context.Context,
-	validatorBlockSigning []sql_data_types.ValidatorBlockSigning,
+	validatorBlockSigning []s.ValidatorBlockSigning,
 ) error {
 	if len(validatorBlockSigning) == 0 {
 		return nil
@@ -82,7 +82,7 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(
 // InsertTransactionsGeneral inserts a slice of transaction general data using COPY FROM.
 func (t *TimescaleDb) InsertTransactionsGeneral(
 	ctx context.Context,
-	transactionsGeneral []sql_data_types.TransactionGeneral,
+	transactionsGeneral []s.TransactionGeneral,
 ) error {
 	if len(transactionsGeneral) == 0 {
 		return nil
@@ -115,7 +115,7 @@ func (t *TimescaleDb) InsertTransactionsGeneral(
 }
 
 // InsertAddressTx inserts a slice of AddressTx into the database using COPY FROM.
-func (t *TimescaleDb) InsertAddressTx(ctx context.Context, addresses []sql_data_types.AddressTx) error {
+func (t *TimescaleDb) InsertAddressTx(ctx context.Context, addresses []s.AddressTx) error {
 	if len(addresses) == 0 {
 		return nil
 	}
@@ -136,7 +136,7 @@ func (t *TimescaleDb) InsertAddressTx(ctx context.Context, addresses []sql_data_
 }
 
 // InsertMsgSend inserts a slice of MsgSend messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgSend(ctx context.Context, messages []sql_data_types.MsgSend) error {
+func (t *TimescaleDb) InsertMsgSend(ctx context.Context, messages []s.MsgSend) error {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -161,7 +161,7 @@ func (t *TimescaleDb) InsertMsgSend(ctx context.Context, messages []sql_data_typ
 }
 
 // InsertMsgCall inserts a slice of MsgCall messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgCall(ctx context.Context, messages []sql_data_types.MsgCall) error {
+func (t *TimescaleDb) InsertMsgCall(ctx context.Context, messages []s.MsgCall) error {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -191,7 +191,7 @@ func (t *TimescaleDb) InsertMsgCall(ctx context.Context, messages []sql_data_typ
 // InsertMsgAddPackage inserts a slice of MsgAddPackage messages into the database using COPY FROM.
 func (t *TimescaleDb) InsertMsgAddPackage(
 	ctx context.Context,
-	messages []sql_data_types.MsgAddPackage,
+	messages []s.MsgAddPackage,
 ) error {
 	if len(messages) == 0 {
 		return nil
@@ -222,7 +222,7 @@ func (t *TimescaleDb) InsertMsgAddPackage(
 // InsertMsgRun inserts a slice of MsgRun messages into the database using COPY FROM.
 func (t *TimescaleDb) InsertMsgRun(
 	ctx context.Context,
-	messages []sql_data_types.MsgRun,
+	messages []s.MsgRun,
 ) error {
 	if len(messages) == 0 {
 		return nil
@@ -253,7 +253,7 @@ func (t *TimescaleDb) InsertMsgRun(
 // InsertMsgMultiSend inserts a batch of MsgMultiSend messages into the database using COPY FROM.
 func (t *TimescaleDb) InsertMsgMultiSend(
 	ctx context.Context,
-	messages []sql_data_types.MsgMultiSend,
+	messages []s.MsgMultiSend,
 ) error {
 	if len(messages) == 0 {
 		return nil
@@ -279,7 +279,7 @@ func (t *TimescaleDb) InsertMsgMultiSend(
 }
 
 // InsertMsgAuthCrSession inserts a slice of MsgAuthCrSession messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgAuthCrSession(ctx context.Context, messages []sql_data_types.MsgAuthCrSession) error {
+func (t *TimescaleDb) InsertMsgAuthCrSession(ctx context.Context, messages []s.MsgAuthCrSession) error {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -305,7 +305,7 @@ func (t *TimescaleDb) InsertMsgAuthCrSession(ctx context.Context, messages []sql
 }
 
 // InsertMsgAuthRvSession inserts a slice of MsgAuthRvSession messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgAuthRvSession(ctx context.Context, messages []sql_data_types.MsgAuthRvSession) error {
+func (t *TimescaleDb) InsertMsgAuthRvSession(ctx context.Context, messages []s.MsgAuthRvSession) error {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -327,7 +327,7 @@ func (t *TimescaleDb) InsertMsgAuthRvSession(ctx context.Context, messages []sql
 }
 
 // InsertMsgAuthRvAllSessions inserts a slice of MsgAuthRvAllSessions messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgAuthRvAllSessions(ctx context.Context, messages []sql_data_types.MsgAuthRvAllSessions) error {
+func (t *TimescaleDb) InsertMsgAuthRvAllSessions(ctx context.Context, messages []s.MsgAuthRvAllSessions) error {
 	if len(messages) == 0 {
 		return nil
 	}

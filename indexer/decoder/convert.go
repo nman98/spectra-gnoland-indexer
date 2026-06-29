@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	dataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -21,7 +21,7 @@ type converter struct {
 }
 
 // convertToDbMsgSend converts a map data type directly to a database-ready MsgSend struct
-func (c *converter) toMsgSend() (*dataTypes.MsgSend, error) {
+func (c *converter) toMsgSend() (*s.MsgSend, error) {
 	data := c.msgMap
 	messageCounter, ok := data["message_counter"].(int16)
 	if !ok {
@@ -38,22 +38,22 @@ func (c *converter) toMsgSend() (*dataTypes.MsgSend, error) {
 		return nil, fmt.Errorf("missing to_address")
 	}
 
-	// Convert amount from []Coin to dataTypes.Amount
+	// Convert amount from []Coin to s.Amount
 	coinAmount, ok := data["amount"].([]Coin)
 	if !ok {
 		return nil, fmt.Errorf("missing amount")
 	}
 
-	amount := make([]dataTypes.Amount, len(coinAmount))
+	amount := make([]s.Amount, len(coinAmount))
 	for j, amt := range coinAmount {
 		bigInt := big.NewInt(amt.Amount)
-		amount[j] = dataTypes.Amount{
+		amount[j] = s.Amount{
 			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
 			Denom:  amt.Denom,
 		}
 	}
 
-	return &dataTypes.MsgSend{
+	return &s.MsgSend{
 		TxId:           c.txId,
 		ChainName:      c.chainName,
 		ToAddress:      c.addressResolver.GetAddress(toAddress),
@@ -65,7 +65,7 @@ func (c *converter) toMsgSend() (*dataTypes.MsgSend, error) {
 	}, nil
 }
 
-func (c *converter) toMsgMultiSend() ([]dataTypes.MsgMultiSend, error) {
+func (c *converter) toMsgMultiSend() ([]s.MsgMultiSend, error) {
 	data := c.msgMap
 	messageCounter, ok := data["message_counter"].(int16)
 	if !ok {
@@ -82,16 +82,16 @@ func (c *converter) toMsgMultiSend() ([]dataTypes.MsgMultiSend, error) {
 		return nil, fmt.Errorf("missing output")
 	}
 
-	msgMultiSend := make([]dataTypes.MsgMultiSend, 0, len(input)+len(output))
+	msgMultiSend := make([]s.MsgMultiSend, 0, len(input)+len(output))
 
 	for _, in := range input {
-		coins := make([]dataTypes.Amount, len(in.Coins))
+		coins := make([]s.Amount, len(in.Coins))
 		for i, coin := range in.Coins {
 			bigInt := big.NewInt(coin.Amount)
 			coins[i].Amount = pgtype.Numeric{Int: bigInt, Valid: true}
 			coins[i].Denom = coin.Denom
 		}
-		multiSend := dataTypes.MsgMultiSend{
+		multiSend := s.MsgMultiSend{
 			TxId:           c.txId,
 			Timestamp:      c.timestamp,
 			ChainName:      c.chainName,
@@ -105,13 +105,13 @@ func (c *converter) toMsgMultiSend() ([]dataTypes.MsgMultiSend, error) {
 	}
 
 	for _, ou := range output {
-		coins := make([]dataTypes.Amount, len(ou.Coins))
+		coins := make([]s.Amount, len(ou.Coins))
 		for i, coin := range ou.Coins {
 			bigInt := big.NewInt(coin.Amount)
 			coins[i].Amount = pgtype.Numeric{Int: bigInt, Valid: true}
 			coins[i].Denom = coin.Denom
 		}
-		multiSend := dataTypes.MsgMultiSend{
+		multiSend := s.MsgMultiSend{
 			TxId:           c.txId,
 			Timestamp:      c.timestamp,
 			ChainName:      c.chainName,
@@ -127,7 +127,7 @@ func (c *converter) toMsgMultiSend() ([]dataTypes.MsgMultiSend, error) {
 }
 
 // convertToDbMsgCall converts a map data type directly to a database-ready MsgCall struct
-func (c *converter) toMsgCall() (*dataTypes.MsgCall, error) {
+func (c *converter) toMsgCall() (*s.MsgCall, error) {
 	data := c.msgMap
 	messageCounter, ok := data["message_counter"].(int16)
 	if !ok {
@@ -154,37 +154,37 @@ func (c *converter) toMsgCall() (*dataTypes.MsgCall, error) {
 		return nil, fmt.Errorf("missing args")
 	}
 
-	// Convert send from []Coin to dataTypes.Amount
+	// Convert send from []Coin to s.Amount
 	coinSend, ok := data["send"].([]Coin)
 	if !ok {
 		return nil, fmt.Errorf("missing send")
 	}
 
-	send := make([]dataTypes.Amount, len(coinSend))
+	send := make([]s.Amount, len(coinSend))
 	for j, amt := range coinSend {
 		bigInt := big.NewInt(amt.Amount)
-		send[j] = dataTypes.Amount{
+		send[j] = s.Amount{
 			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
 			Denom:  amt.Denom,
 		}
 	}
 
-	// Convert maxDeposit from []Coin to dataTypes.Amount
+	// Convert maxDeposit from []Coin to s.Amount
 	coinMaxDeposit, ok := data["max_deposit"].([]Coin)
 	if !ok {
 		return nil, fmt.Errorf("missing max_deposit")
 	}
 
-	maxDeposit := make([]dataTypes.Amount, len(coinMaxDeposit))
+	maxDeposit := make([]s.Amount, len(coinMaxDeposit))
 	for j, amt := range coinMaxDeposit {
 		bigInt := big.NewInt(amt.Amount)
-		maxDeposit[j] = dataTypes.Amount{
+		maxDeposit[j] = s.Amount{
 			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
 			Denom:  amt.Denom,
 		}
 	}
 
-	return &dataTypes.MsgCall{
+	return &s.MsgCall{
 		TxId:           c.txId,
 		MessageCounter: messageCounter,
 		ChainName:      c.chainName,
@@ -200,7 +200,7 @@ func (c *converter) toMsgCall() (*dataTypes.MsgCall, error) {
 }
 
 // convertToDbMsgAddPackage converts a map data type directly to a database-ready MsgAddPackage struct
-func (c *converter) toMsgAddPackage() (*dataTypes.MsgAddPackage, error) {
+func (c *converter) toMsgAddPackage() (*s.MsgAddPackage, error) {
 	data := c.msgMap
 	messageCounter, ok := data["message_counter"].(int16)
 	if !ok {
@@ -222,7 +222,7 @@ func (c *converter) toMsgAddPackage() (*dataTypes.MsgAddPackage, error) {
 		return nil, fmt.Errorf("missing pkg_name")
 	}
 
-	// Convert send from []Coin to dataTypes.Amount
+	// Convert send from []Coin to s.Amount
 	coinSend, ok := data["send"].([]Coin)
 	if !ok {
 		return nil, fmt.Errorf("missing send")
@@ -233,31 +233,31 @@ func (c *converter) toMsgAddPackage() (*dataTypes.MsgAddPackage, error) {
 		return nil, fmt.Errorf("missing pkg_file_names")
 	}
 
-	send := make([]dataTypes.Amount, len(coinSend))
+	send := make([]s.Amount, len(coinSend))
 	for j, amt := range coinSend {
 		bigInt := big.NewInt(amt.Amount)
-		send[j] = dataTypes.Amount{
+		send[j] = s.Amount{
 			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
 			Denom:  amt.Denom,
 		}
 	}
 
-	// Convert maxDeposit from []Coin to dataTypes.Amount
+	// Convert maxDeposit from []Coin to s.Amount
 	coinMaxDeposit, ok := data["max_deposit"].([]Coin)
 	if !ok {
 		return nil, fmt.Errorf("missing max_deposit")
 	}
 
-	maxDeposit := make([]dataTypes.Amount, len(coinMaxDeposit))
+	maxDeposit := make([]s.Amount, len(coinMaxDeposit))
 	for j, amt := range coinMaxDeposit {
 		bigInt := big.NewInt(amt.Amount)
-		maxDeposit[j] = dataTypes.Amount{
+		maxDeposit[j] = s.Amount{
 			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
 			Denom:  amt.Denom,
 		}
 	}
 
-	return &dataTypes.MsgAddPackage{
+	return &s.MsgAddPackage{
 		TxId:           c.txId,
 		MessageCounter: messageCounter,
 		ChainName:      c.chainName,
@@ -273,7 +273,7 @@ func (c *converter) toMsgAddPackage() (*dataTypes.MsgAddPackage, error) {
 }
 
 // convertToDbMsgRun converts a map data type directly to a database-ready MsgRun struct
-func (c *converter) toMsgRun() (*dataTypes.MsgRun, error) {
+func (c *converter) toMsgRun() (*s.MsgRun, error) {
 	data := c.msgMap
 	messageCounter, ok := data["message_counter"].(int16)
 	if !ok {
@@ -295,31 +295,31 @@ func (c *converter) toMsgRun() (*dataTypes.MsgRun, error) {
 		return nil, fmt.Errorf("missing pkg_name")
 	}
 
-	// Convert send from []Coin to dataTypes.Amount
+	// Convert send from []Coin to s.Amount
 	coinSend, ok := data["send"].([]Coin)
 	if !ok {
 		return nil, fmt.Errorf("missing send")
 	}
 
-	send := make([]dataTypes.Amount, len(coinSend))
+	send := make([]s.Amount, len(coinSend))
 	for j, amt := range coinSend {
 		bigInt := big.NewInt(amt.Amount)
-		send[j] = dataTypes.Amount{
+		send[j] = s.Amount{
 			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
 			Denom:  amt.Denom,
 		}
 	}
 
-	// Convert maxDeposit from []Coin to dataTypes.Amount
+	// Convert maxDeposit from []Coin to s.Amount
 	coinMaxDeposit, ok := data["max_deposit"].([]Coin)
 	if !ok {
 		return nil, fmt.Errorf("missing max_deposit")
 	}
 
-	maxDeposit := make([]dataTypes.Amount, len(coinMaxDeposit))
+	maxDeposit := make([]s.Amount, len(coinMaxDeposit))
 	for j, amt := range coinMaxDeposit {
 		bigInt := big.NewInt(amt.Amount)
-		maxDeposit[j] = dataTypes.Amount{
+		maxDeposit[j] = s.Amount{
 			Amount: pgtype.Numeric{Int: bigInt, Valid: true},
 			Denom:  amt.Denom,
 		}
@@ -330,7 +330,7 @@ func (c *converter) toMsgRun() (*dataTypes.MsgRun, error) {
 		return nil, fmt.Errorf("missing pkg_file_names")
 	}
 
-	return &dataTypes.MsgRun{
+	return &s.MsgRun{
 		TxId:           c.txId,
 		MessageCounter: messageCounter,
 		ChainName:      c.chainName,
@@ -345,7 +345,7 @@ func (c *converter) toMsgRun() (*dataTypes.MsgRun, error) {
 	}, nil
 }
 
-func (c *converter) toMsgCrSession() (*dataTypes.MsgAuthCrSession, error) {
+func (c *converter) toMsgCrSession() (*s.MsgAuthCrSession, error) {
 	data := c.msgMap
 	creator, ok := data["creator"].(string)
 	if !ok {
@@ -365,10 +365,10 @@ func (c *converter) toMsgCrSession() (*dataTypes.MsgAuthCrSession, error) {
 		return nil, fmt.Errorf("missing spend_limit")
 	}
 
-	spendLimitAmount := make([]dataTypes.Amount, len(spendLimit))
+	spendLimitAmount := make([]s.Amount, len(spendLimit))
 	for i, coin := range spendLimit {
 		amt := big.NewInt(coin.Amount)
-		spendLimitAmount[i] = dataTypes.Amount{
+		spendLimitAmount[i] = s.Amount{
 			Amount: pgtype.Numeric{Int: amt, Valid: true},
 			Denom:  coin.Denom,
 		}
@@ -389,7 +389,7 @@ func (c *converter) toMsgCrSession() (*dataTypes.MsgAuthCrSession, error) {
 		return nil, fmt.Errorf("missing allow_path")
 	}
 
-	return &dataTypes.MsgAuthCrSession{
+	return &s.MsgAuthCrSession{
 		TxId:           c.txId,
 		ChainName:      c.chainName,
 		Timestamp:      c.timestamp,
@@ -404,7 +404,7 @@ func (c *converter) toMsgCrSession() (*dataTypes.MsgAuthCrSession, error) {
 	}, nil
 }
 
-func (c *converter) toMsgRvSession() (*dataTypes.MsgAuthRvSession, error) {
+func (c *converter) toMsgRvSession() (*s.MsgAuthRvSession, error) {
 	data := c.msgMap
 	creator, ok := data["creator"].(string)
 	if !ok {
@@ -419,7 +419,7 @@ func (c *converter) toMsgRvSession() (*dataTypes.MsgAuthRvSession, error) {
 		return nil, fmt.Errorf("missing message_counter")
 	}
 
-	return &dataTypes.MsgAuthRvSession{
+	return &s.MsgAuthRvSession{
 		TxId:           c.txId,
 		ChainName:      c.chainName,
 		Timestamp:      c.timestamp,
@@ -430,7 +430,7 @@ func (c *converter) toMsgRvSession() (*dataTypes.MsgAuthRvSession, error) {
 	}, nil
 }
 
-func (c *converter) toMsgRvAllSessions() (*dataTypes.MsgAuthRvAllSessions, error) {
+func (c *converter) toMsgRvAllSessions() (*s.MsgAuthRvAllSessions, error) {
 	data := c.msgMap
 	creator, ok := data["creator"].(string)
 	if !ok {
@@ -441,7 +441,7 @@ func (c *converter) toMsgRvAllSessions() (*dataTypes.MsgAuthRvAllSessions, error
 		return nil, fmt.Errorf("missing message_counter")
 	}
 
-	return &dataTypes.MsgAuthRvAllSessions{
+	return &s.MsgAuthRvAllSessions{
 		TxId:           c.txId,
 		ChainName:      c.chainName,
 		Timestamp:      c.timestamp,

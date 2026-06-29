@@ -6,7 +6,7 @@ import (
 	"time"
 
 	dataProcessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
-	sqlDataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 )
 
 // Simple Mock Database for basic testing
@@ -16,53 +16,53 @@ type MockDatabase struct {
 	LastInsertError          error
 }
 
-func (m *MockDatabase) InsertBlocks(ctx context.Context, blocks []sqlDataTypes.Blocks) error {
+func (m *MockDatabase) InsertBlocks(ctx context.Context, blocks []s.Blocks) error {
 	m.InsertBlocksCalled = true
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertValidatorBlockSignings(ctx context.Context, signings []sqlDataTypes.ValidatorBlockSigning) error {
+func (m *MockDatabase) InsertValidatorBlockSignings(ctx context.Context, signings []s.ValidatorBlockSigning) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertTransactionsGeneral(ctx context.Context, transactions []sqlDataTypes.TransactionGeneral) error {
+func (m *MockDatabase) InsertTransactionsGeneral(ctx context.Context, transactions []s.TransactionGeneral) error {
 	m.InsertTransactionsCalled = true
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgSend(ctx context.Context, messages []sqlDataTypes.MsgSend) error {
+func (m *MockDatabase) InsertMsgSend(ctx context.Context, messages []s.MsgSend) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgCall(ctx context.Context, messages []sqlDataTypes.MsgCall) error {
+func (m *MockDatabase) InsertMsgCall(ctx context.Context, messages []s.MsgCall) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgAddPackage(ctx context.Context, messages []sqlDataTypes.MsgAddPackage) error {
+func (m *MockDatabase) InsertMsgAddPackage(ctx context.Context, messages []s.MsgAddPackage) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgRun(ctx context.Context, messages []sqlDataTypes.MsgRun) error {
+func (m *MockDatabase) InsertMsgRun(ctx context.Context, messages []s.MsgRun) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertAddressTx(ctx context.Context, addresses []sqlDataTypes.AddressTx) error {
+func (m *MockDatabase) InsertAddressTx(ctx context.Context, addresses []s.AddressTx) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgMultiSend(ctx context.Context, messages []sqlDataTypes.MsgMultiSend) error {
+func (m *MockDatabase) InsertMsgMultiSend(ctx context.Context, messages []s.MsgMultiSend) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgAuthCrSession(ctx context.Context, messages []sqlDataTypes.MsgAuthCrSession) error {
+func (m *MockDatabase) InsertMsgAuthCrSession(ctx context.Context, messages []s.MsgAuthCrSession) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgAuthRvSession(ctx context.Context, messages []sqlDataTypes.MsgAuthRvSession) error {
+func (m *MockDatabase) InsertMsgAuthRvSession(ctx context.Context, messages []s.MsgAuthRvSession) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgAuthRvAllSessions(ctx context.Context, messages []sqlDataTypes.MsgAuthRvAllSessions) error {
+func (m *MockDatabase) InsertMsgAuthRvAllSessions(ctx context.Context, messages []s.MsgAuthRvAllSessions) error {
 	return m.LastInsertError
 }
 
@@ -133,17 +133,17 @@ func TestDataProcessor_DatabaseInterface(t *testing.T) {
 	var db dataProcessor.Database = &MockDatabase{}
 
 	// Test interface methods
-	err := db.InsertBlocks(context.Background(), []sqlDataTypes.Blocks{})
+	err := db.InsertBlocks(context.Background(), []s.Blocks{})
 	if err != nil {
 		t.Errorf("InsertBlocks should not return error with nil input, got: %v", err)
 	}
 
-	err = db.InsertTransactionsGeneral(context.Background(), []sqlDataTypes.TransactionGeneral{})
+	err = db.InsertTransactionsGeneral(context.Background(), []s.TransactionGeneral{})
 	if err != nil {
 		t.Errorf("InsertTransactionsGeneral should not return error with nil input, got: %v", err)
 	}
 
-	err = db.InsertAddressTx(context.Background(), []sqlDataTypes.AddressTx{})
+	err = db.InsertAddressTx(context.Background(), []s.AddressTx{})
 	if err != nil {
 		t.Errorf("InsertAddressTx should not return error with nil input, got: %v", err)
 	}
