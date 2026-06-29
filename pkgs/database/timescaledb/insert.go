@@ -31,180 +31,20 @@ func (t *TimescaleDb) InsertAddresses(
 	return err
 }
 
-// InsertBlocks inserts a slice of blocks into the database using COPY FROM.
-func (t *TimescaleDb) InsertBlocks(ctx context.Context, blocks []s.Blocks) error {
-	if len(blocks) == 0 {
+// InsertRows inserts a homogeneous batch of rows into the database using COPY FROM.
+// Every element must belong to the same table; the table name and column list are
+// read from the first element. CopyRow supplies each row's values in column order
+// (kept aligned with TableColumns by TestCopyRowMatchesColumns in pkgs/schema).
+func (t *TimescaleDb) InsertRows(ctx context.Context, rows []s.Insertable) error {
+	if len(rows) == 0 {
 		return nil
 	}
 
-	pgxSlice := pgx.CopyFromSlice(len(blocks), func(i int) ([]any, error) {
-		return blocks[i].CopyRow(), nil
+	pgxSlice := pgx.CopyFromSlice(len(rows), func(i int) ([]any, error) {
+		return rows[i].CopyRow(), nil
 	})
 
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{blocks[0].TableName()}, blocks[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertValidatorBlockSignings inserts a slice of validator block signings using COPY FROM.
-func (t *TimescaleDb) InsertValidatorBlockSignings(
-	ctx context.Context,
-	validatorBlockSigning []s.ValidatorBlockSigning,
-) error {
-	if len(validatorBlockSigning) == 0 {
-		return nil
-	}
-
-	pgxSlice := pgx.CopyFromSlice(len(validatorBlockSigning), func(i int) ([]any, error) {
-		return validatorBlockSigning[i].CopyRow(), nil
-	})
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{validatorBlockSigning[0].TableName()}, validatorBlockSigning[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertTransactionsGeneral inserts a slice of transaction general data using COPY FROM.
-func (t *TimescaleDb) InsertTransactionsGeneral(
-	ctx context.Context,
-	transactionsGeneral []s.TransactionGeneral,
-) error {
-	if len(transactionsGeneral) == 0 {
-		return nil
-	}
-
-	pgxSlice := pgx.CopyFromSlice(len(transactionsGeneral), func(i int) ([]any, error) {
-		return transactionsGeneral[i].CopyRow(), nil
-	})
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{transactionsGeneral[0].TableName()}, transactionsGeneral[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertAddressTx inserts a slice of AddressTx into the database using COPY FROM.
-func (t *TimescaleDb) InsertAddressTx(ctx context.Context, addresses []s.AddressTx) error {
-	if len(addresses) == 0 {
-		return nil
-	}
-
-	pgxSlice := pgx.CopyFromSlice(len(addresses), func(i int) ([]any, error) {
-		return addresses[i].CopyRow(), nil
-	})
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{addresses[0].TableName()}, addresses[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertMsgSend inserts a slice of MsgSend messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgSend(ctx context.Context, messages []s.MsgSend) error {
-	if len(messages) == 0 {
-		return nil
-	}
-
-	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return messages[i].CopyRow(), nil
-	})
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertMsgCall inserts a slice of MsgCall messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgCall(ctx context.Context, messages []s.MsgCall) error {
-	if len(messages) == 0 {
-		return nil
-	}
-
-	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return messages[i].CopyRow(), nil
-	})
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertMsgAddPackage inserts a slice of MsgAddPackage messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgAddPackage(
-	ctx context.Context,
-	messages []s.MsgAddPackage,
-) error {
-	if len(messages) == 0 {
-		return nil
-	}
-
-	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return messages[i].CopyRow(), nil
-	})
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertMsgRun inserts a slice of MsgRun messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgRun(
-	ctx context.Context,
-	messages []s.MsgRun,
-) error {
-	if len(messages) == 0 {
-		return nil
-	}
-
-	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return messages[i].CopyRow(), nil
-	})
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertMsgMultiSend inserts a batch of MsgMultiSend messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgMultiSend(
-	ctx context.Context,
-	messages []s.MsgMultiSend,
-) error {
-	if len(messages) == 0 {
-		return nil
-	}
-
-	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return messages[i].CopyRow(), nil
-	})
-
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertMsgAuthCrSession inserts a slice of MsgAuthCrSession messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgAuthCrSession(ctx context.Context, messages []s.MsgAuthCrSession) error {
-	if len(messages) == 0 {
-		return nil
-	}
-	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return messages[i].CopyRow(), nil
-	})
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertMsgAuthRvSession inserts a slice of MsgAuthRvSession messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgAuthRvSession(ctx context.Context, messages []s.MsgAuthRvSession) error {
-	if len(messages) == 0 {
-		return nil
-	}
-	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return messages[i].CopyRow(), nil
-	})
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
-	return err
-}
-
-// InsertMsgAuthRvAllSessions inserts a slice of MsgAuthRvAllSessions messages into the database using COPY FROM.
-func (t *TimescaleDb) InsertMsgAuthRvAllSessions(ctx context.Context, messages []s.MsgAuthRvAllSessions) error {
-	if len(messages) == 0 {
-		return nil
-	}
-	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return messages[i].CopyRow(), nil
-	})
-	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{messages[0].TableName()}, messages[0].TableColumns(), pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{rows[0].TableName()}, rows[0].TableColumns(), pgxSlice)
 	return err
 }
 

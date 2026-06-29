@@ -164,7 +164,7 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 	timeout := 10*time.Second + (time.Duration(blockAmount) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	err := d.dbPool.InsertBlocks(ctx, blocksData)
+	err := d.dbPool.InsertRows(ctx, s.AsInsertable(blocksData))
 	if err != nil {
 		l.Error().
 			Caller().
@@ -290,7 +290,7 @@ func (d *DataProcessor) ProcessTransactions(
 	timeout := 10*time.Second + (time.Duration(len(result)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	if err := d.dbPool.InsertTransactionsGeneral(ctx, result); err != nil {
+	if err := d.dbPool.InsertRows(ctx, s.AsInsertable(result)); err != nil {
 		l.Error().
 			Caller().
 			Stack().
@@ -450,7 +450,7 @@ func (d *DataProcessor) ProcessMessages(
 	addresses := createAddressTx(aggregatedDbGroups)
 	timeout := 10*time.Second + (time.Duration(len(addresses)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	err := d.dbPool.InsertAddressTx(ctx, addresses)
+	err := d.dbPool.InsertRows(ctx, s.AsInsertable(addresses))
 	cancel()
 	if err != nil {
 		return fmt.Errorf("failed to insert address tx: %w", err)
@@ -578,25 +578,27 @@ func (d *DataProcessor) processMessageGroup(
 	results[idx] = dbMessageGroups
 }
 
-func allInserters(g *decoder.DbMessageGroups) []messageInserter {
-	return []messageInserter{
-		msgSendInserter(g.MsgSend),
-		msgMultiSendInserter(g.MsgMultiSend),
-		msgCallInserter(g.MsgCall),
-		msgAddPackageInserter(g.MsgAddPkg),
-		msgRunInserter(g.MsgRun),
-		msgAuthCrSessionInserter(g.MsgAuthCrSession),
-		msgAuthRvSessionInserter(g.MsgAuthRvSession),
-		msgAuthRvAllSessionsInserter(g.MsgAuthRvAllSessions),
+// allMessageBatches boxes every typed message slice into homogeneous batches ready
+// for the generic insert path, capturing tx ids for failure diagnostics.
+func allMessageBatches(g *decoder.DbMessageGroups) []messageBatch {
+	return []messageBatch{
+		newMessageBatch(g.MsgSend, func(m s.MsgSend) int64 { return m.TxId }),
+		newMessageBatch(g.MsgMultiSend, func(m s.MsgMultiSend) int64 { return m.TxId }),
+		newMessageBatch(g.MsgCall, func(m s.MsgCall) int64 { return m.TxId }),
+		newMessageBatch(g.MsgAddPkg, func(m s.MsgAddPackage) int64 { return m.TxId }),
+		newMessageBatch(g.MsgRun, func(m s.MsgRun) int64 { return m.TxId }),
+		newMessageBatch(g.MsgAuthCrSession, func(m s.MsgAuthCrSession) int64 { return m.TxId }),
+		newMessageBatch(g.MsgAuthRvSession, func(m s.MsgAuthRvSession) int64 { return m.TxId }),
+		newMessageBatch(g.MsgAuthRvAllSessions, func(m s.MsgAuthRvAllSessions) int64 { return m.TxId }),
 	}
 }
 
 // insertDbMessageGroups performs optimized batch insertions using address IDs
 func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) error {
 	var insertErrors []error
-	for _, ins := range allInserters(groups) {
-		if ins.count() > 0 {
-			d.insertMessage(ins, ins.count(), &insertErrors)
+	for _, batch := range allMessageBatches(groups) {
+		if len(batch.rows) > 0 {
+			d.insertMessageBatch(batch, &insertErrors)
 		}
 	}
 	if len(insertErrors) > 0 {
@@ -609,19 +611,13 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 	return nil
 }
 
-func (d *DataProcessor) insertMessage(
-	msgGroups messageInserter,
-	msgCount int,
-	errors *[]error,
-) {
-	timeout := 10*time.Second + (time.Duration(msgCount) * time.Second / 5)
+func (d *DataProcessor) insertMessageBatch(batch messageBatch, errors *[]error) {
+	timeout := 10*time.Second + (time.Duration(len(batch.rows)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	err := msgGroups.insert(ctx, d.dbPool)
-	if err != nil {
-		txIds := msgGroups.getTxIds()
-		hashes := d.findHashes(txIds)
-		*errors = append(*errors, fmt.Errorf("failed to insert messages: %w, hashes: %v", err, hashes))
+	if err := d.dbPool.InsertRows(ctx, batch.rows); err != nil {
+		hashes := d.findHashes(batch.txIds)
+		*errors = append(*errors, fmt.Errorf("failed to insert %s: %w, hashes: %v", batch.rows[0].TableName(), err, hashes))
 	}
 }
 
@@ -652,7 +648,7 @@ func (d *DataProcessor) ProcessValidatorSignings(
 
 	timeout := 10*time.Second + (time.Duration(len(result)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	err := d.dbPool.InsertValidatorBlockSignings(ctx, result)
+	err := d.dbPool.InsertRows(ctx, s.AsInsertable(result))
 	cancel()
 	if err != nil {
 		l.Error().

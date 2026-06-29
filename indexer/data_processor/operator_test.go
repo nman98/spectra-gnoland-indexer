@@ -11,58 +11,12 @@ import (
 
 // Simple Mock Database for basic testing
 type MockDatabase struct {
-	InsertBlocksCalled       bool
-	InsertTransactionsCalled bool
-	LastInsertError          error
+	InsertRowsCalls [][]s.Insertable
+	LastInsertError error
 }
 
-func (m *MockDatabase) InsertBlocks(ctx context.Context, blocks []s.Blocks) error {
-	m.InsertBlocksCalled = true
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertValidatorBlockSignings(ctx context.Context, signings []s.ValidatorBlockSigning) error {
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertTransactionsGeneral(ctx context.Context, transactions []s.TransactionGeneral) error {
-	m.InsertTransactionsCalled = true
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertMsgSend(ctx context.Context, messages []s.MsgSend) error {
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertMsgCall(ctx context.Context, messages []s.MsgCall) error {
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertMsgAddPackage(ctx context.Context, messages []s.MsgAddPackage) error {
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertMsgRun(ctx context.Context, messages []s.MsgRun) error {
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertAddressTx(ctx context.Context, addresses []s.AddressTx) error {
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertMsgMultiSend(ctx context.Context, messages []s.MsgMultiSend) error {
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertMsgAuthCrSession(ctx context.Context, messages []s.MsgAuthCrSession) error {
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertMsgAuthRvSession(ctx context.Context, messages []s.MsgAuthRvSession) error {
-	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertMsgAuthRvAllSessions(ctx context.Context, messages []s.MsgAuthRvAllSessions) error {
+func (m *MockDatabase) InsertRows(ctx context.Context, rows []s.Insertable) error {
+	m.InsertRowsCalls = append(m.InsertRowsCalls, rows)
 	return m.LastInsertError
 }
 
@@ -133,19 +87,16 @@ func TestDataProcessor_DatabaseInterface(t *testing.T) {
 	var db dataProcessor.Database = &MockDatabase{}
 
 	// Test interface methods
-	err := db.InsertBlocks(context.Background(), []s.Blocks{})
-	if err != nil {
-		t.Errorf("InsertBlocks should not return error with nil input, got: %v", err)
+	if err := db.InsertRows(context.Background(), s.AsInsertable([]s.Blocks{})); err != nil {
+		t.Errorf("InsertRows should not return error with empty input, got: %v", err)
 	}
 
-	err = db.InsertTransactionsGeneral(context.Background(), []s.TransactionGeneral{})
-	if err != nil {
-		t.Errorf("InsertTransactionsGeneral should not return error with nil input, got: %v", err)
+	if err := db.InsertRows(context.Background(), s.AsInsertable([]s.TransactionGeneral{})); err != nil {
+		t.Errorf("InsertRows should not return error with empty input, got: %v", err)
 	}
 
-	err = db.InsertAddressTx(context.Background(), []s.AddressTx{})
-	if err != nil {
-		t.Errorf("InsertAddressTx should not return error with nil input, got: %v", err)
+	if _, err := db.InsertTxHashIds(context.Background(), nil, nil, "chain"); err != nil {
+		t.Errorf("InsertTxHashIds should not return error with nil input, got: %v", err)
 	}
 }
 

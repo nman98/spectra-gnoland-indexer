@@ -2,6 +2,25 @@ package schema
 
 import "github.com/jackc/pgx/v5/pgtype"
 
+// Insertable is implemented by every struct inserted through the generic COPY FROM
+// path. A slice of Insertable handed to the database layer must be homogeneous
+// (all the same table); the layer reads the table name and columns from the first
+// element. TestCopyRowMatchesColumns guarantees CopyRow stays aligned with TableColumns.
+type Insertable interface {
+	TableName() string
+	TableColumns() []string
+	CopyRow() []any
+}
+
+// AsInsertable boxes a typed slice into []Insertable for the generic insert path.
+func AsInsertable[T Insertable](rows []T) []Insertable {
+	out := make([]Insertable, len(rows))
+	for i, r := range rows {
+		out[i] = r
+	}
+	return out
+}
+
 // pgArray converts a Go slice into a pgx typed array for COPY FROM inserts.
 // Handles composite types and scalar arrays; a nil slice becomes a NULL array.
 func pgArray[T any](v []T) pgtype.Array[T] {
