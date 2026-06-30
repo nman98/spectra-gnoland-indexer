@@ -426,6 +426,7 @@ func (d *DataProcessor) ProcessMessages(
 
 	// Phase 2: Process message groups, each goroutine writes to its own index slot.
 	msgResults := make([]*decoder.DbMessages, transactionAmount)
+	msgErrors := make([]error, transactionAmount)
 	wg := sync.WaitGroup{}
 	wg.Add(transactionAmount)
 
@@ -435,10 +436,23 @@ func (d *DataProcessor) ProcessMessages(
 			wg.Done()
 			continue
 		}
-		go d.processMessageGroup(idx, transaction, allDecodedMsgs[idx], &wg, msgResults)
+		go d.processMessageGroup(idx, transaction, allDecodedMsgs[idx], &wg, msgResults, msgErrors)
 	}
 
 	wg.Wait()
+
+	// Abort before any insert if any message conversion failed, otherwise the
+	// nil results would be silently skipped during aggregation and the rows
+	// dropped while the range is still reported as successfully processed.
+	var conversionErrors []string
+	for _, convErr := range msgErrors {
+		if convErr != nil {
+			conversionErrors = append(conversionErrors, convErr.Error())
+		}
+	}
+	if len(conversionErrors) > 0 {
+		return fmt.Errorf("failed to convert messages: %s", strings.Join(conversionErrors, "; "))
+	}
 
 	aggregatedDbMessages := &decoder.DbMessages{}
 	for _, result := range msgResults {
@@ -531,6 +545,7 @@ func (d *DataProcessor) processMessageGroup(
 	decodedMsg *decoder.DecodedMsg,
 	wg *sync.WaitGroup,
 	results []*decoder.DbMessages,
+	errs []error,
 ) {
 	defer wg.Done()
 
@@ -568,6 +583,7 @@ func (d *DataProcessor) processMessageGroup(
 				transaction.Response.GetHash(),
 				err,
 			)
+		errs[idx] = fmt.Errorf("tx %s: %w", transaction.Response.GetHash(), err)
 		return
 	}
 
