@@ -276,7 +276,7 @@ func (or *Orchestrator) updateProgressMetrics(
 }
 
 /*
-	collectTransactionsFromBlocks extracts all transactions from blocks and queries them at the smae time
+collectTransactionsFromBlocks extracts all transactions from blocks and queries them at the same time
 
 Parameters:
   - blocks: a slice of blocks

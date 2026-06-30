@@ -60,7 +60,7 @@ Open `config.yml` and set the `rpc` field to your Gnoland node RPC endpoint (e.g
 ### 3. Start the database
 
 ```bash
-docker-compose up -d timescaledb
+docker compose up -d timescaledb
 ```
 
 This starts a TimescaleDB instance on port 5432 with the default password `12345678`. Change the password in `docker-compose.yml` for any non-local deployment.

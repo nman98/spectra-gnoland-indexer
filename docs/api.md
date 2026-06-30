@@ -150,7 +150,7 @@ You can also use the following command to enable an API key:
 ```
 
 If you do decide to run the API with the rate limiting enabled you will need to run it with valkey also, which is
-present in the docker-compose files.
+present in the docker compose files.
 
 If you plan to run the APi behind API gateway disable in the config file the usage or rate limits altogether and
 in the docker file you can remove the valkey service, if you are running it in docker.
