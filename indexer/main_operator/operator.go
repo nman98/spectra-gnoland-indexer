@@ -105,7 +105,7 @@ func InitMainOperator(
 		}
 		go InitDebug(signalHandler.Context())
 		signalHandler.RegisterOperation()
-		orch.HistoricProcess(runningFlags.FromHeight, runningFlags.ToHeight, runningFlags.CompressEvents)
+		orch.HistoricProcess(signalHandler.Context(), runningFlags.FromHeight, runningFlags.ToHeight, runningFlags.CompressEvents)
 		signalHandler.OperationComplete()
 	default:
 		l.Fatal().Caller().Stack().Msg("invalid running mode, please choose between live and historic")

@@ -168,7 +168,7 @@ func TestOrchestrator_HistoricProcess_CallsAllProcessors(t *testing.T) {
 	)
 
 	// Test historic processing
-	orch.HistoricProcess(1, 5, false)
+	orch.HistoricProcess(context.Background(), 1, 5, false)
 
 	// Verify orchestration: all processors should be called
 	if !mockDataProcessor.ProcessValidatorAddressesCalled {
@@ -219,7 +219,7 @@ func TestOrchestrator_HistoricProcess_SkipsProcessingWhenNoBlocks(t *testing.T) 
 	)
 
 	// Test historic processing
-	orch.HistoricProcess(1, 5, false)
+	orch.HistoricProcess(context.Background(), 1, 5, false)
 
 	// Verify query was attempted
 	if mockQueryOperator.CallCount == 0 {

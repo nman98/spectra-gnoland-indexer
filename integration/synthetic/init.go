@@ -87,7 +87,7 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 			syntheticQueryOp,
 		)
 
-		orch.HistoricProcess(chunkStart, chunkEnd, false)
+		orch.HistoricProcess(context.Background(), chunkStart, chunkEnd, false)
 
 		log.Printf("Chunk %d/%d complete, freeing synthetic data", currentChunk, totalChunks)
 

@@ -50,9 +50,11 @@ func NewOrchestrator(
 }
 
 func (or *Orchestrator) HistoricProcess(
+	ctx context.Context,
 	fromHeight uint64,
 	toHeight uint64,
-	compressEvents bool) {
+	compressEvents bool,
+) {
 	l.Info().Msgf("Starting historic process from %d to %d", fromHeight, toHeight)
 	startTime := time.Now()
 
@@ -65,6 +67,13 @@ func (or *Orchestrator) HistoricProcess(
 	}()
 
 	for startHeight := fromHeight; startHeight <= toHeight; {
+		select {
+		case <-ctx.Done():
+			l.Info().Msgf("Historic process interrupted by context cancellation at height %d", startHeight)
+			return
+		default:
+		}
+
 		chunkEndHeight := min(startHeight+or.config.MaxBlockChunkSize-1, toHeight)
 
 		l.Info().Msgf("Processing chunk from %d to %d", startHeight, chunkEndHeight)
