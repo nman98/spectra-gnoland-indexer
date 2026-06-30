@@ -71,3 +71,17 @@ train-zstd:
 	@read -p "Enter the amount of events to collect (default: 10000): " amount; \
 	amount=$${amount:-10000}; \
 	go run compression/cmd/main.go --config training-config.yml --amount $$amount --chain-name gnoland --dict-path ./pkgs/dict_loader/events.zstd.bin
+
+########################################################
+# Add changes to the CHANGELOG.md
+########################################################
+
+.PHONY: changelog
+changelog:
+	@echo "Adding changes to the CHANGELOG.md"
+	@read -p "Enter new git tag that the changes are associated with: " tag; \
+	new_tag=$${tag}; \
+	last_tag=$$(git describe --tags --abbrev=0 --match "v*" | tail -n 1); \
+	last_tag+="..HEAD"; \
+	git cliff $$last_tag --tag $$new_tag --prepend CHANGELOG.md
+	@echo "Changes added to CHANGELOG.md"

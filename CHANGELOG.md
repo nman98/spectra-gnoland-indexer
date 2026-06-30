@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.7.2] - 2026-06-30
+
+This version does include some minor fixes, some caused by the overall change of the database schema.
+There were multiple refactors which should improve the maintainability and readability of the codebase.
+
+### Added
+
+- Feat(indexer): add option to accept log level as a flag in the cli [7c295e2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/7c295e276a6d10f7f0ca6af5a35041721089debe)
+- Feat: add initial support for the ssl to postgres [395d536](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/395d5361d5c52bde384fa31ce0afd05574970690)
+
+### Changes
+
+- Deps: update chi and gnark-crypto [6088cec](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/6088ceccde2f489828c47fcf6fbb4f3f4474b93f)
+- Refac(indexer/schema):adjust aggregate tables similarly to db tables [5c48476](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5c484764f2138c4c125fb4e3c823f84dcb12c7eb)
+- Chore(data_processor): remove dead code [f55e7ce](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f55e7ce535e2dbb54e4f76291f883cb85d20926f)
+- Refac(schema&cli): move setup logic closer to schema [35324dd](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/35324dddf59968cc0e766b35ee0cc6997fce37a9)
+- Refac(pkgs/schema): add data type assertion and reflaction testing [21b01eb](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/21b01eb9a72756721fd010cc464ed79c37f90f42)
+- Refac(indexer/decoder): add registry based system [d998fd1](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d998fd12990cc1472e1dd88b8598d6f4bff768ff)
+- Refac: use message interface for data grouping [ecafb9e](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ecafb9e61927e09064d83cc8cd622e05326f051f)
+- Refac(pkgs/schema): add generics for inserting data [eca95f9](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/eca95f9d419977a79121c35b7523d4b080b9473e)
+- Refac(pkgs/schema): move the copy the row logic closer to the schemas [cd43e3b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/cd43e3bbe2ca566b2a5a40b4116c35758af16918)
+- Refac(pkgs): rename sql_data_types to schema [8874feb](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/8874feb9ee8face4188a19deafbf8bada2feef36)
+- Docs: update grammer and add quick start section [46f9d0b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/46f9d0b79b42dd64da847d008e64ce00e9165144)
+- Change(api): add function that will provide a mean block prod value [5531175](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/553117588e78686056b23633a7719862a042c8dc)
+
+### Fixed
+
+- Fix(indexer): a bug where the database pool closes before the ingestion [076f3f5](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/076f3f5f2417085cfd5266de54e1da5924f72372)
+- Fix(indexer/cli): add missing tables for adding privilages to the user [74be438](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/74be438702ec7197b3d7be7c0dabe6e45ac60b76)
+- Fix(ci): revert the go version for govulncheck [13ba5fc](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/13ba5fc2e0403c767c3a41e1eeab864e2d111099)
+- Fix(api): fix empty volume response [3011c77](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/3011c7747e814545701f5134442a1ff7d3522f70)
+
+### Tests and Code Check
+
+- Test(pkgs/schema): add validation for aggregate tables [bf55820](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/bf55820063fa9ae7b38d05359855859bb7879495)
+
 ## [0.7.1] - 2026-06-24
 
 This version should add support to process new Gnoland testnet 13. Added support for Auth message
