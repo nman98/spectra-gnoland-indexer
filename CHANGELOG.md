@@ -17,6 +17,8 @@ There were multiple refactors which should improve the maintainability and reada
 
 ### Changes
 
+- Chore: small text corrections [dae2116](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/dae211697cc5f588644a02829d4c4c71060f3073)
+- Refac(indexer/orchestrator): historic run awaits the context now [72fad55](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/72fad55adc9c16173f5745fa5c5417e49e2e717e)
 - Deps: update chi and gnark-crypto [6088cec](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/6088ceccde2f489828c47fcf6fbb4f3f4474b93f)
 - Refac(indexer/schema):adjust aggregate tables similarly to db tables [5c48476](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5c484764f2138c4c125fb4e3c823f84dcb12c7eb)
 - Chore(data_processor): remove dead code [f55e7ce](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f55e7ce535e2dbb54e4f76291f883cb85d20926f)
@@ -32,6 +34,7 @@ There were multiple refactors which should improve the maintainability and reada
 
 ### Fixed
 
+- Fix(indexer/dp): return errors if processing message fails [2426e89](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/2426e89195563f95c71240ad25c9fe68b09abd84)
 - Fix(indexer): a bug where the database pool closes before the ingestion [076f3f5](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/076f3f5f2417085cfd5266de54e1da5924f72372)
 - Fix(indexer/cli): add missing tables for adding privilages to the user [74be438](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/74be438702ec7197b3d7be7c0dabe6e45ac60b76)
 - Fix(ci): revert the go version for govulncheck [13ba5fc](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/13ba5fc2e0403c767c3a41e1eeab864e2d111099)
@@ -39,6 +42,12 @@ There were multiple refactors which should improve the maintainability and reada
 
 ### Tests and Code Check
 
+- Audit(coderabbit): add additional error handle for query block prod [814b575](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/814b575a33ee5e9db689e311ccef7b2a140e2546)
+- Audit(coderabbit): add buildDSN for database connection [dc810b4](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/dc810b41d6061cd74cada3771c4c787979d5ba0b)
+- Audit(sonarqube): adjust code to use variable instead of typed in params [747da47](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/747da477ff6481ebd020d7eafe0af9cefa60eebd)
+- Audit(sonarqube): drop complexity for some api handler function [f29123c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f29123c1ceddc03462a6ae59817bc08233725458)
+- Audit(sonarqube): reduce complexity of copyraw test [62070b5](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/62070b5c06fd98882e2888d93a10ce1ed29921f7)
+- Audit(sonarqube): drop complexity of aggregation table test [b7b03c0](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/b7b03c05854ab34a5d2a8afeceafa8b7e47e5f63)
 - Test(pkgs/schema): add validation for aggregate tables [bf55820](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/bf55820063fa9ae7b38d05359855859bb7879495)
 
 ## [0.7.1] - 2026-06-24
