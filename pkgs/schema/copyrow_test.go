@@ -38,39 +38,55 @@ func allRowEncoders() []rowEncoder {
 func TestCopyRowMatchesColumns(t *testing.T) {
 	for _, enc := range allRowEncoders() {
 		t.Run(enc.TableName(), func(t *testing.T) {
-			st := reflect.TypeOf(enc)
-			cols := enc.TableColumns()
-			row := enc.CopyRow()
-
-			if st.NumField() != len(cols) {
-				t.Fatalf("field count %d != TableColumns length %d", st.NumField(), len(cols))
-			}
-			if len(row) != len(cols) {
-				t.Fatalf("CopyRow length %d != TableColumns length %d", len(row), len(cols))
-			}
-
-			for i := 0; i < st.NumField(); i++ {
-				field := st.Field(i)
-				got := reflect.TypeOf(row[i])
-				if got == nil {
-					t.Fatalf("column %q (field %s): CopyRow returned untyped nil", cols[i], field.Name)
-				}
-
-				// Slice fields (except []byte) are wrapped in pgtype.Array[T] by pgArray.
-				if field.Type.Kind() == reflect.Slice && field.Type.Elem().Kind() != reflect.Uint8 {
-					elems, ok := got.FieldByName("Elements")
-					if !ok || elems.Type != field.Type {
-						t.Fatalf("column %q (field %s %s): expected pgtype.Array wrapping %s, got %s",
-							cols[i], field.Name, field.Type, field.Type, got)
-					}
-					continue
-				}
-
-				if got != field.Type {
-					t.Fatalf("column %q (field %s): CopyRow value type %s != field type %s",
-						cols[i], field.Name, got, field.Type)
-				}
-			}
+			testEncoder(t, enc)
 		})
+	}
+}
+
+func testEncoder(
+	t *testing.T,
+	enc rowEncoder,
+) {
+	st := reflect.TypeOf(enc)
+	cols := enc.TableColumns()
+	row := enc.CopyRow()
+
+	if st.NumField() != len(cols) {
+		t.Fatalf("field count %d != TableColumns length %d", st.NumField(), len(cols))
+	}
+	if len(row) != len(cols) {
+		t.Fatalf("CopyRow length %d != TableColumns length %d", len(row), len(cols))
+	}
+
+	testValidateFields(t, st, cols, row)
+}
+
+func testValidateFields(
+	t *testing.T,
+	st reflect.Type,
+	cols []string,
+	row []any,
+) {
+	for i := 0; i < st.NumField(); i++ {
+		field := st.Field(i)
+		got := reflect.TypeOf(row[i])
+		if got == nil {
+			t.Fatalf("column %q (field %s): CopyRow returned untyped nil", cols[i], field.Name)
+		}
+
+		// Slice fields (except []byte) are wrapped in pgtype.Array[T] by pgArray.
+		if field.Type.Kind() == reflect.Slice && field.Type.Elem().Kind() != reflect.Uint8 {
+			elems, ok := got.FieldByName("Elements")
+			if !ok || elems.Type != field.Type {
+				t.Fatalf("column %q (field %s %s): expected pgtype.Array wrapping %s, got %s",
+					cols[i], field.Name, field.Type, field.Type, got)
+			}
+			continue
+		}
+
+		if got != field.Type {
+			t.Fatalf("column %q (field %s): CopyRow value type %s != field type %s",
+				cols[i], field.Name, got, field.Type)
+		}
 	}
 }
