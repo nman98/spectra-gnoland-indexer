@@ -329,13 +329,7 @@ user does not have the required privileges.`,
 		db := timescaledb.NewTimescaleDbSetup(dbConfig)
 		dbInit := dbinit.NewDBInitializer(db.GetPool())
 
-		views := []dbinit.ContinuousAggregateDefinition{
-			s.TxCounter{},
-			s.FeeVolume{},
-			s.DailyActiveAccounts{},
-			s.ValidatorSigningCounter{},
-			s.BlockCounter{},
-		}
+		views := s.AllAggregates()
 
 		l.Info().Msg("refreshing all continuous aggregate views")
 		for _, v := range views {

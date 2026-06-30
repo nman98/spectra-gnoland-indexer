@@ -19,10 +19,6 @@ func (tc TxCounter) TableName() string {
 	return "tx_counter"
 }
 
-func (tc TxCounter) GetTableInfo() (*dbinit.TableInfo, error) {
-	return dbinit.GetTableInfo(tc, tc.TableName())
-}
-
 func (tc TxCounter) TableColumns() []string {
 	return aggColumns(tc)
 }
@@ -84,10 +80,6 @@ func (dfv FeeVolume) TableName() string {
 	return "fee_volume"
 }
 
-func (dfv FeeVolume) GetTableInfo() (*dbinit.TableInfo, error) {
-	return dbinit.GetTableInfo(dfv, dfv.TableName())
-}
-
 func (dfv FeeVolume) TableColumns() []string {
 	return aggColumns(dfv)
 }
@@ -134,10 +126,6 @@ type DailyActiveAccounts struct {
 
 func (dac DailyActiveAccounts) TableName() string {
 	return "daily_active_accounts"
-}
-
-func (dac DailyActiveAccounts) GetTableInfo() (*dbinit.TableInfo, error) {
-	return dbinit.GetTableInfo(dac, dac.TableName())
 }
 
 func (dac DailyActiveAccounts) TableColumns() []string {
@@ -191,10 +179,6 @@ func (vds ValidatorSigningCounter) TableName() string {
 
 func (vds ValidatorSigningCounter) FromTable() string {
 	return "validator_block_signing"
-}
-
-func (vds ValidatorSigningCounter) GetTableInfo() (*dbinit.TableInfo, error) {
-	return dbinit.GetTableInfo(vds, vds.TableName())
 }
 
 func (vds ValidatorSigningCounter) TableColumns() []string {
@@ -251,10 +235,6 @@ type BlockCounter struct {
 
 func (dbc BlockCounter) TableName() string {
 	return "block_counter"
-}
-
-func (dbc BlockCounter) GetTableInfo() (*dbinit.TableInfo, error) {
-	return dbinit.GetTableInfo(dbc, dbc.TableName())
 }
 
 func (dbc BlockCounter) TableColumns() []string {
@@ -343,4 +323,17 @@ func aggGroupBy(v any) []string {
 		gb[e.idx] = e.name
 	}
 	return gb
+}
+
+// AllAggregates returns one instance of every continuous aggregate view. It is
+// the single canonical list: AllAggrTableNames and the aggregate validation test
+// derive from it.
+func AllAggregates() []dbinit.ContinuousAggregateDefinition {
+	return []dbinit.ContinuousAggregateDefinition{
+		TxCounter{},
+		FeeVolume{},
+		DailyActiveAccounts{},
+		ValidatorSigningCounter{},
+		BlockCounter{},
+	}
 }

@@ -1,5 +1,7 @@
 package schema
 
+import dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
+
 // Assertion here is used as a sort of a linter for the schema.
 // If some method or parameter is missing it should fail to compile.
 
@@ -58,4 +60,14 @@ var (
 	_ DBSpecialType = Amount{}
 	_ DBSpecialType = Attribute{}
 	_ DBSpecialType = Event{}
+)
+
+// Continuous aggregate views are materialized views, not plain tables: they must
+// satisfy ContinuousAggregateDefinition (mt/fn/gb-driven).
+var (
+	_ dbinit.ContinuousAggregateDefinition = TxCounter{}
+	_ dbinit.ContinuousAggregateDefinition = FeeVolume{}
+	_ dbinit.ContinuousAggregateDefinition = DailyActiveAccounts{}
+	_ dbinit.ContinuousAggregateDefinition = ValidatorSigningCounter{}
+	_ dbinit.ContinuousAggregateDefinition = BlockCounter{}
 )

@@ -245,16 +245,10 @@ func AllTableNames() []string {
 }
 
 func AllAggrTableNames() []string {
-	tables := []DBTable{
-		TxCounter{},
-		FeeVolume{},
-		DailyActiveAccounts{},
-		ValidatorSigningCounter{},
-		BlockCounter{},
-	}
-	names := make([]string, len(tables))
-	for i, t := range tables {
-		names[i] = t.TableName()
+	aggregates := AllAggregates()
+	names := make([]string, len(aggregates))
+	for i, a := range aggregates {
+		names[i] = a.TableName()
 	}
 	return names
 }
