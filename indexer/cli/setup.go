@@ -13,6 +13,7 @@ import (
 )
 
 const defaultDBUser = "postgres"
+const oneMonth = "1 month"
 
 var allowedSslModes = []string{"disable", "require", "verify-ca", "verify-full", "allow", "prefer"}
 var allowedUserPrivileges = []string{"reader", "writer", "keymgr"}
@@ -238,11 +239,11 @@ func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) 
 		segmentByCols []string
 		chunkInterval string
 	}{
-		{s.TxCounter{}, []string{"chain_name"}, "1 month"},
-		{s.FeeVolume{}, []string{"chain_name", "denom"}, "1 month"},
-		{s.DailyActiveAccounts{}, []string{"chain_name"}, "1 month"},
-		{s.ValidatorSigningCounter{}, []string{"chain_name", "validator_id"}, "1 month"},
-		{s.BlockCounter{}, []string{"chain_name"}, "1 month"},
+		{s.TxCounter{}, []string{"chain_name"}, oneMonth},
+		{s.FeeVolume{}, []string{"chain_name", "denom"}, oneMonth},
+		{s.DailyActiveAccounts{}, []string{"chain_name"}, oneMonth},
+		{s.ValidatorSigningCounter{}, []string{"chain_name", "validator_id"}, oneMonth},
+		{s.BlockCounter{}, []string{"chain_name"}, oneMonth},
 	}
 
 	l.Info().Str("chain", chainName).Msg("creating continuous aggregate views")

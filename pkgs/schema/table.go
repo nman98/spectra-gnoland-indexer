@@ -7,6 +7,9 @@ import (
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 )
 
+// used for specifying the timestamp to sort by descending order
+const tmD = "timestamp DESC"
+
 // TxAddresses groups all addresses involved in a single transaction
 // It stores in a set like data structure to avoid duplicates
 // all addresses for the same transaction hash together
@@ -175,7 +178,7 @@ func Hypertables() []Hypertable {
 	msgParams := dbinit.HypertableParams{
 		PartitionColumn: "timestamp",
 		ChunkInterval:   chunk,
-		OrderBy:         "timestamp DESC",
+		OrderBy:         tmD,
 		SegmentBy:       []string{"chain_name", "message_counter"},
 	}
 	return []Hypertable{
@@ -194,13 +197,13 @@ func Hypertables() []Hypertable {
 		{AddressTx{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   chunk,
-			OrderBy:         "timestamp DESC",
+			OrderBy:         tmD,
 			SegmentBy:       []string{"chain_name"},
 		}},
 		{TransactionGeneral{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   chunk,
-			OrderBy:         "timestamp DESC",
+			OrderBy:         tmD,
 			SegmentBy:       []string{"chain_name"},
 		}},
 		{MsgSend{}, msgParams},
@@ -211,7 +214,7 @@ func Hypertables() []Hypertable {
 		{TxHashId{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   chunk,
-			OrderBy:         "timestamp DESC",
+			OrderBy:         tmD,
 			SegmentBy:       []string{"chain_name"},
 		}},
 		{MsgAuthCrSession{}, msgParams},
