@@ -64,41 +64,21 @@ func (h *TransactionsHandler) GetTransactionMessage(
 		)
 	}
 
+	type msgHandler func(context.Context, string, string, string, map[int16]humatypes.TransactionMessage) error
+	dispatch := map[string]msgHandler{
+		"bank_msg_send":              h.getBankSendResponse,
+		"bank_msg_multi_send":        h.getBankMultiSendResponse,
+		"vm_msg_call":                h.getMsgCallResponse,
+		"vm_msg_add_package":         h.getMsgAddPackageResponse,
+		"vm_msg_run":                 h.getMsgRunResponse,
+		"auth_msg_create_session":    h.getMsgAuthCrSessionResponse,
+		"auth_msg_revoke_session":    h.getMsgAuthRvSessionResponse,
+		"auth_msg_revoke_all_sessions": h.getMsgAuthRvAllSessionsResponse,
+	}
+
 	for _, msgType := range msgTypes {
-		switch msgType {
-		case "bank_msg_send":
-			if err := h.getBankSendResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
-				return nil, err
-			}
-		case "bank_msg_multi_send":
-			if err := h.getBankMultiSendResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
-				return nil, err
-			}
-		case "vm_msg_call":
-			if err := h.getMsgCallResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
-				return nil, err
-			}
-		case "vm_msg_add_package":
-			if err := h.getMsgAddPackageResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
-				return nil, err
-			}
-		case "vm_msg_run":
-			if err := h.getMsgRunResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
-				return nil, err
-			}
-		case "auth_msg_create_session":
-			if err := h.getMsgAuthCrSessionResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
-				return nil, err
-			}
-		case "auth_msg_revoke_session":
-			if err := h.getMsgAuthRvSessionResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
-				return nil, err
-			}
-		case "auth_msg_revoke_all_sessions":
-			if err := h.getMsgAuthRvAllSessionsResponse(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
-				return nil, err
-			}
-		default:
+		handler, ok := dispatch[msgType]
+		if !ok {
 			// An unknown message type coming out of the database is a server-side
 			// integrity problem, not something the caller can fix. Log it and
 			// return a generic 500 so we don't expose the internal type name.
@@ -106,6 +86,9 @@ func (h *TransactionsHandler) GetTransactionMessage(
 				"GetTransactionMessage",
 				fmt.Errorf("unknown message type %q for tx %s", msgType, input.TxHash),
 			)
+		}
+		if err := handler(ctx, msgType, txHashBase64, h.chainName, response); err != nil {
+			return nil, err
 		}
 	}
 	return &humatypes.TransactionMessageGetOutput{
@@ -150,50 +133,58 @@ func (h *TransactionsHandler) GetTransactionsByCursor(
 		return nil, mapDbError("GetTransactionsByRange", "transactions not found", err)
 	}
 
-	body := humatypes.TransactionsRangeBody{
-		Transactions: transactions,
+	body, err := buildTransactionsRangeBody(transactions, hasMore, direction, input.Cursor)
+	if err != nil {
+		return nil, err
 	}
-	if len(transactions) > 0 {
-		newest := transactions[0]
-		oldest := transactions[len(transactions)-1]
-		newestCur, err := makeTxCursor(newest.BlockHeight, newest.TxHash)
-		if err != nil {
-			return nil, internalError("GetTransactionsByCursor.makeTxCursor", err)
-		}
-		oldestCur, err := makeTxCursor(oldest.BlockHeight, oldest.TxHash)
-		if err != nil {
-			return nil, internalError("GetTransactionsByCursor.makeTxCursor", err)
-		}
+	return &humatypes.TransactionGeneralListByCursorGetOutput{Body: body}, nil
+}
 
-		switch direction {
-		case database.Next:
-			body.HasNext = hasMore
-			if hasMore {
-				body.NextCursor = &oldestCur
-			}
-			// A prev page exists only when the caller supplied a cursor, since
-			// the initial fetch (no cursor) already starts at the head.
-			if input.Cursor != "" {
-				body.HasPrev = true
-				body.PrevCursor = &newestCur
-			}
-		case database.Prev:
-			// We walked toward the head: hasMore means newer rows still remain
-			// between this page and the head.
-			body.HasPrev = hasMore
-			if hasMore {
-				body.PrevCursor = &newestCur
-			}
-			// A prev call implies the caller was already deeper in history, so
-			// older rows always exist past the oldest row on this page.
-			body.HasNext = true
+func buildTransactionsRangeBody(
+	rows []*database.Transaction,
+	hasMore bool,
+	direction database.Direction,
+	cursor string,
+) (humatypes.TransactionsRangeBody, error) {
+	body := humatypes.TransactionsRangeBody{Transactions: rows}
+	if len(rows) == 0 {
+		return body, nil
+	}
+
+	newestCur, err := makeTxCursor(rows[0].BlockHeight, rows[0].TxHash)
+	if err != nil {
+		return body, internalError("GetTransactionsByCursor.makeTxCursor", err)
+	}
+	oldestCur, err := makeTxCursor(rows[len(rows)-1].BlockHeight, rows[len(rows)-1].TxHash)
+	if err != nil {
+		return body, internalError("GetTransactionsByCursor.makeTxCursor", err)
+	}
+
+	switch direction {
+	case database.Next:
+		body.HasNext = hasMore
+		if hasMore {
 			body.NextCursor = &oldestCur
 		}
+		// A prev page exists only when the caller supplied a cursor, since
+		// the initial fetch (no cursor) already starts at the head.
+		if cursor != "" {
+			body.HasPrev = true
+			body.PrevCursor = &newestCur
+		}
+	case database.Prev:
+		// We walked toward the head: hasMore means newer rows still remain
+		// between this page and the head.
+		body.HasPrev = hasMore
+		if hasMore {
+			body.PrevCursor = &newestCur
+		}
+		// A prev call implies the caller was already deeper in history, so
+		// older rows always exist past the oldest row on this page.
+		body.HasNext = true
+		body.NextCursor = &oldestCur
 	}
-
-	return &humatypes.TransactionGeneralListByCursorGetOutput{
-		Body: body,
-	}, nil
+	return body, nil
 }
 
 // parseTxHash decodes a 44-character transaction hash that is either standard base64

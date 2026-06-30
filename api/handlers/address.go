@@ -56,17 +56,11 @@ func (h *AddressHandler) GetAddressTxs(
 	ctx context.Context,
 	input *humatypes.AddressGetInput,
 ) (*humatypes.AddressGetOutput, error) {
-	var fromTs, toTs *time.Time
-	if !input.FromTimestamp.IsZero() {
-		fromTs = &input.FromTimestamp
+	fromTs, toTs, err := parseTimestampPair(input.FromTimestamp, input.ToTimestamp)
+	if err != nil {
+		return nil, err
 	}
-	if !input.ToTimestamp.IsZero() {
-		toTs = &input.ToTimestamp
-	}
-	if (fromTs == nil) != (toTs == nil) {
-		return nil, badRequest("from_timestamp and to_timestamp must both be set or both be unset")
-	}
-	timestampMode := fromTs != nil && toTs != nil
+	timestampMode := fromTs != nil
 
 	var limit *uint64
 	if input.Limit != 0 {
@@ -91,57 +85,70 @@ func (h *AddressHandler) GetAddressTxs(
 	}
 
 	addressTxs, hasMore, err := h.db.GetAddressTxs(
-		ctx,
-		input.Address,
-		h.chainName,
-		fromTs,
-		toTs,
-		limit,
-		cursor,
-		direction,
+		ctx, input.Address, h.chainName, fromTs, toTs, limit, cursor, direction,
 	)
 	if err != nil {
 		return nil, mapDbError("GetAddressTxs", "address not found", err)
 	}
 
-	body := humatypes.AddressTxsBody{
-		AddressTxs: *addressTxs,
+	body, err := buildAddressTxsBody(*addressTxs, hasMore, direction, cursor)
+	if err != nil {
+		return nil, err
+	}
+	return &humatypes.AddressGetOutput{Body: body}, nil
+}
+
+func parseTimestampPair(from, to time.Time) (*time.Time, *time.Time, error) {
+	var fromPtr, toPtr *time.Time
+	if !from.IsZero() {
+		fromPtr = &from
+	}
+	if !to.IsZero() {
+		toPtr = &to
+	}
+	if (fromPtr == nil) != (toPtr == nil) {
+		return nil, nil, badRequest("from_timestamp and to_timestamp must both be set or both be unset")
+	}
+	return fromPtr, toPtr, nil
+}
+
+func buildAddressTxsBody(
+	rows []database.AddressTx,
+	hasMore bool,
+	direction database.Direction,
+	cursor *string,
+) (humatypes.AddressTxsBody, error) {
+	body := humatypes.AddressTxsBody{AddressTxs: rows}
+	if len(rows) == 0 {
+		return body, nil
 	}
 
-	if len(*addressTxs) > 0 {
-		rows := *addressTxs
-		newest := rows[0]
-		oldest := rows[len(rows)-1]
-		newestCur, err := makeTxCursor(newest.BlockHeight, newest.Hash)
-		if err != nil {
-			return nil, internalError("GetAddressTxs.makeTxCursor", err)
-		}
-		oldestCur, err := makeTxCursor(oldest.BlockHeight, oldest.Hash)
-		if err != nil {
-			return nil, internalError("GetAddressTxs.makeTxCursor", err)
-		}
+	newestCur, err := makeTxCursor(rows[0].BlockHeight, rows[0].Hash)
+	if err != nil {
+		return body, internalError("GetAddressTxs.makeTxCursor", err)
+	}
+	oldestCur, err := makeTxCursor(rows[len(rows)-1].BlockHeight, rows[len(rows)-1].Hash)
+	if err != nil {
+		return body, internalError("GetAddressTxs.makeTxCursor", err)
+	}
 
-		switch direction {
-		case database.Next:
-			body.HasNext = hasMore
-			if hasMore {
-				body.NextCursor = &oldestCur
-			}
-			if cursor != nil {
-				body.HasPrev = true
-				body.PrevCursor = &newestCur
-			}
-		case database.Prev:
-			body.HasPrev = hasMore
-			if hasMore {
-				body.PrevCursor = &newestCur
-			}
-			body.HasNext = true
+	switch direction {
+	case database.Next:
+		body.HasNext = hasMore
+		if hasMore {
 			body.NextCursor = &oldestCur
 		}
+		if cursor != nil {
+			body.HasPrev = true
+			body.PrevCursor = &newestCur
+		}
+	case database.Prev:
+		body.HasPrev = hasMore
+		if hasMore {
+			body.PrevCursor = &newestCur
+		}
+		body.HasNext = true
+		body.NextCursor = &oldestCur
 	}
-
-	return &humatypes.AddressGetOutput{
-		Body: body,
-	}, nil
+	return body, nil
 }
