@@ -65,6 +65,17 @@ func NewTimescaleDbSetup(config DatabasePoolConfig) *TimescaleDb {
 	}
 }
 
+// quoteDSNValue escapes a value for the libpq keyword=value DSN format.
+// Per libpq rules, the value is wrapped in single quotes with backslashes and
+// single quotes backslash-escaped, so credentials or cert paths containing
+// spaces, quotes, or backslashes are parsed as a single value rather than
+// breaking the connection string.
+func quoteDSNValue(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `'`, `\'`)
+	return "'" + value + "'"
+}
+
 // buildDSN constructs a libpq keyword=value connection string from config.
 // SSL cert fields are appended only when non-empty so that modes like
 // "require" or "disable" work without any cert files on disk.
@@ -74,20 +85,21 @@ func buildDSN(config DatabasePoolConfig) string {
 			" pool_max_conns=%d pool_min_conns=%d pool_max_conn_lifetime=%s"+
 			" pool_max_conn_idle_time=%s pool_health_check_period=%s"+
 			" pool_max_conn_lifetime_jitter=%s",
-		config.Host, config.Port, config.User, config.Password,
-		config.Dbname, config.Sslmode,
+		quoteDSNValue(config.Host), config.Port, quoteDSNValue(config.User),
+		quoteDSNValue(config.Password), quoteDSNValue(config.Dbname),
+		quoteDSNValue(config.Sslmode),
 		config.PoolMaxConns, config.PoolMinConns, config.PoolMaxConnLifetime,
 		config.PoolMaxConnIdleTime, config.PoolHealthCheckPeriod,
 		config.PoolMaxConnLifetimeJitter,
 	)
 	if config.SslRootCert != "" {
-		dsn += fmt.Sprintf(" sslrootcert=%s", config.SslRootCert)
+		dsn += fmt.Sprintf(" sslrootcert=%s", quoteDSNValue(config.SslRootCert))
 	}
 	if config.SslCert != "" {
-		dsn += fmt.Sprintf(" sslcert=%s", config.SslCert)
+		dsn += fmt.Sprintf(" sslcert=%s", quoteDSNValue(config.SslCert))
 	}
 	if config.SslKey != "" {
-		dsn += fmt.Sprintf(" sslkey=%s", config.SslKey)
+		dsn += fmt.Sprintf(" sslkey=%s", quoteDSNValue(config.SslKey))
 	}
 	return dsn
 }
