@@ -311,7 +311,10 @@ func (t *TimescaleDb) GetAvgBlockProdTime(ctx context.Context, chainName string)
 	var heightDiff uint64
 	var tEnd, tStart time.Time
 	if err := row.Scan(&heightDiff, &tEnd, &tStart); err != nil {
-		return 0, fmt.Errorf("not enough block data to compute average block time for chain %q", chainName)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, fmt.Errorf("not enough block data to compute average block time for chain %q", chainName)
+		}
+		return 0, fmt.Errorf("querying average block time for chain %q: %w", chainName, err)
 	}
 	if heightDiff == 0 {
 		return 0, fmt.Errorf("not enough block data to compute average block time for chain %q", chainName)
