@@ -49,10 +49,14 @@ func (dm *DecodedMsg) GetBasicData() BasicTxData {
 // Returns:
 //   - []string: the message types of the decoded message
 func (dm *DecodedMsg) GetMsgTypes() []string {
+	msgSet := make(map[string]struct{})
 	msgTypes := make([]string, 0, len(dm.Msgs))
 	for _, msg := range dm.Msgs {
 		if entry, ok := lookup(msg); ok {
-			msgTypes = append(msgTypes, entry.typeName)
+			if _, ok := msgSet[entry.typeName]; !ok {
+				msgTypes = append(msgTypes, entry.typeName)
+				msgSet[entry.typeName] = struct{}{}
+			}
 		}
 	}
 	return msgTypes
