@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -88,6 +89,28 @@ func coinsToAmounts(coins std.Coins) []s.Amount {
 	return amounts
 }
 
+// sanitizeUTF8 replaces any invalid UTF-8 byte sequences in s with the Unicode
+// replacement character.
+//
+// For some reason there is a possibility that some VM arguments can be an invalid UTF-8
+// char so the database might not be able to insert the data.
+// So for safety all of string related data in the VM messages will use this function.
+func sanitizeUTF8(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+	return strings.ToValidUTF8(s, "�")
+}
+
+// sanitizeUTF8Slice applies sanitizeUTF8 to each element of a string slice.
+func sanitizeUTF8Slice(strs []string) []string {
+	out := make([]string, len(strs))
+	for i, str := range strs {
+		out[i] = sanitizeUTF8(str)
+	}
+	return out
+}
+
 func init() {
 	register("bank_msg_send",
 		func(m bank.MsgSend) []string {
@@ -159,9 +182,9 @@ func init() {
 				ChainName:      c.chainName,
 				Caller:         c.resolver.GetAddress(m.Caller.String()),
 				Send:           coinsToAmounts(m.Send),
-				PkgPath:        m.PkgPath,
-				FuncName:       m.Func,
-				Args:           strings.Join(m.Args, ","),
+				PkgPath:        sanitizeUTF8(m.PkgPath),
+				FuncName:       sanitizeUTF8(m.Func),
+				Args:           sanitizeUTF8(strings.Join(m.Args, ",")),
 				MaxDeposit:     coinsToAmounts(m.MaxDeposit),
 				Signers:        c.signerIds,
 				Timestamp:      c.timestamp,
@@ -179,10 +202,10 @@ func init() {
 				MessageCounter: c.messageCounter,
 				ChainName:      c.chainName,
 				Creator:        c.resolver.GetAddress(m.Creator.String()),
-				PkgPath:        m.Package.Path,
-				PkgName:        m.Package.Name,
+				PkgPath:        sanitizeUTF8(m.Package.Path),
+				PkgName:        sanitizeUTF8(m.Package.Name),
 				Send:           coinsToAmounts(m.Send),
-				PkgFileNames:   m.Package.FileNames(),
+				PkgFileNames:   sanitizeUTF8Slice(m.Package.FileNames()),
 				MaxDeposit:     coinsToAmounts(m.MaxDeposit),
 				Signers:        c.signerIds,
 				Timestamp:      c.timestamp,
@@ -200,9 +223,9 @@ func init() {
 				MessageCounter: c.messageCounter,
 				ChainName:      c.chainName,
 				Caller:         c.resolver.GetAddress(m.Caller.String()),
-				PkgPath:        m.Package.Path,
-				PkgName:        m.Package.Name,
-				PkgFileNames:   m.Package.FileNames(),
+				PkgPath:        sanitizeUTF8(m.Package.Path),
+				PkgName:        sanitizeUTF8(m.Package.Name),
+				PkgFileNames:   sanitizeUTF8Slice(m.Package.FileNames()),
 				Send:           coinsToAmounts(m.Send),
 				MaxDeposit:     coinsToAmounts(m.MaxDeposit),
 				Signers:        c.signerIds,
