@@ -375,7 +375,7 @@ func (t *TimescaleDb) GetValidatorSigning24h(
     coalesce(
         round(
             coalesce(
-                sum(vsc.blocks_signed), 0)::numeric / nullif(sum(bc.block_count), 0) * 100, 2), 0
+                sum(vsc.blocks_signed), 0)::numeric / nullif(tb.count, 0) * 100, 2), 0
             ) AS signing_rate_pct
 	FROM validator_signing_counter vsc
 	CROSS JOIN total_blocks tb
@@ -430,18 +430,18 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 
 	query2 := fmt.Sprintf(`
 	SELECT
-	time_bucket_gapfill('1 hour', vsc.time_bucket) as time,
+	time_bucket_gapfill('1 hour', bc.time_bucket) as time,
 	coalesce(sum(vsc.blocks_signed), 0) as blocks_signed,
 	coalesce(sum(bc.block_count), 0) - coalesce(sum(vsc.blocks_signed), 0) as blocks_not_signed,
 	coalesce(sum(bc.block_count), 0) as total_blocks,
 	coalesce(round(coalesce(sum(vsc.blocks_signed), 0)::numeric / nullif(sum(bc.block_count), 0) * 100, 2), 0) as signing_rate_pct
-	FROM validator_signing_counter vsc
-	LEFT JOIN block_counter bc
-		ON  bc.time_bucket = vsc.time_bucket
-		AND bc.chain_name  = vsc.chain_name
-	WHERE vsc.chain_name    = $1
-		AND vsc.validator_id  = $2
-		AND vsc.time_bucket >= $3 AND vsc.time_bucket <= $4
+	FROM block_counter bc
+	LEFT JOIN validator_signing_counter vsc
+		ON  vsc.time_bucket = bc.time_bucket
+		AND vsc.chain_name  = bc.chain_name
+		AND vsc.validator_id = $2
+	WHERE bc.chain_name = $1
+		AND bc.time_bucket >= $3 AND bc.time_bucket <= $4
 	GROUP BY 1
 	ORDER BY time %s
 	`, sortOrder.SQL())
@@ -488,7 +488,7 @@ func (t *TimescaleDb) GetAllValidatorSigning24h(
        coalesce(
            round(
                coalesce(
-                   sum(vsc.blocks_signed), 0)::numeric / nullif(sum(bc.block_count), 0) * 100, 2), 0
+                   sum(vsc.blocks_signed), 0)::numeric / nullif(tb.count, 0) * 100, 2), 0
                ) AS signing_rate
 	FROM validator_signing_counter vsc
 	CROSS JOIN total_blocks tb
