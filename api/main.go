@@ -30,6 +30,7 @@ func init() {
 	rootCmd.PersistentFlags().StringP("key-file", "k", "", "key file path")
 
 	rootCmd.AddCommand(keyCmd)
+	rootCmd.AddCommand(healthcheckCmd)
 }
 
 func main() {

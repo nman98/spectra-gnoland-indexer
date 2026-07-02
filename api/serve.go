@@ -26,6 +26,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func serveHealthCheck(
+	mux *chi.Mux,
+) {
+	mux.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("OK")); err != nil {
+			// It should never happen, but if it does, log and return an error
+			log.Printf("Error writing response: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("Error writing response"))
+			return
+		}
+	})
+}
+
 func runServe(cmd *cobra.Command, args []string) {
 	var configPath string
 	var err error
@@ -61,7 +76,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	mux.Use(txHashNormalizer) // must precede CleanPath so leading '/' in hash is encoded first
 	mux.Use(middleware.CleanPath)
 	mux.Use(middleware.Compress(5, "application/json", "application/problem+json"))
-	mux.Use(middleware.Heartbeat("/"))
+	mux.Use(middleware.Heartbeat("/ping"))
 
 	corsOptions := cors.Options{
 		AllowedOrigins: conf.CorsAllowedOrigins,
@@ -194,6 +209,8 @@ func runServe(cmd *cobra.Command, args []string) {
 			return
 		}
 	})
+	// serve health check that won't be visible on the ui
+	serveHealthCheck(mux)
 
 	v1Group := huma.NewGroup(api, "/v1")
 	routes.RegisterBlocksRoutes(v1Group, blocksHandler, inMemoryHandler)
