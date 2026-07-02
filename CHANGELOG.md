@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-07-02
+
+### Added
+
+- Feat(api): add cmd and route to make a health check [0ca33b9](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/0ca33b96bc4a9701a914fd7e1f79a2f7c26bc334)
+
+### Fixed
+
+- Fix(pkgs/database): fix miscalculation of validator signing percentage [2b9c98f](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/2b9c98f29e9dc506cc223aaf2f73a306d58411e1)
+- Fix(indexer): some VM messages contain unsupported chars [f076d34](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f076d34d7cbbc1ddfcc3f89250d3ff19bdcb289f)
+- Fix(indexer): decoder returns duplicate message types [c088191](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c088191e4ef3aa0ffd7da33f7198ce8d191b6452)
+
 ## [0.7.2] - 2026-06-30
 
 This version does include some minor fixes, some caused by the overall change of the database schema.
